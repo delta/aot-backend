@@ -68,7 +68,7 @@
 10. Run:
 
     ```bash
-    cargo watch -x run
+    cargo watch -i logs -x run
     ```
 
     to start the server with hot reload, otherwise
