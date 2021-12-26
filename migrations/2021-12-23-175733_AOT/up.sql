@@ -85,7 +85,7 @@ CREATE TABLE public.attack_type (
 );
 
 CREATE TABLE public.attacker_path (
-	id serial NOT NULL,
+	id INTEGER NOT NULL,
 	y_coord serial NOT NULL,
 	x_coord serial NOT NULL,
 	is_emp BOOLEAN NOT NULL,

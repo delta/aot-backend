@@ -33,6 +33,7 @@ pub struct NewAttackerPath<'a> {
     pub y_coord: &'a i32,
     pub x_coord: &'a i32,
     pub is_emp: &'a bool,
+    pub game_id: &'a i32,
     pub emp_type: &'a i32,
     pub emp_time: &'a i32,
 }
@@ -68,6 +69,9 @@ pub struct Game {
 #[derive(Insertable)]
 #[table_name = "game"]
 pub struct NewGame<'a> {
+    pub attack_id: &'a i32,
+    pub defend_id: &'a i32,
+    pub map_layout_id: &'a i32,
     pub attack_score: &'a i32,
     pub defend_score: &'a i32,
 }
@@ -97,13 +101,14 @@ pub struct MapLayout {
 #[table_name = "map_layout"]
 pub struct NewMapLayout<'a> {
     pub player: &'a i32,
+    pub level_id: &'a i32,
 }
 
 #[derive(Queryable)]
 pub struct MapSpaces {
     pub id: i32,
     pub map_id: i32,
-    pub blk_id: i32,
+    pub blk_type: i32,
     pub x_coordinate: i32,
     pub y_coordinate: i32,
 }
@@ -111,8 +116,10 @@ pub struct MapSpaces {
 #[derive(Insertable)]
 #[table_name = "map_spaces"]
 pub struct NewMapSpaces<'a> {
-    pub y_coordinate: &'a i32,
+    pub map_id: &'a i32,
+    pub blk_type: &'a i32,
     pub x_coordinate: &'a i32,
+    pub y_coordinate: &'a i32,
 }
 
 #[derive(Queryable)]
@@ -128,6 +135,7 @@ pub struct ShortestPath {
 #[derive(Insertable)]
 #[table_name = "shortest_path"]
 pub struct NewShortestPath<'a> {
+    pub base_id: &'a i32,
     pub source_x: &'a i32,
     pub source_y: &'a i32,
     pub dest_x: &'a i32,
