@@ -3,7 +3,7 @@
 CREATE TABLE public.user (
 	id serial NOT NULL,
 	name VARCHAR(255) NOT NULL,
-	email VARCHAR(255) NOT NULL,
+	email VARCHAR(255) NOT NULL UNIQUE,
 	phone VARCHAR(255) NOT NULL UNIQUE,
 	username VARCHAR(255) NOT NULL UNIQUE,
 	overall_rating INTEGER NOT NULL,
@@ -16,9 +16,9 @@ CREATE TABLE public.user (
 );
 
 CREATE TABLE public.levels_fixture (
-	id serial NOT NULL,
-	start_date serial NOT NULL,
-	end_date serial NOT NULL,
+	id INTEGER NOT NULL,
+	start_date INTEGER NOT NULL,
+	end_date INTEGER NOT NULL,
 	CONSTRAINT levels_fixture_pk PRIMARY KEY (id)
 ) WITH (
   OIDS=FALSE
@@ -40,7 +40,7 @@ CREATE TABLE public.game (
 	attack_id serial NOT NULL,
 	defend_id serial NOT NULL,
 	map_layout_id serial NOT NULL,
-	attack_Score INTEGER NOT NULL,
+	attack_score INTEGER NOT NULL,
 	defend_score INTEGER NOT NULL,
 	CONSTRAINT game_pk PRIMARY KEY (id),
     CONSTRAINT game_fk0 FOREIGN KEY (attack_id) REFERENCES public.user(id),
@@ -107,7 +107,7 @@ CREATE TABLE public.shortest_path (
 	source_y INTEGER NOT NULL,
 	dest_x INTEGER NOT NULL,
 	dest_y INTEGER NOT NULL,
-	pathlist VARCHAR(255) NOT NULL,
+	pathlist VARCHAR(1000) NOT NULL,
 	CONSTRAINT ShortestPath_pk PRIMARY KEY (base_id,source_x,source_y,dest_x,dest_y),
     CONSTRAINT ShortestPath_fk0 FOREIGN KEY (base_id) REFERENCES public.map_layout(id)
 ) WITH (
