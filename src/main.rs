@@ -6,6 +6,11 @@ use flexi_logger::{Cleanup, Criterion, Duplicate, FileSpec, Naming};
 use crate::api::{attack, auth, defense, stats};
 
 mod api;
+pub mod models;
+pub mod schema;
+
+#[macro_use]
+extern crate diesel;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
