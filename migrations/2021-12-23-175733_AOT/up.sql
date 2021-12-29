@@ -17,8 +17,8 @@ CREATE TABLE public.user (
 
 CREATE TABLE public.levels_fixture (
 	id INTEGER NOT NULL,
-	start_date INTEGER NOT NULL,
-	end_date INTEGER NOT NULL,
+	start_date DATE NOT NULL,
+	end_date DATE NOT NULL,
 	CONSTRAINT levels_fixture_pk PRIMARY KEY (id)
 ) WITH (
   OIDS=FALSE
@@ -55,7 +55,7 @@ CREATE TABLE public.block_type (
 	name VARCHAR(255) NOT NULL,
 	width serial NOT NULL,
 	height serial NOT NULL,
-	revenue INTEGER NOT NULL,
+	weight INTEGER NOT NULL,
 	CONSTRAINT block_type_pk PRIMARY KEY (id)
 ) WITH (
   OIDS=FALSE

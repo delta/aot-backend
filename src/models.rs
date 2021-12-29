@@ -1,4 +1,5 @@
 use super::schema::*;
+use chrono::NaiveDate;
 
 #[derive(Queryable)]
 pub struct AttackType {
@@ -44,7 +45,7 @@ pub struct BlockType {
     pub name: String,
     pub width: i32,
     pub height: i32,
-    pub revenue: i32,
+    pub weight: i32,
 }
 
 #[derive(Insertable)]
@@ -53,7 +54,7 @@ pub struct NewBlockType<'a> {
     pub name: &'a str,
     pub width: &'a i32,
     pub height: &'a i32,
-    pub revenue: &'a i32,
+    pub weight: &'a i32,
 }
 
 #[derive(Queryable)]
@@ -79,15 +80,15 @@ pub struct NewGame<'a> {
 #[derive(Queryable)]
 pub struct LevelsFixture {
     pub id: i32,
-    pub start_date: i32,
-    pub end_date: i32,
+    pub start_date: NaiveDate,
+    pub end_date: NaiveDate,
 }
 
 #[derive(Insertable)]
 #[table_name = "levels_fixture"]
 pub struct NewLevelFixture<'a> {
-    pub start_date: &'a i32,
-    pub end_date: &'a i32,
+    pub start_date: &'a NaiveDate,
+    pub end_date: &'a NaiveDate,
 }
 
 #[derive(Queryable)]

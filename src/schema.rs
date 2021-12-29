@@ -25,7 +25,7 @@ table! {
         name -> Varchar,
         width -> Int4,
         height -> Int4,
-        revenue -> Int4,
+        weight -> Int4,
     }
 }
 
@@ -43,8 +43,8 @@ table! {
 table! {
     levels_fixture (id) {
         id -> Int4,
-        start_date -> Int4,
-        end_date -> Int4,
+        start_date -> Date,
+        end_date -> Date,
     }
 }
 
