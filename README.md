@@ -76,3 +76,11 @@
     ```bash
     cargo run
     ```
+
+Seed the dummy data using:
+
+```bash
+psql -U aot --set ON_ERROR_STOP=on < dummy_data.sql
+```
+
+For docker, prefix the above command with ```docker-compose exec -T db```
