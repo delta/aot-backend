@@ -45,7 +45,6 @@ pub struct BlockType {
     pub name: String,
     pub width: i32,
     pub height: i32,
-    pub weight: i32,
     pub entrance_x: i32,
     pub entrance_y: i32,
 }
@@ -56,9 +55,23 @@ pub struct NewBlockType<'a> {
     pub name: &'a str,
     pub width: &'a i32,
     pub height: &'a i32,
-    pub weight: &'a i32,
     pub entrance_x: &'a i32,
     pub entrance_y: &'a i32,
+}
+
+#[derive(Queryable)]
+pub struct BuildingWeights {
+    pub time: i32,
+    pub building_id: i32,
+    pub weight: i32,
+}
+
+#[derive(Insertable)]
+#[table_name = "building_weights"]
+pub struct NewBuildingWeights<'a> {
+    pub time: &'a i32,
+    pub building_id: &'a i32,
+    pub weight: &'a i32,
 }
 
 #[derive(Queryable)]

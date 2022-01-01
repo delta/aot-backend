@@ -18,3 +18,8 @@ DROP COLUMN no_of_bombs;
 ALTER TABLE attacker_path
 ALTER COLUMN emp_type SET NOT NULL,
 ALTER COLUMN emp_time SET NOT NULL;
+
+DROP TABLE public.building_weights;
+
+ALTER TABLE block_type
+ADD COLUMN weight INTEGER;

@@ -185,11 +185,43 @@ COPY public.attacker_path (id, y_coord, x_coord, is_emp, game_id, emp_type, emp_
 -- Data for Name: block_type; Type: TABLE DATA; Schema: public; Owner: aot
 --
 
-COPY public.block_type (id, name, width, height, weight, entrance_x, entrance_y) FROM stdin;
-4	road	1	1	0	0	0
-1	3x3_wt2	3	3	2	1	0
-2	4x4_wt3	4	4	3	0	2
-3	5x5_wt1	5	5	1	2	0
+COPY public.block_type (id, name, width, height, entrance_x, entrance_y) FROM stdin;
+4	road	1	1	0	0
+1	3x3_wt2	3	3	1	0
+2	4x4_wt3	4	4	0	2
+3	5x5_wt1	5	5	2	0
+\.
+
+
+--
+-- Data for Name: building_weights; Type: TABLE DATA; Schema: public; Owner: aot
+--
+
+COPY public.building_weights ("time", building_id, weight) FROM stdin;
+9	1	20
+10	1	17
+11	1	14
+12	1	11
+13	1	8
+14	1	5
+15	1	2
+16	1	1
+9	2	2
+10	2	6
+11	2	10
+12	2	14
+13	2	18
+14	2	22
+15	2	26
+16	2	30
+9	3	10
+10	3	9
+11	3	8
+12	3	7
+13	3	7
+14	3	8
+15	3	9
+16	3	10
 \.
 
 

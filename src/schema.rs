@@ -25,9 +25,16 @@ table! {
         name -> Varchar,
         width -> Int4,
         height -> Int4,
-        weight -> Int4,
         entrance_x -> Int4,
         entrance_y -> Int4,
+    }
+}
+
+table! {
+    building_weights (time, building_id) {
+        time -> Int4,
+        building_id -> Int4,
+        weight -> Int4,
     }
 }
 
@@ -105,6 +112,7 @@ table! {
 
 joinable!(attacker_path -> attack_type (emp_type));
 joinable!(attacker_path -> game (game_id));
+joinable!(building_weights -> block_type (building_id));
 joinable!(game -> map_layout (map_layout_id));
 joinable!(level_constraints -> block_type (block_id));
 joinable!(level_constraints -> levels_fixture (level_id));
@@ -118,6 +126,7 @@ allow_tables_to_appear_in_same_query!(
     attack_type,
     attacker_path,
     block_type,
+    building_weights,
     game,
     level_constraints,
     levels_fixture,

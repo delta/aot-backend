@@ -53,3 +53,17 @@ ALTER COLUMN no_of_bombs SET NOT NULL;
 ALTER TABLE attacker_path
 ALTER COLUMN emp_type DROP NOT NULL,
 ALTER COLUMN emp_time DROP NOT NULL;
+
+
+CREATE TABLE public.building_weights (
+    time INTEGER NOT NULL,
+    building_id INTEGER NOT NULL,
+    weight INTEGER NOT NULL,
+    CONSTRAINT building_weights_pk PRIMARY KEY (time, building_id),
+    CONSTRAINT building_weights_fk0 FOREIGN KEY (building_id) REFERENCES public.block_type(id)
+) WITH (
+    OIDS=FALSE
+);
+
+ALTER TABLE block_type
+DROP COLUMN weight;
