@@ -4,7 +4,7 @@ use chrono::NaiveDate;
 #[derive(Queryable)]
 pub struct AttackType {
     pub id: i32,
-    pub att_type: i32,
+    pub att_type: String,
     pub attack_radius: i32,
     pub attack_damage: i32,
 }
@@ -12,7 +12,7 @@ pub struct AttackType {
 #[derive(Insertable)]
 #[table_name = "attack_type"]
 pub struct NewAttackType<'a> {
-    pub att_type: &'a i32,
+    pub att_type: &'a str,
     pub attack_radius: &'a i32,
     pub attack_damage: &'a i32,
 }
@@ -24,8 +24,8 @@ pub struct AttackerPath {
     pub x_coord: i32,
     pub is_emp: bool,
     pub game_id: i32,
-    pub emp_type: i32,
-    pub emp_time: i32,
+    pub emp_type: Option<i32>,
+    pub emp_time: Option<i32>,
 }
 
 #[derive(Insertable)]
@@ -35,8 +35,8 @@ pub struct NewAttackerPath<'a> {
     pub x_coord: &'a i32,
     pub is_emp: &'a bool,
     pub game_id: &'a i32,
-    pub emp_type: &'a i32,
-    pub emp_time: &'a i32,
+    pub emp_type: Option<&'a i32>,
+    pub emp_time: Option<&'a i32>,
 }
 
 #[derive(Queryable)]
@@ -46,6 +46,8 @@ pub struct BlockType {
     pub width: i32,
     pub height: i32,
     pub weight: i32,
+    pub entrance_x: i32,
+    pub entrance_y: i32,
 }
 
 #[derive(Insertable)]
@@ -55,6 +57,8 @@ pub struct NewBlockType<'a> {
     pub width: &'a i32,
     pub height: &'a i32,
     pub weight: &'a i32,
+    pub entrance_x: &'a i32,
+    pub entrance_y: &'a i32,
 }
 
 #[derive(Queryable)]
@@ -82,6 +86,7 @@ pub struct LevelsFixture {
     pub id: i32,
     pub start_date: NaiveDate,
     pub end_date: NaiveDate,
+    pub no_of_bombs: i32,
 }
 
 #[derive(Insertable)]
@@ -89,6 +94,22 @@ pub struct LevelsFixture {
 pub struct NewLevelFixture<'a> {
     pub start_date: &'a NaiveDate,
     pub end_date: &'a NaiveDate,
+    pub no_of_bombs: &'a i32,
+}
+
+#[derive(Queryable)]
+pub struct LevelConstraints {
+    pub level_id: i32,
+    pub block_id: i32,
+    pub no_of_buildings: i32,
+}
+
+#[derive(Insertable)]
+#[table_name = "level_constraints"]
+pub struct NewLevelConstraint<'a> {
+    pub level_id: &'a i32,
+    pub block_id: &'a i32,
+    pub no_of_buildings: &'a i32,
 }
 
 #[derive(Queryable)]
@@ -112,6 +133,7 @@ pub struct MapSpaces {
     pub blk_type: i32,
     pub x_coordinate: i32,
     pub y_coordinate: i32,
+    pub rotation: i32,
 }
 
 #[derive(Insertable)]
@@ -121,6 +143,7 @@ pub struct NewMapSpaces<'a> {
     pub blk_type: &'a i32,
     pub x_coordinate: &'a i32,
     pub y_coordinate: &'a i32,
+    pub rotation: &'a i32,
 }
 
 #[derive(Queryable)]

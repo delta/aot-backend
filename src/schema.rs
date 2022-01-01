@@ -1,7 +1,7 @@
 table! {
     attack_type (id) {
         id -> Int4,
-        att_type -> Int4,
+        att_type -> Varchar,
         attack_radius -> Int4,
         attack_damage -> Int4,
     }
@@ -14,8 +14,8 @@ table! {
         x_coord -> Int4,
         is_emp -> Bool,
         game_id -> Int4,
-        emp_type -> Int4,
-        emp_time -> Int4,
+        emp_type -> Nullable<Int4>,
+        emp_time -> Nullable<Int4>,
     }
 }
 
@@ -26,6 +26,8 @@ table! {
         width -> Int4,
         height -> Int4,
         weight -> Int4,
+        entrance_x -> Int4,
+        entrance_y -> Int4,
     }
 }
 
@@ -41,10 +43,19 @@ table! {
 }
 
 table! {
+    level_constraints (level_id, block_id) {
+        level_id -> Int4,
+        block_id -> Int4,
+        no_of_buildings -> Int4,
+    }
+}
+
+table! {
     levels_fixture (id) {
         id -> Int4,
         start_date -> Date,
         end_date -> Date,
+        no_of_bombs -> Int4,
     }
 }
 
@@ -63,6 +74,7 @@ table! {
         blk_type -> Int4,
         x_coordinate -> Int4,
         y_coordinate -> Int4,
+        rotation -> Int4,
     }
 }
 
@@ -94,6 +106,8 @@ table! {
 joinable!(attacker_path -> attack_type (emp_type));
 joinable!(attacker_path -> game (game_id));
 joinable!(game -> map_layout (map_layout_id));
+joinable!(level_constraints -> block_type (block_id));
+joinable!(level_constraints -> levels_fixture (level_id));
 joinable!(map_layout -> levels_fixture (level_id));
 joinable!(map_layout -> user (player));
 joinable!(map_spaces -> block_type (blk_type));
@@ -105,6 +119,7 @@ allow_tables_to_appear_in_same_query!(
     attacker_path,
     block_type,
     game,
+    level_constraints,
     levels_fixture,
     map_layout,
     map_spaces,
