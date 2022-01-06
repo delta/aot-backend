@@ -1,3 +1,4 @@
+use attacker::Attacker;
 use blocks::BuildingsManager;
 use diesel::prelude::*;
 use robots::RobotsManager;
@@ -23,10 +24,17 @@ fn simulate(game_id: i32) {
 
     let mut buildings_manager = BuildingsManager::new(conn, map_id);
     let mut robots_manager = RobotsManager::new();
+    let mut attacker = Attacker::new(conn, game_id);
     let emps = emp::get_emps(conn, game_id);
 
     for time in 1..GAME_TIME {
-        emp::blast_emp(time, &emps, &mut robots_manager, &mut buildings_manager);
+        emp::blast_emp(
+            time,
+            &emps,
+            &mut robots_manager,
+            &mut buildings_manager,
+            &mut attacker,
+        );
         buildings_manager.revive_buildings(time);
         todo!("Implement robot functions, return results")
     }

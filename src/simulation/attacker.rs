@@ -3,13 +3,13 @@ use diesel::prelude::*;
 use diesel::{PgConnection, QueryDsl};
 
 pub struct Attacker {
-    health: u32,
+    is_alive: bool,
     path: Vec<AttackerPath>,
 }
 
 impl Attacker {
     pub fn update_position(&mut self) {
-        if self.health > 0 && self.path.len() > 1 {
+        if self.is_alive && self.path.len() > 1 {
             self.path.pop();
         }
     }
@@ -21,24 +21,20 @@ impl Attacker {
         }
     }
 
-    pub fn take_damage(&mut self, damage: u32) {
-        if self.health > damage {
-            self.health -= damage;
-        } else {
-            self.health = 0;
-        }
+    pub fn kill(&mut self) {
+        self.is_alive = false;
     }
 
     pub fn new(conn: &PgConnection, game_id: i32) -> Self {
         use crate::schema::attacker_path;
-        let results = attacker_path::table
+        let path = attacker_path::table
             .filter(attacker_path::game_id.eq(game_id))
             .order_by(attacker_path::id.desc())
             .load::<AttackerPath>(conn)
             .expect("Couldn't get attacker path");
         Self {
-            health: 100,
-            path: results,
+            is_alive: true,
+            path,
         }
     }
 }

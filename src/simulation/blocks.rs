@@ -1,9 +1,14 @@
+use super::robots::Robot;
 use crate::models::{BlockType, MapSpaces, ShortestPath};
+use chrono::{Duration, NaiveTime, Timelike};
 use diesel::prelude::*;
 use diesel::{PgConnection, QueryDsl};
+use rand::distributions::WeightedIndex;
+use rand::prelude::*;
 use std::collections::{HashMap, HashSet};
 
 const EMP_TIMEOUT: i32 = 5;
+const GAME_MINUTES_PER_FRAME: i32 = 2;
 
 #[derive(Debug)]
 struct BuildingType {
@@ -223,6 +228,7 @@ impl BuildingsManager {
 }
 
 // Methods
+#[allow(dead_code)]
 impl BuildingsManager {
     pub fn damage_building(&mut self, time: i32, building_id: i32) {
         let BuildingsManager {
@@ -255,5 +261,82 @@ impl BuildingsManager {
             }
         }
         impacted_buildings.remove(&time);
+    }
+
+    fn get_adjusted_weight(distance: &usize, weight: &i32) -> f32 {
+        *weight as f32 / *distance as f32
+    }
+
+    fn choose_weighted(choices: &[i32], weights: &[f32]) -> i32 {
+        let dist = WeightedIndex::new(weights).unwrap();
+        let mut rng = thread_rng();
+        choices[dist.sample(&mut rng)]
+    }
+
+    fn get_hour(time: i32) -> i32 {
+        NaiveTime::from_hms(9, 0, 0)
+            .overflowing_add_signed(Duration::minutes((GAME_MINUTES_PER_FRAME * time) as i64))
+            .0
+            .hour() as i32
+    }
+
+    // get id of building using weighted random given starting co-ordinate
+    fn get_weighted_random_building(&self, x: i32, y: i32, time: i32) -> i32 {
+        let mut choices = vec![];
+        let mut weights = vec![];
+
+        for building in self.buildings.values() {
+            if building.absolute_entrance_x == x && building.absolute_entrance_y == y {
+                continue;
+            }
+            let shortest_path_length = match self.shortest_paths.get(&SourceDest {
+                source_x: x,
+                source_y: y,
+                dest_x: building.absolute_entrance_x,
+                dest_y: building.absolute_entrance_y,
+            }) {
+                Some(v) => v.len(),
+                None => panic!("shortest path not found"),
+            };
+            let weight = self
+                .building_types
+                .get(&building.map_space.blk_type)
+                .expect("Couldn't get block type")
+                .weights
+                .get(&BuildingsManager::get_hour(time))
+                .expect("Couldn't get weight at time");
+            let adjusted_weight =
+                BuildingsManager::get_adjusted_weight(&shortest_path_length, weight);
+            choices.push(building.map_space.id);
+            weights.push(adjusted_weight);
+        }
+        BuildingsManager::choose_weighted(&choices, &weights)
+    }
+
+    pub fn assign_building(&self, robot: &mut Robot, time: i32) {
+        let destination_id =
+            self.get_weighted_random_building(robot.x_position, robot.y_position, time);
+        robot.destination = destination_id;
+    }
+
+    pub fn assign_initial_buildings(&self, robots: &mut HashMap<i32, Robot>, time: i32) {
+        let mut weights = vec![];
+        let mut choices = vec![];
+        for building in self.buildings.values() {
+            let weight = self
+                .building_types
+                .get(&building.map_space.blk_type)
+                .expect("Couldn't get block type")
+                .weights
+                .get(&BuildingsManager::get_hour(time))
+                .expect("Couldn't get weight at time");
+            weights.push(weight);
+            choices.push(building.map_space.id);
+        }
+        let dist = WeightedIndex::new(weights).unwrap();
+        let mut rng = thread_rng();
+        for robot in robots.values_mut() {
+            robot.destination = choices[dist.sample(&mut rng)];
+        }
     }
 }

@@ -5,6 +5,7 @@ use crate::simulation::robots::RobotsManager;
 use diesel::prelude::*;
 use diesel::{PgConnection, QueryDsl};
 
+use crate::simulation::attacker::Attacker;
 use std::collections::HashMap;
 
 #[derive(Debug)]
@@ -53,10 +54,18 @@ pub fn blast_emp(
     emps: &HashMap<i32, Emp>,
     robots_manager: &mut RobotsManager,
     buildings_manager: &mut BuildingsManager,
+    attacker: &mut Attacker,
 ) {
     if emps.contains_key(&time) {
         let emp = emps.get(&time).unwrap();
         let radius = emp.radius;
+
+        let (attacker_x, attacker_y) = attacker.get_current_position();
+        let attacker_distance =
+            (attacker_x - emp.x_coord).pow(2) + (attacker_y - emp.y_coord).pow(2);
+        if attacker_distance <= radius.pow(2) {
+            attacker.kill();
+        }
 
         for x in emp.x_coord - radius..=emp.x_coord + radius {
             for y in emp.y_coord - radius..=emp.y_coord + radius {
