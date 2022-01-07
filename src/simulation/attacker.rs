@@ -14,6 +14,10 @@ impl Attacker {
         }
     }
 
+    pub fn is_planted(&self, path_id: i32) -> bool {
+        self.path.last().unwrap().id >= path_id
+    }
+
     pub fn get_current_position(&self) -> (i32, i32) {
         match self.path.last() {
             Some(attacker_path) => (attacker_path.x_coord, attacker_path.y_coord),

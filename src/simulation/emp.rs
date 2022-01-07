@@ -10,6 +10,7 @@ use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct Emp {
+    path_id: i32,
     x_coord: i32,
     y_coord: i32,
     radius: i32,
@@ -39,6 +40,7 @@ pub fn get_emps(conn: &PgConnection, game_id: i32) -> HashMap<i32, Emp> {
             (
                 path.emp_time.unwrap(),
                 Emp {
+                    path_id: path.id,
                     x_coord: path.x_coord,
                     y_coord: path.y_coord,
                     radius: emp_type.attack_radius,
@@ -58,6 +60,9 @@ pub fn blast_emp(
 ) {
     if emps.contains_key(&time) {
         let emp = emps.get(&time).unwrap();
+        if !attacker.is_planted(emp.path_id) {
+            return;
+        }
         let radius = emp.radius;
 
         let (attacker_x, attacker_y) = attacker.get_current_position();
