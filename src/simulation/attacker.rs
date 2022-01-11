@@ -3,8 +3,8 @@ use diesel::prelude::*;
 use diesel::{PgConnection, QueryDsl};
 
 pub struct Attacker {
-    is_alive: bool,
-    path: Vec<AttackerPath>,
+    pub is_alive: bool,
+    pub path: Vec<AttackerPath>,
 }
 
 impl Attacker {

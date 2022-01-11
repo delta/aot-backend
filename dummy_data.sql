@@ -69,8 +69,8 @@ COPY public.game (id, attack_id, defend_id, map_layout_id, attack_score, defend_
 --
 
 COPY public.attacker_path (id, y_coord, x_coord, is_emp, game_id, emp_type, emp_time) FROM stdin;
-7	33	6	t	1	3	10
-33	12	11	t	1	2	20
+7	33	6	t	1	3	25
+33	12	11	t	1	2	35
 1	39	6	f	1	\N	\N
 2	38	6	f	1	\N	\N
 3	37	6	f	1	\N	\N
@@ -170,14 +170,14 @@ COPY public.attacker_path (id, y_coord, x_coord, is_emp, game_id, emp_type, emp_
 106	6	30	f	1	\N	\N
 107	6	31	f	1	\N	\N
 108	6	32	f	1	\N	\N
-48	27	11	t	1	2	30
-60	21	17	t	1	1	40
-63	18	17	t	1	1	50
-68	18	22	t	1	1	60
-71	21	22	t	1	1	70
-83	27	28	t	1	2	80
-98	12	28	t	1	2	90
-109	6	33	t	1	3	100
+48	27	11	t	1	2	45
+60	21	17	t	1	1	55
+63	18	17	t	1	1	65
+68	18	22	t	1	1	75
+71	21	22	t	1	1	85
+83	27	28	t	1	2	95
+98	12	28	t	1	2	105
+109	6	33	t	1	3	115
 \.
 
 
@@ -198,30 +198,30 @@ COPY public.block_type (id, name, width, height, entrance_x, entrance_y) FROM st
 --
 
 COPY public.building_weights ("time", building_id, weight) FROM stdin;
-9	1	20
-10	1	17
-11	1	14
-12	1	11
-13	1	8
-14	1	5
-15	1	2
-16	1	1
-9	2	2
-10	2	6
-11	2	10
-12	2	14
-13	2	18
-14	2	22
-15	2	26
-16	2	30
-9	3	10
-10	3	9
-11	3	8
-12	3	7
-13	3	7
-14	3	8
-15	3	9
-16	3	10
+9	1	200
+10	1	170
+11	1	140
+12	1	110
+13	1	80
+14	1	50
+15	1	20
+16	1	10
+9	2	20
+10	2	60
+11	2	100
+12	2	140
+13	2	180
+14	2	220
+15	2	260
+16	2	300
+9	3	100
+10	3	90
+11	3	80
+12	3	70
+13	3	70
+14	3	80
+15	3	90
+16	3	100
 \.
 
 
