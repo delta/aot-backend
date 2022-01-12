@@ -1,6 +1,6 @@
 use crate::models::{AttackType, AttackerPath};
 use crate::simulation::attacker::Attacker;
-use crate::simulation::blocks::BuildingsManager;
+use crate::simulation::blocks::{Building, BuildingsManager};
 use crate::simulation::robots::RobotsManager;
 use diesel::prelude::*;
 use diesel::{PgConnection, QueryDsl};
@@ -77,6 +77,8 @@ impl Emps {
                 attacker.kill();
             }
 
+            let mut affected_buildings: HashSet<i32> = HashSet::new();
+
             for x in emp.x_coord - radius..=emp.x_coord + radius {
                 for y in emp.y_coord - radius..=emp.y_coord + radius {
                     if !(0..40).contains(&x) || !(0..40).contains(&y) {
@@ -87,22 +89,35 @@ impl Emps {
                         return;
                     }
 
-                    let RobotsManager {
-                        robots,
-                        robots_grid,
-                    } = robots_manager;
-                    let robot_ids = &robots_grid[x as usize][y as usize];
                     let building_id = buildings_manager.buildings_grid[x as usize][y as usize];
-
-                    for robot_id in robot_ids {
-                        let robot = robots.get_mut(robot_id).unwrap();
-                        robot.take_damage(emp.damage);
-                        robot.assign_destination(buildings_manager);
-                    }
-
                     if building_id != 0 {
-                        buildings_manager.damage_building(time, building_id);
+                        affected_buildings.insert(building_id);
+                    } else {
+                        // robots on road
+                        robots_manager.reassign_destinations(x, y);
                     }
+                }
+            }
+
+            let RobotsManager {
+                robots,
+                robots_grid,
+            } = robots_manager;
+
+            for building_id in &affected_buildings {
+                buildings_manager.damage_building(time, *building_id);
+                let Building {
+                    absolute_entrance_x,
+                    absolute_entrance_y,
+                    ..
+                } = buildings_manager.buildings[building_id];
+                // robots in affected building
+                let robot_ids =
+                    &robots_grid[absolute_entrance_x as usize][absolute_entrance_y as usize];
+                for robot_id in robot_ids {
+                    let robot = robots.get_mut(robot_id).unwrap();
+                    robot.take_damage(emp.damage);
+                    robot.assign_destination(buildings_manager);
                 }
             }
         }

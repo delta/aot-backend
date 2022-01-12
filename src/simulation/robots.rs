@@ -122,6 +122,12 @@ impl RobotsManager {
         robots
     }
 
+    /// reassign destinations for robots at location x, y
+    pub fn reassign_destinations(&mut self, x: i32, y: i32) {
+        let _robot_ids = &self.robots_grid[x as usize][y as usize];
+        // TODO: assign new buildings after calculating shortest path from current road
+    }
+
     fn get_robots_grid(robots: &HashMap<i32, Robot>) -> Vec<Vec<HashSet<i32>>> {
         let mut grid = vec![vec![HashSet::new()]];
         for robot in robots.values() {

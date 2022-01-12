@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::models::AttackerPath;
 use attacker::Attacker;
 use blocks::BuildingsManager;
