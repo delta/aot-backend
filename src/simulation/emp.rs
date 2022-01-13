@@ -94,30 +94,35 @@ impl Emps {
                         affected_buildings.insert(building_id);
                     } else {
                         // robots on road
-                        robots_manager.reassign_destinations(x, y);
+                        robots_manager.damage_and_reassign_robots(
+                            emp.damage,
+                            x,
+                            y,
+                            buildings_manager,
+                        );
                     }
                 }
             }
 
-            let RobotsManager {
-                robots,
-                robots_grid,
-            } = robots_manager;
-
             for building_id in &affected_buildings {
                 buildings_manager.damage_building(time, *building_id);
                 let Building {
-                    absolute_entrance_x,
-                    absolute_entrance_y,
+                    absolute_entrance_x: x,
+                    absolute_entrance_y: y,
                     ..
                 } = buildings_manager.buildings[building_id];
                 // robots in affected building
-                let robot_ids =
-                    &robots_grid[absolute_entrance_x as usize][absolute_entrance_y as usize];
-                for robot_id in robot_ids {
-                    let robot = robots.get_mut(robot_id).unwrap();
-                    robot.take_damage(emp.damage);
-                    robot.assign_destination(buildings_manager);
+                robots_manager.damage_and_reassign_robots(emp.damage, x, y, buildings_manager);
+                // robots going to affected building
+                let RobotsManager {
+                    robots,
+                    robots_destination,
+                    ..
+                } = robots_manager;
+                let robots_going_to_building = robots_destination.get(building_id).unwrap().clone();
+                for robot_id in robots_going_to_building {
+                    let robot = robots.get_mut(&robot_id).unwrap();
+                    robot.assign_destination(buildings_manager, robots_destination);
                 }
             }
         }

@@ -11,12 +11,13 @@ pub mod blocks;
 pub mod emp;
 pub mod robots;
 
-const GAME_TIME_MINUTES: i32 = 480;
-const REAL_MINUTES_PER_FRAME: i32 = 2;
-const REAL_TIME_SECONDS: i32 = 120;
-const NO_OF_FRAMES: i32 = GAME_TIME_MINUTES / REAL_MINUTES_PER_FRAME;
-const FRAMES_PER_SECOND: i32 = NO_OF_FRAMES / REAL_TIME_SECONDS;
+const GAME_TIME_MINUTES: i32 = 420;
+const GAME_MINUTES_PER_FRAME: i32 = 2;
+const REAL_TIME_SECONDS: i32 = 210;
 const ATTACKER_RESTRICTED_FRAMES: i32 = 30;
+const START_HOUR: i32 = 9;
+const NO_OF_FRAMES: i32 = GAME_TIME_MINUTES / GAME_MINUTES_PER_FRAME;
+const FRAMES_PER_SECOND: i32 = NO_OF_FRAMES / REAL_TIME_SECONDS;
 
 #[derive(Debug)]
 struct RenderAttacker {
@@ -102,6 +103,7 @@ impl Simulator {
         frames_passed > ATTACKER_RESTRICTED_FRAMES
     }
 
+    #[allow(clippy::modulo_one)]
     pub fn is_second(frames_passed: i32) -> bool {
         frames_passed % FRAMES_PER_SECOND == 0
     }
@@ -111,11 +113,11 @@ impl Simulator {
     }
 
     pub fn is_hour(frames_passed: i32) -> bool {
-        Self::get_second(frames_passed) % 60 == 0
+        (frames_passed * GAME_MINUTES_PER_FRAME) % 60 == 0
     }
 
     pub fn get_hour(frames_passed: i32) -> i32 {
-        Self::get_second(frames_passed) / 60
+        START_HOUR + (frames_passed * GAME_MINUTES_PER_FRAME) / 60
     }
 
     pub fn simulate(&mut self) -> RenderSimulation {

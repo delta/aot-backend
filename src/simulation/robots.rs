@@ -19,6 +19,7 @@ pub struct Robot {
 pub struct RobotsManager {
     pub robots: HashMap<i32, Robot>,
     pub robots_grid: Vec<Vec<HashSet<i32>>>,
+    pub robots_destination: HashMap<i32, HashSet<i32>>,
 }
 
 impl Robot {
@@ -47,11 +48,22 @@ impl Robot {
         building.weight += 1;
     }
 
-    pub fn assign_destination(&mut self, buildings_manager: &BuildingsManager) {
+    pub fn assign_destination(
+        &mut self,
+        buildings_manager: &BuildingsManager,
+        robots_destination: &mut HashMap<i32, HashSet<i32>>,
+    ) {
         let destination_id =
             buildings_manager.get_weighted_random_building(self.x_position, self.y_position);
         let destination = buildings_manager.buildings.get(&destination_id).unwrap();
         self.destination = destination_id;
+        robots_destination
+            .entry(destination_id)
+            .or_insert_with(HashSet::new);
+        robots_destination
+            .get_mut(&destination_id)
+            .unwrap()
+            .insert(self.id);
         self.current_path = buildings_manager
             .shortest_paths
             .get(&SourceDest {
@@ -68,6 +80,7 @@ impl Robot {
         &mut self,
         buildings_manager: &mut BuildingsManager,
         robots_grid: &mut Vec<Vec<HashSet<i32>>>,
+        robots_destination: &mut HashMap<i32, HashSet<i32>>,
     ) {
         let Robot {
             x_position,
@@ -92,14 +105,17 @@ impl Robot {
             *stay_in_time -= 1;
             if *stay_in_time == 0 {
                 self.exit_building(buildings_manager);
-                self.assign_destination(buildings_manager);
+                self.assign_destination(buildings_manager, robots_destination);
             }
         }
     }
 }
 
 impl RobotsManager {
-    fn initiate_robots(buildings_manager: &BuildingsManager) -> HashMap<i32, Robot> {
+    fn initiate_robots(
+        buildings_manager: &BuildingsManager,
+        robots_destination: &mut HashMap<i32, HashSet<i32>>,
+    ) -> HashMap<i32, Robot> {
         let mut robots = HashMap::new();
         for id in 1..=1000 {
             robots.insert(
@@ -117,15 +133,9 @@ impl RobotsManager {
         }
         buildings_manager.assign_initial_buildings(&mut robots);
         for robot in robots.values_mut() {
-            robot.assign_destination(buildings_manager);
+            robot.assign_destination(buildings_manager, robots_destination);
         }
         robots
-    }
-
-    /// reassign destinations for robots at location x, y
-    pub fn reassign_destinations(&mut self, x: i32, y: i32) {
-        let _robot_ids = &self.robots_grid[x as usize][y as usize];
-        // TODO: assign new buildings after calculating shortest path from current road
     }
 
     fn get_robots_grid(robots: &HashMap<i32, Robot>) -> Vec<Vec<HashSet<i32>>> {
@@ -138,18 +148,40 @@ impl RobotsManager {
         grid
     }
 
-    pub fn move_robots(&mut self, buildings_manager: &mut BuildingsManager) {
-        for robot in self.robots.values_mut() {
-            robot.move_robot(buildings_manager, &mut self.robots_grid);
-        }
-    }
-
     pub fn new(buildings_manager: &BuildingsManager) -> Self {
-        let robots = Self::initiate_robots(buildings_manager);
+        let mut robots_destination = HashMap::new();
+        let robots = Self::initiate_robots(buildings_manager, &mut robots_destination);
         let robots_grid = Self::get_robots_grid(&robots);
         RobotsManager {
             robots,
             robots_grid,
+            robots_destination,
+        }
+    }
+
+    /// damage and reassign destinations for robots at location x, y with damage = emp.damage
+    pub fn damage_and_reassign_robots(
+        &mut self,
+        damage: i32,
+        x: i32,
+        y: i32,
+        buildings_manager: &BuildingsManager,
+    ) {
+        let robot_ids = &self.robots_grid[x as usize][y as usize];
+        for robot_id in robot_ids {
+            let robot = self.robots.get_mut(robot_id).unwrap();
+            robot.take_damage(damage);
+            robot.assign_destination(buildings_manager, &mut self.robots_destination);
+        }
+    }
+
+    pub fn move_robots(&mut self, buildings_manager: &mut BuildingsManager) {
+        for robot in self.robots.values_mut() {
+            robot.move_robot(
+                buildings_manager,
+                &mut self.robots_grid,
+                &mut self.robots_destination,
+            );
         }
     }
 }
