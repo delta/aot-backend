@@ -13,11 +13,9 @@ pub mod robots;
 
 const GAME_TIME_MINUTES: i32 = 420;
 const GAME_MINUTES_PER_FRAME: i32 = 2;
-const REAL_TIME_SECONDS: i32 = 210;
 const ATTACKER_RESTRICTED_FRAMES: i32 = 30;
 const START_HOUR: i32 = 9;
 const NO_OF_FRAMES: i32 = GAME_TIME_MINUTES / GAME_MINUTES_PER_FRAME;
-const FRAMES_PER_SECOND: i32 = NO_OF_FRAMES / REAL_TIME_SECONDS;
 
 #[derive(Debug)]
 struct RenderAttacker {
@@ -103,21 +101,16 @@ impl Simulator {
         frames_passed > ATTACKER_RESTRICTED_FRAMES
     }
 
-    #[allow(clippy::modulo_one)]
-    pub fn is_second(frames_passed: i32) -> bool {
-        frames_passed % FRAMES_PER_SECOND == 0
-    }
-
-    pub fn get_second(frames_passed: i32) -> i32 {
-        frames_passed / FRAMES_PER_SECOND
+    pub fn get_minute(frames_passed: i32) -> i32 {
+        frames_passed * GAME_MINUTES_PER_FRAME
     }
 
     pub fn is_hour(frames_passed: i32) -> bool {
-        (frames_passed * GAME_MINUTES_PER_FRAME) % 60 == 0
+        Self::get_minute(frames_passed) % 60 == 0
     }
 
     pub fn get_hour(frames_passed: i32) -> i32 {
-        START_HOUR + (frames_passed * GAME_MINUTES_PER_FRAME) / 60
+        START_HOUR + Self::get_minute(frames_passed) / 60
     }
 
     pub fn simulate(&mut self) -> RenderSimulation {
@@ -130,14 +123,15 @@ impl Simulator {
             ..
         } = self;
         *frames_passed += 1;
+
         robots_manager.move_robots(buildings_manager);
+
+        let minute = Self::get_minute(*frames_passed);
+        emps.simulate(minute, robots_manager, buildings_manager, attacker);
+        buildings_manager.revive_buildings(minute);
+
         if Self::attacker_allowed(*frames_passed) {
             attacker.update_position();
-        }
-        if Self::is_second(*frames_passed) {
-            let seconds = Self::get_second(*frames_passed);
-            emps.simulate(seconds, robots_manager, buildings_manager, attacker);
-            buildings_manager.revive_buildings(seconds);
         }
         if Self::is_hour(*frames_passed) {
             buildings_manager.update_building_weights(Self::get_hour(*frames_passed));

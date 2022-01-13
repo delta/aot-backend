@@ -69,8 +69,8 @@ COPY public.game (id, attack_id, defend_id, map_layout_id, attack_score, defend_
 --
 
 COPY public.attacker_path (id, y_coord, x_coord, is_emp, game_id, emp_type, emp_time) FROM stdin;
-7	33	6	t	1	3	25
-33	12	11	t	1	2	35
+7	33	6	t	1	3	100
+33	12	11	t	1	2	140
 1	39	6	f	1	\N	\N
 2	38	6	f	1	\N	\N
 3	37	6	f	1	\N	\N
@@ -170,14 +170,14 @@ COPY public.attacker_path (id, y_coord, x_coord, is_emp, game_id, emp_type, emp_
 106	6	30	f	1	\N	\N
 107	6	31	f	1	\N	\N
 108	6	32	f	1	\N	\N
-48	27	11	t	1	2	45
-60	21	17	t	1	1	55
-63	18	17	t	1	1	65
-68	18	22	t	1	1	75
-71	21	22	t	1	1	85
-83	27	28	t	1	2	95
-98	12	28	t	1	2	105
-109	6	33	t	1	3	115
+48	27	11	t	1	2	180
+60	21	17	t	1	1	220
+63	18	17	t	1	1	260
+68	18	22	t	1	1	300
+71	21	22	t	1	1	340
+83	27	28	t	1	2	380
+98	12	28	t	1	2	420
+109	6	33	t	1	3	460
 \.
 
 

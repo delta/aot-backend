@@ -1,13 +1,12 @@
 use super::robots::Robot;
 use crate::models::{BlockType, MapSpaces, ShortestPath};
-use crate::simulation::FRAMES_PER_SECOND;
 use diesel::prelude::*;
 use diesel::{PgConnection, QueryDsl};
 use rand::distributions::WeightedIndex;
 use rand::prelude::*;
 use std::collections::{HashMap, HashSet};
 
-const EMP_TIMEOUT: i32 = 10 / FRAMES_PER_SECOND;
+const EMP_TIMEOUT: i32 = 20;
 
 #[derive(Debug)]
 struct BuildingType {

@@ -55,16 +55,16 @@ impl Emps {
 
     pub fn simulate(
         &self,
-        time: i32,
+        minute: i32,
         robots_manager: &mut RobotsManager,
         buildings_manager: &mut BuildingsManager,
         attacker: &mut Attacker,
     ) {
         let Emps(emps) = self;
-        if !emps.contains_key(&time) {
+        if !emps.contains_key(&minute) {
             return;
         }
-        for emp in emps.get(&time).unwrap() {
+        for emp in emps.get(&minute).unwrap() {
             if !attacker.is_planted(emp.path_id) {
                 return;
             }
@@ -105,7 +105,7 @@ impl Emps {
             }
 
             for building_id in &affected_buildings {
-                buildings_manager.damage_building(time, *building_id);
+                buildings_manager.damage_building(minute, *building_id);
                 let Building {
                     absolute_entrance_x: x,
                     absolute_entrance_y: y,
