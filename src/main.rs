@@ -8,9 +8,18 @@ use crate::api::{attack, auth, defense, stats};
 mod api;
 pub mod models;
 pub mod schema;
+mod simulation;
 
 #[macro_use]
 extern crate diesel;
+
+fn get_connection_pool() -> r2d2::Pool<ConnectionManager<PgConnection>> {
+    let db_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let manager = ConnectionManager::<PgConnection>::new(db_url);
+    r2d2::Pool::builder()
+        .build(manager)
+        .expect("Failed to create pool.")
+}
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -29,11 +38,7 @@ async fn main() -> std::io::Result<()> {
         .start()
         .unwrap();
 
-    let db_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    let manager = ConnectionManager::<PgConnection>::new(db_url);
-    let pool = r2d2::Pool::builder()
-        .build(manager)
-        .expect("Failed to create pool.");
+    let pool = get_connection_pool();
 
     HttpServer::new(move || {
         App::new()

@@ -39,7 +39,7 @@ pub struct NewAttackerPath<'a> {
     pub emp_time: Option<&'a i32>,
 }
 
-#[derive(Queryable)]
+#[derive(Queryable, Clone, Debug)]
 pub struct BlockType {
     pub id: i32,
     pub name: String,
@@ -139,7 +139,7 @@ pub struct NewMapLayout<'a> {
     pub level_id: &'a i32,
 }
 
-#[derive(Queryable)]
+#[derive(Queryable, Debug)]
 pub struct MapSpaces {
     pub id: i32,
     pub map_id: i32,
