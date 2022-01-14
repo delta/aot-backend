@@ -25,9 +25,15 @@ fn get_absolute_coordinates(
 }
 
 //running shortest path simulation
-pub fn run_shortest_paths(conn: &PgConnection, input_map_layout_id: i32, map_size: usize) -> () {
+pub fn run_shortest_paths(
+    conn: &PgConnection,
+    input_map_layout_id: i32,
+    map_size: usize,
+    road_id: i32,
+) -> () {
     // let input_map_layout_id=1;
     // let map_size=40;
+    // let road_id=4;
 
     // reading map_spaces
     let mapspaces_list = map_spaces::table
@@ -67,16 +73,16 @@ pub fn run_shortest_paths(conn: &PgConnection, input_map_layout_id: i32, map_siz
             map[&i.blk_type].3,
         );
         let result = graph_2d.set(
-            absolute_entrance_x as usize,
             absolute_entrance_y as usize,
+            absolute_entrance_x as usize,
             i.blk_type as usize,
         );
         node_to_index.insert(
             single_node,
-            (absolute_entrance_x as usize) * map_size + (absolute_entrance_y as usize),
+            (absolute_entrance_y as usize) * map_size + (absolute_entrance_x as usize),
         );
         index_to_node.insert(
-            (absolute_entrance_x as usize) * map_size + (absolute_entrance_y as usize),
+            (absolute_entrance_y as usize) * map_size + (absolute_entrance_x as usize),
             single_node,
         );
     }
@@ -119,32 +125,32 @@ pub fn run_shortest_paths(conn: &PgConnection, input_map_layout_id: i32, map_siz
                         1,
                     )]);
                 }
-                //i,j->i-1,j
-                if i > 0 && graph_2d[(i - 1, j)] != 0 {
-                    graph.extend_with_edges(&[(
-                        index_to_node[&(i * map_size + j)],
-                        index_to_node[&((i - 1) * map_size + j)],
-                        1,
-                    )]);
-                    graph.extend_with_edges(&[(
-                        index_to_node[&((i - 1) * map_size + j)],
-                        index_to_node[&(i * map_size + j)],
-                        1,
-                    )]);
-                }
-                //i,j->i,j-1
-                if j > 0 && graph_2d[(i, j - 1)] != 0 {
-                    graph.extend_with_edges(&[(
-                        index_to_node[&(i * map_size + j)],
-                        index_to_node[&(i * map_size + (j - 1))],
-                        1,
-                    )]);
-                    graph.extend_with_edges(&[(
-                        index_to_node[&(i * map_size + (j - 1))],
-                        index_to_node[&(i * map_size + j)],
-                        1,
-                    )]);
-                }
+                // //i,j->i-1,j
+                // if i > 0 && graph_2d[(i - 1, j)] != 0 {
+                //     graph.extend_with_edges(&[(
+                //         index_to_node[&(i * map_size + j)],
+                //         index_to_node[&((i - 1) * map_size + j)],
+                //         1,
+                //     )]);
+                //     graph.extend_with_edges(&[(
+                //         index_to_node[&((i - 1) * map_size + j)],
+                //         index_to_node[&(i * map_size + j)],
+                //         1,
+                //     )]);
+                // }
+                // //i,j->i,j-1
+                // if j > 0 && graph_2d[(i, j - 1)] != 0 {
+                //     graph.extend_with_edges(&[(
+                //         index_to_node[&(i * map_size + j)],
+                //         index_to_node[&(i * map_size + (j - 1))],
+                //         1,
+                //     )]);
+                //     graph.extend_with_edges(&[(
+                //         index_to_node[&(i * map_size + (j - 1))],
+                //         index_to_node[&(i * map_size + j)],
+                //         1,
+                //     )]);
+                // }
             }
         }
     }
@@ -155,67 +161,70 @@ pub fn run_shortest_paths(conn: &PgConnection, input_map_layout_id: i32, map_siz
     // Astar algorithm between EVERY PAIR of nodes
     for i in &mapspaces_list {
         for j in &mapspaces_list {
-            let (start_absolute_entrance_x, start_absolute_entrance_y) = get_absolute_coordinates(
-                i.rotation,
-                i.x_coordinate,
-                i.y_coordinate,
-                map[&i.blk_type].2,
-                map[&i.blk_type].3,
-            );
-            let (dest_absolute_entrance_x, dest_absolute_entrance_y) = get_absolute_coordinates(
-                j.rotation,
-                j.x_coordinate,
-                j.y_coordinate,
-                map[&j.blk_type].2,
-                map[&j.blk_type].3,
-            );
-            let start_node = index_to_node[&((start_absolute_entrance_x as usize) * map_size
-                + (start_absolute_entrance_y as usize))];
-            let dest_node = index_to_node[&((dest_absolute_entrance_x as usize) * map_size
-                + (dest_absolute_entrance_y as usize))];
-            let path = astar(
-                &graph,
-                start_node,
-                |finish| finish == dest_node,
-                |e| *e.weight(),
-                |_| 0,
-            );
+            if j.blk_type != road_id {
+                let (start_absolute_entrance_x, start_absolute_entrance_y) =
+                    get_absolute_coordinates(
+                        i.rotation,
+                        i.x_coordinate,
+                        i.y_coordinate,
+                        map[&i.blk_type].2,
+                        map[&i.blk_type].3,
+                    );
+                let (dest_absolute_entrance_x, dest_absolute_entrance_y) = get_absolute_coordinates(
+                    j.rotation,
+                    j.x_coordinate,
+                    j.y_coordinate,
+                    map[&j.blk_type].2,
+                    map[&j.blk_type].3,
+                );
+                let start_node = index_to_node[&((start_absolute_entrance_y as usize) * map_size
+                    + (start_absolute_entrance_x as usize))];
+                let dest_node = index_to_node[&((dest_absolute_entrance_y as usize) * map_size
+                    + (dest_absolute_entrance_x as usize))];
+                let path = astar(
+                    &graph,
+                    start_node,
+                    |finish| finish == dest_node,
+                    |e| *e.weight(),
+                    |_| 0,
+                );
 
-            // println!("Computing path between {} to {} ", start_node.index(),dest_node.index());
-            match path {
-                Some(p) => {
-                    let mut path_string = String::new();
+                match path {
+                    Some(p) => {
+                        let mut path_string = String::new();
 
-                    // Building the path string
-                    for i in p.1 {
-                        path_string.push('(');
-                        path_string.push_str(&(i.index() as i32 / map_size as i32).to_string());
-                        path_string.push(',');
-                        path_string.push_str(&(i.index() % map_size).to_string());
-                        path_string.push(')');
+                        // Building the path string
+                        for i in p.1 {
+                            path_string.push('(');
+                            path_string.push_str(&(node_to_index[&i] % map_size).to_string());
+                            path_string.push(',');
+                            path_string.push_str(
+                                &(node_to_index[&i] as i32 / map_size as i32).to_string(),
+                            );
+                            path_string.push(')');
+                        }
+
+                        let new_shortest_path_entry = NewShortestPath {
+                            base_id: &input_map_layout_id,
+                            source_x: &(node_to_index[&start_node] as i32 % map_size as i32),
+                            source_y: &(node_to_index[&start_node] as i32 / map_size as i32),
+                            dest_x: &(node_to_index[&dest_node] as i32 % map_size as i32),
+                            dest_y: &(node_to_index[&dest_node] as i32 / map_size as i32),
+                            pathlist: &path_string,
+                        };
+
+                        // Writing entries to shortest_path table
+                        let res = diesel::insert_into(shortest_path::table)
+                            .values(&new_shortest_path_entry)
+                            .execute(conn)
+                            .expect("Error saving shortest path.");
                     }
-
-                    let new_shortest_path_entry = NewShortestPath {
-                        base_id: &input_map_layout_id,
-                        source_x: &(start_node.index() as i32 / map_size as i32),
-                        source_y: &(start_node.index() as i32 % map_size as i32),
-                        dest_x: &(dest_node.index() as i32 / map_size as i32),
-                        dest_y: &(dest_node.index() as i32 % map_size as i32),
-                        pathlist: &path_string,
-                    };
-
-                    // Writing entries to shortest_path table
-                    diesel::insert_into(shortest_path::table)
-                        .values(&new_shortest_path_entry)
-                        .execute(conn)
-                        .expect("Error saving shortest path.");
-                }
-                None => println!(
-                    "No path found between {} and {}",
-                    start_node.index(),
-                    dest_node.index()
-                ),
-            };
+                    None => println!(
+                        "No path found between {} and {}",
+                        node_to_index[&start_node], node_to_index[&dest_node]
+                    ),
+                };
+            }
         }
     }
 
