@@ -31,10 +31,6 @@ pub fn run_shortest_paths(
     map_size: usize,
     road_id: i32,
 ) -> () {
-    // let input_map_layout_id=1;
-    // let map_size=40;
-    // let road_id=4;
-
     // reading map_spaces
     let mapspaces_list = map_spaces::table
         .filter(map_spaces::map_id.eq(input_map_layout_id))
@@ -72,11 +68,13 @@ pub fn run_shortest_paths(
             map[&i.blk_type].2,
             map[&i.blk_type].3,
         );
-        let result = graph_2d.set(
-            absolute_entrance_y as usize,
-            absolute_entrance_x as usize,
-            i.blk_type as usize,
-        );
+        graph_2d
+            .set(
+                absolute_entrance_y as usize,
+                absolute_entrance_x as usize,
+                i.blk_type as usize,
+            )
+            .unwrap();
         node_to_index.insert(
             single_node,
             (absolute_entrance_y as usize) * map_size + (absolute_entrance_x as usize),
@@ -95,7 +93,7 @@ pub fn run_shortest_paths(
     //     println!();
     // }
 
-    // adding edges to graph from 2d array (4 nearby nodes)
+    // adding edges to graph from 2d array (2 nearby nodes)
     for i in 0..map_size {
         for j in 0..map_size {
             if graph_2d[(i, j)] != 0 {
@@ -125,32 +123,6 @@ pub fn run_shortest_paths(
                         1,
                     )]);
                 }
-                // //i,j->i-1,j
-                // if i > 0 && graph_2d[(i - 1, j)] != 0 {
-                //     graph.extend_with_edges(&[(
-                //         index_to_node[&(i * map_size + j)],
-                //         index_to_node[&((i - 1) * map_size + j)],
-                //         1,
-                //     )]);
-                //     graph.extend_with_edges(&[(
-                //         index_to_node[&((i - 1) * map_size + j)],
-                //         index_to_node[&(i * map_size + j)],
-                //         1,
-                //     )]);
-                // }
-                // //i,j->i,j-1
-                // if j > 0 && graph_2d[(i, j - 1)] != 0 {
-                //     graph.extend_with_edges(&[(
-                //         index_to_node[&(i * map_size + j)],
-                //         index_to_node[&(i * map_size + (j - 1))],
-                //         1,
-                //     )]);
-                //     graph.extend_with_edges(&[(
-                //         index_to_node[&(i * map_size + (j - 1))],
-                //         index_to_node[&(i * map_size + j)],
-                //         1,
-                //     )]);
-                // }
             }
         }
     }
@@ -214,7 +186,7 @@ pub fn run_shortest_paths(
                         };
 
                         // Writing entries to shortest_path table
-                        let res = diesel::insert_into(shortest_path::table)
+                        diesel::insert_into(shortest_path::table)
                             .values(&new_shortest_path_entry)
                             .execute(conn)
                             .expect("Error saving shortest path.");
