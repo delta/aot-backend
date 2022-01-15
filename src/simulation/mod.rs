@@ -60,11 +60,9 @@ pub struct Simulator {
 
 #[allow(dead_code)]
 impl Simulator {
-    pub fn new(game_id: i32) -> Self {
+    pub fn new(game_id: i32, conn: &PgConnection) -> Self {
         use crate::schema::{attacker_path, game};
 
-        let pool = crate::get_connection_pool();
-        let conn = &*pool.get().unwrap();
         let map_id = game::table
             .filter(game::id.eq(game_id))
             .select(game::map_layout_id)

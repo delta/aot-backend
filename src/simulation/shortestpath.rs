@@ -202,6 +202,4 @@ pub fn run_shortest_paths(conn: &PgConnection, input_map_layout_id: i32) {
             .execute(conn)
             .expect("Error saving shortest path.");
     }
-
-    println!("Shortest path simulation completed!");
 }
