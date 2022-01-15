@@ -7,30 +7,6 @@ use petgraph::algo::astar;
 use petgraph::Graph;
 use std::collections::HashMap;
 
-//function to get path
-pub fn get_path(
-    conn: &PgConnection,
-    base_id: i32,
-    source_x: i32,
-    source_y: i32,
-    dest_x: i32,
-    dest_y: i32,
-) -> String {
-    let shortest_paths_list = shortest_path::table
-        .filter(
-            shortest_path::base_id
-                .eq(base_id)
-                .and(shortest_path::source_x.eq(source_x))
-                .and(shortest_path::source_y.eq(source_y))
-                .and(shortest_path::dest_x.eq(dest_x))
-                .and(shortest_path::dest_y.eq(dest_y)),
-        )
-        .load::<ShortestPath>(conn)
-        .expect("Couldn't get spaces");
-
-    (shortest_paths_list[0].pathlist).clone()
-}
-
 // function to get absolute coordinates
 fn get_absolute_coordinates(
     rotation: i32,
