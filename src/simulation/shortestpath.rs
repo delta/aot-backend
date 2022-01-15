@@ -25,12 +25,9 @@ fn get_absolute_coordinates(
 }
 
 //running shortest path simulation
-pub fn run_shortest_paths(
-    conn: &PgConnection,
-    input_map_layout_id: i32,
-    map_size: usize,
-    road_id: i32,
-) {
+pub fn run_shortest_paths(conn: &PgConnection, input_map_layout_id: i32) {
+    const MAP_SIZE: usize = 40;
+    const ROAD_ID: i32 = 4;
     // reading map_spaces
     let mapspaces_list = map_spaces::table
         .filter(map_spaces::map_id.eq(input_map_layout_id))
@@ -55,7 +52,7 @@ pub fn run_shortest_paths(
     }
 
     // initialising 2d array and petgraph Graph
-    let mut graph_2d = Array2D::filled_with(0, map_size, map_size);
+    let mut graph_2d = Array2D::filled_with(0, MAP_SIZE, MAP_SIZE);
     let mut graph = Graph::<usize, usize>::new();
 
     // Initialising nodes, filling 2d array and the node_to_index and index_to_node maps
@@ -77,10 +74,10 @@ pub fn run_shortest_paths(
             .unwrap();
         node_to_index.insert(
             single_node,
-            (absolute_entrance_y as usize) * map_size + (absolute_entrance_x as usize),
+            (absolute_entrance_y as usize) * MAP_SIZE + (absolute_entrance_x as usize),
         );
         index_to_node.insert(
-            (absolute_entrance_y as usize) * map_size + (absolute_entrance_x as usize),
+            (absolute_entrance_y as usize) * MAP_SIZE + (absolute_entrance_x as usize),
             single_node,
         );
     }
@@ -94,32 +91,32 @@ pub fn run_shortest_paths(
     // }
 
     // adding edges to graph from 2d array (2 nearby nodes)
-    for i in 0..map_size {
-        for j in 0..map_size {
+    for i in 0..MAP_SIZE {
+        for j in 0..MAP_SIZE {
             if graph_2d[(i, j)] != 0 {
                 // i,j->i+1,j
-                if i + 1 < map_size && graph_2d[(i + 1, j)] != 0 {
+                if i + 1 < MAP_SIZE && graph_2d[(i + 1, j)] != 0 {
                     graph.extend_with_edges(&[(
-                        index_to_node[&(i * map_size + j)],
-                        index_to_node[&((i + 1) * map_size + j)],
+                        index_to_node[&(i * MAP_SIZE + j)],
+                        index_to_node[&((i + 1) * MAP_SIZE + j)],
                         1,
                     )]);
                     graph.extend_with_edges(&[(
-                        index_to_node[&((i + 1) * map_size + j)],
-                        index_to_node[&(i * map_size + j)],
+                        index_to_node[&((i + 1) * MAP_SIZE + j)],
+                        index_to_node[&(i * MAP_SIZE + j)],
                         1,
                     )]);
                 }
                 //i,j->i,j+1
-                if j + 1 < map_size && graph_2d[(i, j + 1)] != 0 {
+                if j + 1 < MAP_SIZE && graph_2d[(i, j + 1)] != 0 {
                     graph.extend_with_edges(&[(
-                        index_to_node[&(i * map_size + j)],
-                        index_to_node[&(i * map_size + (j + 1))],
+                        index_to_node[&(i * MAP_SIZE + j)],
+                        index_to_node[&(i * MAP_SIZE + (j + 1))],
                         1,
                     )]);
                     graph.extend_with_edges(&[(
-                        index_to_node[&(i * map_size + (j + 1))],
-                        index_to_node[&(i * map_size + j)],
+                        index_to_node[&(i * MAP_SIZE + (j + 1))],
+                        index_to_node[&(i * MAP_SIZE + j)],
                         1,
                     )]);
                 }
@@ -134,7 +131,7 @@ pub fn run_shortest_paths(
     let mut shortest_paths = vec![];
     for i in &mapspaces_list {
         for j in &mapspaces_list {
-            if j.blk_type != road_id {
+            if j.blk_type != ROAD_ID {
                 let (start_absolute_entrance_x, start_absolute_entrance_y) =
                     get_absolute_coordinates(
                         i.rotation,
@@ -150,9 +147,9 @@ pub fn run_shortest_paths(
                     map[&j.blk_type].2,
                     map[&j.blk_type].3,
                 );
-                let start_node = index_to_node[&((start_absolute_entrance_y as usize) * map_size
+                let start_node = index_to_node[&((start_absolute_entrance_y as usize) * MAP_SIZE
                     + (start_absolute_entrance_x as usize))];
-                let dest_node = index_to_node[&((dest_absolute_entrance_y as usize) * map_size
+                let dest_node = index_to_node[&((dest_absolute_entrance_y as usize) * MAP_SIZE
                     + (dest_absolute_entrance_x as usize))];
                 let path = astar(
                     &graph,
@@ -169,20 +166,20 @@ pub fn run_shortest_paths(
                         // Building the path string
                         for i in p.1 {
                             path_string.push('(');
-                            path_string.push_str(&(node_to_index[&i] % map_size).to_string());
+                            path_string.push_str(&(node_to_index[&i] % MAP_SIZE).to_string());
                             path_string.push(',');
                             path_string.push_str(
-                                &(node_to_index[&i] as i32 / map_size as i32).to_string(),
+                                &(node_to_index[&i] as i32 / MAP_SIZE as i32).to_string(),
                             );
                             path_string.push(')');
                         }
 
                         let new_shortest_path_entry = NewShortestPath {
                             base_id: input_map_layout_id,
-                            source_x: node_to_index[&start_node] as i32 % map_size as i32,
-                            source_y: node_to_index[&start_node] as i32 / map_size as i32,
-                            dest_x: node_to_index[&dest_node] as i32 % map_size as i32,
-                            dest_y: node_to_index[&dest_node] as i32 / map_size as i32,
+                            source_x: node_to_index[&start_node] as i32 % MAP_SIZE as i32,
+                            source_y: node_to_index[&start_node] as i32 / MAP_SIZE as i32,
+                            dest_x: node_to_index[&dest_node] as i32 % MAP_SIZE as i32,
+                            dest_y: node_to_index[&dest_node] as i32 / MAP_SIZE as i32,
                             pathlist: path_string,
                         };
 
