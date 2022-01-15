@@ -104,7 +104,7 @@ impl BuildingsManager {
         let mut shortest_paths: HashMap<SourceDest, Vec<(i32, i32)>> = HashMap::new();
         for path in results {
             let path_list: Vec<(i32, i32)> = path.pathlist[1..path.pathlist.len() - 1]
-                .split("),(")
+                .split(")(")
                 .map(|s| {
                     let path_coordinate: Vec<i32> = s
                         .split(',')
@@ -169,16 +169,30 @@ impl BuildingsManager {
             } = map_space;
 
             match rotation {
-                0 | 180 => {
+                0 => {
                     for i in x_coordinate..x_coordinate + width {
                         for j in y_coordinate..y_coordinate + height {
                             building_grid[i as usize][j as usize] = map_space.id;
                         }
                     }
                 }
-                90 | 270 => {
-                    for i in x_coordinate..x_coordinate + height {
+                90 => {
+                    for i in x_coordinate..x_coordinate - height {
                         for j in y_coordinate..y_coordinate + width {
+                            building_grid[i as usize][j as usize] = map_space.id;
+                        }
+                    }
+                }
+                180 => {
+                    for i in x_coordinate..x_coordinate - width {
+                        for j in y_coordinate..y_coordinate - height {
+                            building_grid[i as usize][j as usize] = map_space.id;
+                        }
+                    }
+                }
+                270 => {
+                    for i in x_coordinate..x_coordinate + height {
+                        for j in y_coordinate..y_coordinate - width {
                             building_grid[i as usize][j as usize] = map_space.id;
                         }
                     }
@@ -233,7 +247,8 @@ impl BuildingsManager {
     }
 
     fn get_adjusted_weight(distance: &usize, weight: &i32) -> f32 {
-        *weight as f32 / *distance as f32
+        let adjusted_weight = *weight as f32 / *distance as f32;
+        adjusted_weight.max(0.0)
     }
 
     fn choose_weighted(choices: &[i32], weights: &[f32]) -> i32 {
