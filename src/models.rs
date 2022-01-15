@@ -171,13 +171,13 @@ pub struct ShortestPath {
 
 #[derive(Insertable)]
 #[table_name = "shortest_path"]
-pub struct NewShortestPath<'a> {
-    pub base_id: &'a i32,
-    pub source_x: &'a i32,
-    pub source_y: &'a i32,
-    pub dest_x: &'a i32,
-    pub dest_y: &'a i32,
-    pub pathlist: &'a str,
+pub struct NewShortestPath {
+    pub base_id: i32,
+    pub source_x: i32,
+    pub source_y: i32,
+    pub dest_x: i32,
+    pub dest_y: i32,
+    pub pathlist: String,
 }
 
 #[derive(Queryable)]

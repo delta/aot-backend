@@ -10,6 +10,7 @@ pub mod attacker;
 pub mod blocks;
 pub mod emp;
 pub mod robots;
+pub mod shortestpath;
 
 const GAME_TIME_MINUTES: i32 = 420;
 const GAME_MINUTES_PER_FRAME: i32 = 2;

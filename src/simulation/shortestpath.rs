@@ -30,7 +30,7 @@ pub fn run_shortest_paths(
     input_map_layout_id: i32,
     map_size: usize,
     road_id: i32,
-) -> () {
+) {
     // reading map_spaces
     let mapspaces_list = map_spaces::table
         .filter(map_spaces::map_id.eq(input_map_layout_id))
@@ -131,6 +131,7 @@ pub fn run_shortest_paths(
     // println!("{:?}",&graph);
 
     // Astar algorithm between EVERY PAIR of nodes
+    let mut shortest_paths = vec![];
     for i in &mapspaces_list {
         for j in &mapspaces_list {
             if j.blk_type != road_id {
@@ -177,19 +178,15 @@ pub fn run_shortest_paths(
                         }
 
                         let new_shortest_path_entry = NewShortestPath {
-                            base_id: &input_map_layout_id,
-                            source_x: &(node_to_index[&start_node] as i32 % map_size as i32),
-                            source_y: &(node_to_index[&start_node] as i32 / map_size as i32),
-                            dest_x: &(node_to_index[&dest_node] as i32 % map_size as i32),
-                            dest_y: &(node_to_index[&dest_node] as i32 / map_size as i32),
-                            pathlist: &path_string,
+                            base_id: input_map_layout_id,
+                            source_x: node_to_index[&start_node] as i32 % map_size as i32,
+                            source_y: node_to_index[&start_node] as i32 / map_size as i32,
+                            dest_x: node_to_index[&dest_node] as i32 % map_size as i32,
+                            dest_y: node_to_index[&dest_node] as i32 / map_size as i32,
+                            pathlist: path_string,
                         };
 
-                        // Writing entries to shortest_path table
-                        diesel::insert_into(shortest_path::table)
-                            .values(&new_shortest_path_entry)
-                            .execute(conn)
-                            .expect("Error saving shortest path.");
+                        shortest_paths.push(new_shortest_path_entry);
                     }
                     None => println!(
                         "No path found between {} and {}",
@@ -198,6 +195,15 @@ pub fn run_shortest_paths(
                 };
             }
         }
+    }
+
+    // Writing entries to shortest_path table
+    let chunks: Vec<&[NewShortestPath]> = shortest_paths.chunks(1000).collect();
+    for chunk in chunks {
+        diesel::insert_into(shortest_path::table)
+            .values(chunk)
+            .execute(conn)
+            .expect("Error saving shortest path.");
     }
 
     println!("Shortest path simulation completed!");
