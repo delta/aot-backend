@@ -82,14 +82,6 @@ pub fn run_shortest_paths(conn: &PgConnection, input_map_layout_id: i32) {
         );
     }
 
-    // // Uncomment below lines to print 2d array (map grid)
-    // for row_iter in graph_2d.rows_iter() {
-    //     for element in row_iter {
-    //         print!("{} ", element);
-    //     }
-    //     println!();
-    // }
-
     // adding edges to graph from 2d array (2 nearby nodes)
     for i in 0..MAP_SIZE {
         for j in 0..MAP_SIZE {
@@ -123,9 +115,6 @@ pub fn run_shortest_paths(conn: &PgConnection, input_map_layout_id: i32) {
             }
         }
     }
-
-    // // Uncomment to print graph
-    // println!("{:?}",&graph);
 
     // Astar algorithm between EVERY PAIR of nodes
     let mut shortest_paths = vec![];
@@ -202,6 +191,4 @@ pub fn run_shortest_paths(conn: &PgConnection, input_map_layout_id: i32) {
             .execute(conn)
             .expect("Error saving shortest path.");
     }
-
-    println!("Shortest path simulation completed!");
 }

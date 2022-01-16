@@ -74,6 +74,7 @@ impl Robot {
             })
             .unwrap()
             .clone();
+        self.current_path.reverse();
     }
 
     fn move_robot(
@@ -139,7 +140,7 @@ impl RobotsManager {
     }
 
     fn get_robots_grid(robots: &HashMap<i32, Robot>) -> Vec<Vec<HashSet<i32>>> {
-        let mut grid = vec![vec![HashSet::new()]];
+        let mut grid = vec![vec![HashSet::new(); 40]; 40];
         for robot in robots.values() {
             let x = robot.x_position;
             let y = robot.y_position;

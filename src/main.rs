@@ -1,30 +1,19 @@
 use actix_web::{middleware, web, App, HttpResponse, HttpServer};
-use diesel::r2d2::{self, ConnectionManager};
-use diesel::PgConnection;
 use flexi_logger::{Cleanup, Criterion, Duplicate, FileSpec, Naming};
 
 use crate::api::{attack, auth, defense, stats};
 
 mod api;
-pub mod models;
-pub mod schema;
+mod models;
+mod schema;
 mod simulation;
+mod util;
 
 #[macro_use]
 extern crate diesel;
 
-fn get_connection_pool() -> r2d2::Pool<ConnectionManager<PgConnection>> {
-    let db_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    let manager = ConnectionManager::<PgConnection>::new(db_url);
-    r2d2::Pool::builder()
-        .build(manager)
-        .expect("Failed to create pool.")
-}
-
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    dotenv::dotenv().ok();
-
     flexi_logger::Logger::try_with_str("actix_web=info")
         .unwrap()
         .log_to_file(FileSpec::default().directory("./logs"))
@@ -38,7 +27,7 @@ async fn main() -> std::io::Result<()> {
         .start()
         .unwrap();
 
-    let pool = get_connection_pool();
+    let pool = util::get_connection_pool();
 
     HttpServer::new(move || {
         App::new()

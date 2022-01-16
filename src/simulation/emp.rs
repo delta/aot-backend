@@ -66,7 +66,7 @@ impl Emps {
         }
         for emp in emps.get(&minute).unwrap() {
             if !attacker.is_planted(emp.path_id) {
-                return;
+                continue;
             }
             let radius = emp.radius;
 
@@ -82,11 +82,11 @@ impl Emps {
             for x in emp.x_coord - radius..=emp.x_coord + radius {
                 for y in emp.y_coord - radius..=emp.y_coord + radius {
                     if !(0..40).contains(&x) || !(0..40).contains(&y) {
-                        return;
+                        continue;
                     }
                     let distance = (x - emp.x_coord).pow(2) + (y - emp.y_coord).pow(2);
                     if distance > radius.pow(2) {
-                        return;
+                        continue;
                     }
 
                     let building_id = buildings_manager.buildings_grid[x as usize][y as usize];
