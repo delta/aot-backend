@@ -2,12 +2,13 @@ use aot_backend::simulation::shortestpath::run_shortest_paths;
 use aot_backend::util;
 use diesel::prelude::*;
 use diesel::RunQueryDsl;
+use rayon::prelude::*;
 use std::env;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() != 2 {
-        panic!("Expected 1 argument got {}", args.len() - 1);
+        panic!("Usage: calculate_shortest_paths [LEVEL_ID]");
     }
     let level_id: i32 = args[1].parse().expect("Enter a valid level_id");
 
@@ -23,7 +24,7 @@ fn main() {
         .expect("Couldn't get map_ids for given level");
 
     println!("Calculating shortest paths for level {}\n", level_id);
-    for (pos, map_id) in map_ids.iter().enumerate() {
+    map_ids.par_iter().enumerate().for_each(|(pos, map_id)| {
         println!(
             "({}/{}) Calculating shortest paths for map_id: {}..",
             pos + 1,
@@ -31,7 +32,7 @@ fn main() {
             map_id
         );
         run_shortest_paths(&*pool.get().unwrap(), *map_id);
-    }
+    });
     println!(
         "\nCalculated shortest paths for level {} successfully!",
         level_id
