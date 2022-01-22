@@ -191,7 +191,7 @@ pub struct NewShortestPath {
     pub pathlist: String,
 }
 
-#[derive(Queryable)]
+#[derive(Debug, Serialize, Deserialize, Queryable)]
 pub struct User {
     pub id: i32,
     pub name: String,
@@ -205,7 +205,7 @@ pub struct User {
     pub highest_rating: i32,
 }
 
-#[derive(Insertable)]
+#[derive(Insertable, Debug)]
 #[table_name = "user"]
 pub struct NewUser<'a> {
     pub name: &'a str,
