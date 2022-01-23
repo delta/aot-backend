@@ -1,3 +1,4 @@
+use actix_session::CookieSession;
 use actix_web::{middleware, web, App, HttpResponse, HttpServer};
 use flexi_logger::{Cleanup, Criterion, Duplicate, FileSpec, Naming};
 
@@ -36,6 +37,12 @@ async fn main() -> std::io::Result<()> {
             .wrap(middleware::Logger::new(
                 "%{r}a %r %s %b %{Referer}i %{User-Agent}i %t",
             ))
+            .wrap(
+                CookieSession::signed(&[0; 32])
+                    .domain("0.0.0.0:8000")
+                    .name("auth")
+                    .secure(false),
+            )
             .data(pool.clone())
             .route(
                 "/",

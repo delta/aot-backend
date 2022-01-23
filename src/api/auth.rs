@@ -38,13 +38,12 @@ pub struct Otp {
     pub otp: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct AuthData {
     pub username: String,
     pub password: String,
 }
 
-#[allow(non_snake_case)]
 //Handler for POST /login
 async fn login(
     data: web::Json<AuthData>,
@@ -54,7 +53,7 @@ async fn login(
     match is_signed_in(&session) {
         true => {
             let response = get_current_user(&session)
-                .map(|User| HttpResponse::Ok().json(User))
+                .map(|userdata| HttpResponse::Ok().json(userdata))
                 .unwrap();
 
             Ok(response)
@@ -64,13 +63,12 @@ async fn login(
 }
 
 //Handler for POST /register
-#[allow(non_snake_case)]
 async fn register(db: web::Data<Pool>, item: web::Json<InputUser>) -> Result<HttpResponse, Error> {
     let result = web::block(move || add_user(db, item)).await;
     match result {
-        Ok(User) => Ok(web::block(move || send_otp(&User.phone))
+        Ok(userdata) => Ok(web::block(move || send_otp(&userdata.phone))
             .await
-            .map(|OtpSessionId| HttpResponse::Ok().json(OtpSessionId))
+            .map(|otp| HttpResponse::Ok().json(otp))
             .map_err(|err| HttpResponse::InternalServerError().body(err.to_string()))?),
         Err(err) => Ok(HttpResponse::InternalServerError().body(err.to_string())),
     }
@@ -105,8 +103,6 @@ pub async fn logout(session: Session, req: HttpRequest) -> HttpResponse {
 }
 
 //Handler for login
-#[allow(unreachable_patterns)]
-#[allow(non_snake_case)]
 fn handle_sign_in(
     data: AuthData,
     session: &Session,
@@ -115,8 +111,8 @@ fn handle_sign_in(
     let result = find_user(data, pool);
 
     match result {
-        Ok(Some(User)) => {
-            set_current_user(session, User);
+        Ok(Some(userdata)) => {
+            set_current_user(session, userdata);
 
             Ok(HttpResponse::Ok().body("Successfully Logged In"))
         }
@@ -126,7 +122,6 @@ fn handle_sign_in(
 }
 
 //function to fetch and check data from DB
-#[allow(non_snake_case)]
 fn find_user(
     data: AuthData,
     pool: &web::Data<Pool>,
@@ -135,10 +130,10 @@ fn find_user(
         .filter(username.eq(&data.username))
         .load::<User>(&pool.get().unwrap())?;
 
-    if let Some(User) = items.pop() {
-        if User.is_verified {
-            if bcrypt::verify(&data.password, &User.password) {
-                Ok(Some(User))
+    if let Some(userdata) = items.pop() {
+        if userdata.is_verified {
+            if bcrypt::verify(&data.password, &userdata.password) {
+                Ok(Some(userdata))
             } else {
                 Ok(None)
             }
@@ -175,8 +170,9 @@ fn add_user(
 //function to send OTP for verification
 fn send_otp(inputphone: &str) -> Result<OtpSessionId, reqwest::Error> {
     let client = reqwest::blocking::Client::new();
-    let api_key = std::env::var("API_TOKEN").expect("API_TOKEN must be set");
-    let template_name = std::env::var("TEMPLATE_NAME").expect("TEMPLATE_NAME must be set");
+    let api_key = std::env::var("TWOFACTOR_API_TOKEN").expect("TWOFACTOR_API_TOKEN must be set");
+    let template_name =
+        std::env::var("TWOFACTOR_TEMPLATE_NAME").expect("TWOFACTOR_TEMPLATE_NAME must be set");
     let url = format!(
         "https://2factor.in/API/V1/{}/SMS/{}/AUTOGEN/{}",
         &api_key, &inputphone, &template_name
@@ -192,7 +188,7 @@ fn send_otp(inputphone: &str) -> Result<OtpSessionId, reqwest::Error> {
 //function to verify OTP that sent to user registered mobile number
 fn verify_otp(sessionid: &str, otpdata: &str) -> Result<OtpSessionId, reqwest::Error> {
     let client = reqwest::blocking::Client::new();
-    let api_key = std::env::var("API_TOKEN").expect("API_TOKEN must be set");
+    let api_key = std::env::var("TWOFACTOR_API_TOKEN").expect("TWOFACTOR_API_TOKEN must be set");
     let url = format!(
         "http://2factor.in/API/V1/{}/SMS/VERIFY/{}/{}",
         &api_key, &sessionid, &otpdata
