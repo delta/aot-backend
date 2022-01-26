@@ -40,7 +40,7 @@ pub struct NewAttackerPath<'a> {
     pub emp_time: Option<&'a i32>,
 }
 
-#[derive(Queryable, Clone, Debug,Serialize)]
+#[derive(Queryable, Clone, Debug, Serialize)]
 pub struct BlockType {
     pub id: i32,
     pub name: String,
@@ -131,6 +131,7 @@ pub struct MapLayout {
     pub id: i32,
     pub player: i32,
     pub level_id: i32,
+    pub is_valid: bool,
 }
 
 #[derive(Insertable)]
@@ -150,14 +151,14 @@ pub struct MapSpaces {
     pub rotation: i32,
 }
 
-#[derive(Insertable)]
+#[derive(Deserialize, Insertable)]
 #[table_name = "map_spaces"]
-pub struct NewMapSpaces<'a> {
-    pub map_id: &'a i32,
-    pub blk_type: &'a i32,
-    pub x_coordinate: &'a i32,
-    pub y_coordinate: &'a i32,
-    pub rotation: &'a i32,
+pub struct NewMapSpaces {
+    pub map_id: i32,
+    pub blk_type: i32,
+    pub x_coordinate: i32,
+    pub y_coordinate: i32,
+    pub rotation: i32,
 }
 
 #[derive(Queryable)]
