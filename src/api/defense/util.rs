@@ -107,3 +107,13 @@ pub fn set_map_valid(conn: &PgConnection, map_id: i32) -> Result<()> {
 
     Ok(())
 }
+
+pub fn set_map_invalid(conn: &PgConnection, map_id: i32) -> Result<()> {
+    use crate::schema::map_layout::dsl::*;
+
+    diesel::update(map_layout.find(map_id))
+        .set(is_valid.eq(false))
+        .execute(conn)?;
+
+    Ok(())
+}

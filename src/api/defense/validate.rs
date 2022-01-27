@@ -131,6 +131,13 @@ pub fn is_valid_save_layout(
         }
     }
 
+    //checks if all blocks are used
+    for block_constraint in level_constraints {
+        if *block_constraint.1 != 0 {
+            return false;
+        }
+    }
+
     for (coordinates, node_index) in &map_grid {
         let (x, y) = *coordinates;
         if map_grid.contains_key(&(x + 1, y)) {

@@ -44,6 +44,7 @@ async fn set_base_details(
     let blocks = util::fetch_blocks(conn)?;
 
     if validate::is_valid_update_layout(&map_spaces, &map, &blocks) {
+        util::set_map_invalid(conn, map.id)?;
         util::put_base_details(&map_spaces, &map, conn)?;
         Ok("Updated successfully")
     } else {
