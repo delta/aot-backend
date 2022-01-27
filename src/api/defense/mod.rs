@@ -14,9 +14,9 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::resource("")
             .route(web::put().to(set_base_details))
-            .route(web::get().to(get_base_details))
-            .route(web::post().to(confirm_base_details)),
+            .route(web::get().to(get_base_details)),
     )
+    .service(web::resource("/save").route(web::put().to(confirm_base_details)))
     .data(web::JsonConfig::default().limit(1024 * 1024));
 }
 
