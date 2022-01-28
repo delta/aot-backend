@@ -19,6 +19,7 @@ fn main() {
 
     let map_ids = map_layout::table
         .filter(map_layout::level_id.eq(level_id))
+        .filter(map_layout::is_valid.eq(true))
         .select(map_layout::id)
         .load::<i32>(conn)
         .expect("Couldn't get map_ids for given level");

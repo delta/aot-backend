@@ -50,8 +50,8 @@ COPY public."user" (id, name, email, phone, username, overall_rating, is_pragyan
 -- Data for Name: map_layout; Type: TABLE DATA; Schema: public; Owner: aot
 --
 
-COPY public.map_layout (id, player, level_id) FROM stdin;
-1	2	1
+COPY public.map_layout (id, player, level_id, is_valid) FROM stdin;
+1	2	1	t
 \.
 
 

@@ -71,6 +71,7 @@ table! {
         id -> Int4,
         player -> Int4,
         level_id -> Int4,
+        is_valid -> Bool,
     }
 }
 
