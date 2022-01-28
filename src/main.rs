@@ -14,7 +14,7 @@ extern crate diesel;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    flexi_logger::Logger::try_with_str("actix_web=info")
+    flexi_logger::Logger::try_with_str("info, actix_web=info")
         .unwrap()
         .log_to_file(FileSpec::default().directory("./logs"))
         .append()

@@ -1,14 +1,7 @@
-#[derive(Debug)]
-pub struct DieselError(diesel::result::Error);
+use actix_web::error::ErrorInternalServerError;
+use log;
 
-impl From<diesel::result::Error> for DieselError {
-    fn from(error: diesel::result::Error) -> Self {
-        DieselError(error)
-    }
-}
-
-impl From<DieselError> for actix_web::Error {
-    fn from(_: DieselError) -> Self {
-        actix_web::error::ErrorInternalServerError("Internal Server Error")
-    }
+pub fn handle_error(err: Box<dyn std::error::Error>) -> actix_web::Error {
+    log::error!("{:?}", err);
+    ErrorInternalServerError("Internal Server Error")
 }

@@ -1,5 +1,6 @@
 /// CRUD functions
-use crate::{api::error::*, models::*};
+use crate::models::*;
+use anyhow::Result;
 use diesel::prelude::*;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -10,8 +11,6 @@ pub struct DefenseResponse {
     pub blocks: Vec<BlockType>,
     pub levels_fixture: LevelsFixture,
 }
-
-type Result<T> = std::result::Result<T, DieselError>;
 
 pub fn fetch_map_layout(conn: &PgConnection, player_id: i32) -> Result<MapLayout> {
     use crate::schema::{levels_fixture, map_layout};
@@ -30,7 +29,7 @@ pub fn fetch_map_layout(conn: &PgConnection, player_id: i32) -> Result<MapLayout
         .first::<MapLayout>(conn)?)
 }
 
-pub fn get_details_from_map_layout(map: MapLayout, conn: &PgConnection) -> Result<DefenseResponse> {
+pub fn get_details_from_map_layout(conn: &PgConnection, map: MapLayout) -> Result<DefenseResponse> {
     use crate::schema::{levels_fixture, map_spaces};
 
     let map_spaces = map_spaces::table

@@ -126,7 +126,7 @@ pub struct NewLevelConstraint<'a> {
     pub no_of_buildings: &'a i32,
 }
 
-#[derive(Queryable, Serialize)]
+#[derive(Clone, Queryable, Serialize)]
 pub struct MapLayout {
     pub id: i32,
     pub player: i32,
