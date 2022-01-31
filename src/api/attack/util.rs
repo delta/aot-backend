@@ -29,6 +29,24 @@ pub struct AttackHistoryResponse {
     pub games: Vec<Game>,
 }
 
+#[derive(Deserialize)]
+pub struct LeaderboardQuery {
+    pub page: Option<i64>,
+    pub limit: Option<i64>,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct LeaderboardResponse {
+    pub leaderboard_entries: Vec<LeaderboardEntry>,
+    pub last_page: i64,
+}
+
+#[derive(Queryable, Deserialize, Serialize)]
+pub struct LeaderboardEntry {
+    pub username: String,
+    pub overall_rating: i32,
+}
+
 const START_HOUR: u32 = 9;
 const END_HOUR: u32 = 23;
 const TOTAL_ATTACKS_PER_LEVEL: i64 = 2;
@@ -51,7 +69,8 @@ pub fn get_current_levels_fixture(conn: &PgConnection) -> Result<LevelsFixture> 
     use crate::schema::levels_fixture;
     let current_date = Local::now().naive_local().date();
     let level: LevelsFixture = levels_fixture::table
-        .filter(levels_fixture::start_date.eq(current_date))
+        .filter(levels_fixture::start_date.le(current_date))
+        .filter(levels_fixture::end_date.gt(current_date))
         .first(conn)?;
     Ok(level)
 }
@@ -81,7 +100,7 @@ pub fn get_valid_road_paths(map_id: i32, conn: &PgConnection) -> Result<HashSet<
 }
 
 /// checks if the number of attacks per day is less than allowed for the given attacker
-pub fn is_attack_valid(attacker_id: i32, defender_id: i32, conn: &PgConnection) -> Result<bool> {
+pub fn is_attack_allowed(attacker_id: i32, defender_id: i32, conn: &PgConnection) -> Result<bool> {
     let current_date = Local::now().naive_local().date();
     use crate::schema::{game, levels_fixture, map_layout};
     let joined_table = game::table.inner_join(map_layout::table.inner_join(levels_fixture::table));
@@ -156,5 +175,30 @@ pub fn get_attack_history(attacker_id: i32, conn: &PgConnection) -> Result<Attac
             .filter(game::attack_id.eq(attacker_id))
             .order_by(game::id.desc())
             .load::<Game>(conn)?,
+    })
+}
+
+pub fn get_leaderboard(
+    leaderboard_query: LeaderboardQuery,
+    conn: &PgConnection,
+) -> Result<LeaderboardResponse> {
+    let page = leaderboard_query.page.unwrap_or(1);
+    let limit = leaderboard_query.limit.unwrap_or(20);
+
+    use crate::schema::user;
+    let total_entries: i64 = user::table.count().get_result(conn)?;
+    let offset: i64 = (page - 1) * limit;
+    let last_page: i64 = (total_entries as f64 / limit as f64).ceil() as i64;
+
+    let leaderboard_entries = user::table
+        .select((user::username, user::overall_rating))
+        .order_by(user::overall_rating.desc())
+        .offset(offset)
+        .limit(limit)
+        .load::<LeaderboardEntry>(conn)?;
+
+    Ok(LeaderboardResponse {
+        leaderboard_entries,
+        last_page,
     })
 }

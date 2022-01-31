@@ -1,19 +1,19 @@
 use std::collections::HashSet;
 
-use actix_web::{web, HttpResponse, Responder, Result};
+use actix_web::error::ErrorBadRequest;
+use actix_web::{web, Responder, Result};
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
 
 mod util;
 mod validate;
 
-use crate::models::LevelsFixture;
-
 use super::error;
-use util::NewAttack;
+use crate::models::LevelsFixture;
+use util::{LeaderboardQuery, NewAttack};
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
-    cfg.service(web::resource("/list").route(web::get().to(list_leaderboard)));
+    cfg.service(web::resource("/leaderboard").route(web::get().to(list_leaderboard)));
     cfg.service(web::resource("").route(web::post().to(create_attack)));
     cfg.service(web::resource("/history").route(web::get().to(attack_history)));
 }
@@ -28,7 +28,7 @@ async fn create_attack(
     let attacker_id = 1;
 
     if !util::is_attack_allowed_now() {
-        return Ok(HttpResponse::BadRequest().body("Attack not allowed"));
+        return Err(ErrorBadRequest("Attack not allowed"));
     }
 
     let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
@@ -37,7 +37,7 @@ async fn create_attack(
         web::block(move || {
             let level = util::get_current_levels_fixture(&conn)?;
             let map_id = util::get_map_id(&defender_id, &level.id, &conn)?;
-            let is_attack_allowed = util::is_attack_valid(attacker_id, defender_id, &conn)?;
+            let is_attack_allowed = util::is_attack_allowed(attacker_id, defender_id, &conn)?;
             let valid_emp_ids: HashSet<i32> = util::get_valid_emp_ids(&conn)?;
             let valid_road_paths = util::get_valid_road_paths(map_id, &conn)?;
             Ok((
@@ -53,7 +53,7 @@ async fn create_attack(
         .map_err(|err| error::handle_error(err.into()))?;
 
     if !is_attack_allowed {
-        return Ok(HttpResponse::BadRequest().body("Invalid attack"));
+        return Err(ErrorBadRequest("Invalid attack"));
     }
 
     if !validate::is_attack_valid(
@@ -62,7 +62,7 @@ async fn create_attack(
         valid_emp_ids,
         &level.no_of_bombs,
     ) {
-        return Ok(HttpResponse::BadRequest().body("Invalid attack path"));
+        return Err(ErrorBadRequest("Invalid attack path"));
     }
     let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     web::block(move || {
@@ -78,7 +78,7 @@ async fn create_attack(
 
     // TODO: Simulate attack, generate csv, send csv response
 
-    Ok(HttpResponse::Ok().body("Added Attack"))
+    Ok("Added Attack")
 }
 
 async fn attack_history(pool: web::Data<DbPool>) -> Result<impl Responder> {
@@ -89,11 +89,19 @@ async fn attack_history(pool: web::Data<DbPool>) -> Result<impl Responder> {
         util::get_attack_history(attacker_id, &conn)
     })
     .await
-    .map_err(|_| HttpResponse::InternalServerError().finish())?;
-
+    .map_err(|err| error::handle_error(err.into()))?;
     Ok(web::Json(response))
 }
 
-async fn list_leaderboard() -> impl Responder {
-    HttpResponse::Ok().body("Todo")
+async fn list_leaderboard(
+    query: web::Query<LeaderboardQuery>,
+    pool: web::Data<DbPool>,
+) -> Result<impl Responder> {
+    let response = web::block(move || {
+        let conn = pool.get()?;
+        util::get_leaderboard(query.into_inner(), &conn)
+    })
+    .await
+    .map_err(|err| error::handle_error(err.into()))?;
+    Ok(web::Json(response))
 }
