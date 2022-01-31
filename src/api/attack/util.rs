@@ -178,13 +178,7 @@ pub fn get_attack_history(attacker_id: i32, conn: &PgConnection) -> Result<Attac
     })
 }
 
-pub fn get_leaderboard(
-    leaderboard_query: LeaderboardQuery,
-    conn: &PgConnection,
-) -> Result<LeaderboardResponse> {
-    let page = leaderboard_query.page.unwrap_or(1);
-    let limit = leaderboard_query.limit.unwrap_or(20);
-
+pub fn get_leaderboard(page: i64, limit: i64, conn: &PgConnection) -> Result<LeaderboardResponse> {
     use crate::schema::user;
     let total_entries: i64 = user::table.count().get_result(conn)?;
     let offset: i64 = (page - 1) * limit;
