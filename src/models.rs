@@ -18,7 +18,7 @@ pub struct NewAttackType<'a> {
     pub attack_damage: &'a i32,
 }
 
-#[derive(Queryable)]
+#[derive(Queryable, Debug)]
 pub struct AttackerPath {
     pub id: i32,
     pub y_coord: i32,
@@ -32,6 +32,7 @@ pub struct AttackerPath {
 #[derive(Insertable)]
 #[table_name = "attacker_path"]
 pub struct NewAttackerPath<'a> {
+    pub id: i32,
     pub y_coord: &'a i32,
     pub x_coord: &'a i32,
     pub is_emp: &'a bool,
@@ -75,7 +76,7 @@ pub struct NewBuildingWeights<'a> {
     pub weight: &'a i32,
 }
 
-#[derive(Queryable)]
+#[derive(Queryable, Serialize, Deserialize)]
 pub struct Game {
     pub id: i32,
     pub attack_id: i32,

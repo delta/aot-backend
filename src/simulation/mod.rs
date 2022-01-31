@@ -13,7 +13,7 @@ pub mod robots;
 pub mod shortestpath;
 
 const GAME_TIME_MINUTES: i32 = 420;
-const GAME_MINUTES_PER_FRAME: i32 = 2;
+pub const GAME_MINUTES_PER_FRAME: i32 = 2;
 const ATTACKER_RESTRICTED_FRAMES: i32 = 30;
 const START_HOUR: i32 = 9;
 pub const NO_OF_FRAMES: i32 = GAME_TIME_MINUTES / GAME_MINUTES_PER_FRAME;
