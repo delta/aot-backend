@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use crate::error::DieselError;
 use crate::util::function;
 use crate::{models::AttackerPath, simulation::error::EmpDetailsError};
@@ -15,7 +14,6 @@ pub mod blocks;
 pub mod emp;
 pub mod error;
 pub mod robots;
-pub mod shortestpath;
 
 const GAME_TIME_MINUTES: i32 = 420;
 pub const GAME_MINUTES_PER_FRAME: i32 = 2;
@@ -53,7 +51,6 @@ pub struct RenderSimulation {
     pub robots: Vec<RenderRobot>,
 }
 
-#[allow(dead_code)]
 pub struct Simulator {
     buildings_manager: BuildingsManager,
     robots_manager: RobotsManager,
@@ -63,7 +60,6 @@ pub struct Simulator {
     render_emps: Vec<RenderEmp>,
 }
 
-#[allow(dead_code)]
 impl Simulator {
     pub fn new(game_id: i32, conn: &PgConnection) -> Result<Self> {
         use crate::schema::{attacker_path, game};

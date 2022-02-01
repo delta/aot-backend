@@ -1,16 +1,15 @@
+use super::error;
+use crate::models::LevelsFixture;
 use actix_web::error::ErrorBadRequest;
 use actix_web::{web, HttpResponse, Responder, Result};
 use anyhow::Context;
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
 use std::collections::HashSet;
+use util::{LeaderboardQuery, NewAttack};
 
 mod util;
 mod validate;
-
-use super::error;
-use crate::models::LevelsFixture;
-use util::{LeaderboardQuery, NewAttack};
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
     cfg.service(web::resource("").route(web::post().to(create_attack)))

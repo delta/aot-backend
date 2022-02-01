@@ -252,6 +252,7 @@ pub fn run_simulation(game_id: i32, conn: &PgConnection) -> Result<Vec<u8>> {
     let mut simulator =
         Simulator::new(game_id, conn).with_context(|| "Failed to create simulator")?;
     let mut content = Vec::new();
+
     writeln!(content, "emps")?;
     writeln!(content, "id,time,type")?;
     let emps = simulator.render_emps();
@@ -296,5 +297,6 @@ pub fn run_simulation(game_id: i32, conn: &PgConnection) -> Result<Vec<u8>> {
             )?;
         }
     }
+
     Ok(content)
 }
