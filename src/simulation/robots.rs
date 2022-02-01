@@ -1,4 +1,6 @@
 use crate::simulation::blocks::{BuildingsManager, SourceDest};
+use crate::simulation::error::*;
+use anyhow::Result;
 use rand::Rng;
 use std::collections::{HashMap, HashSet};
 
@@ -31,31 +33,45 @@ impl Robot {
         };
     }
 
-    fn enter_building(&mut self, buildings_manager: &mut BuildingsManager) {
+    fn enter_building(&mut self, buildings_manager: &mut BuildingsManager) -> Result<()> {
         self.stay_in_time = rand::thread_rng().gen_range(1..=MAX_STAY_IN_TIME);
         let building = buildings_manager
             .buildings
             .get_mut(&self.destination)
-            .unwrap();
+            .ok_or(KeyError {
+                key: self.destination,
+                hashmap: "buildings".to_string(),
+            })?;
         building.weight -= 1;
+        Ok(())
     }
 
-    fn exit_building(&self, buildings_manager: &mut BuildingsManager) {
+    fn exit_building(&self, buildings_manager: &mut BuildingsManager) -> Result<()> {
         let building = buildings_manager
             .buildings
             .get_mut(&self.destination)
-            .unwrap();
+            .ok_or(KeyError {
+                key: self.destination,
+                hashmap: "buildings".to_string(),
+            })?;
         building.weight += 1;
+        Ok(())
     }
 
     pub fn assign_destination(
         &mut self,
         buildings_manager: &BuildingsManager,
         robots_destination: &mut HashMap<i32, HashSet<i32>>,
-    ) {
+    ) -> Result<()> {
         let destination_id =
-            buildings_manager.get_weighted_random_building(self.x_position, self.y_position);
-        let destination = buildings_manager.buildings.get(&destination_id).unwrap();
+            buildings_manager.get_weighted_random_building(self.x_position, self.y_position)?;
+        let destination = buildings_manager
+            .buildings
+            .get(&destination_id)
+            .ok_or(KeyError {
+                key: destination_id,
+                hashmap: "buildings".to_string(),
+            })?;
         self.destination = destination_id;
         robots_destination
             .entry(destination_id)
@@ -64,17 +80,19 @@ impl Robot {
             .get_mut(&destination_id)
             .unwrap()
             .insert(self.id);
+        let source_dest = SourceDest {
+            source_x: self.x_position,
+            source_y: self.y_position,
+            dest_x: destination.absolute_entrance_x,
+            dest_y: destination.absolute_entrance_y,
+        };
         self.current_path = buildings_manager
             .shortest_paths
-            .get(&SourceDest {
-                source_x: self.x_position,
-                source_y: self.y_position,
-                dest_x: destination.absolute_entrance_x,
-                dest_y: destination.absolute_entrance_y,
-            })
-            .unwrap()
+            .get(&source_dest)
+            .ok_or(ShortestPathNotFoundError(source_dest))?
             .clone();
         self.current_path.reverse();
+        Ok(())
     }
 
     fn move_robot(
@@ -82,7 +100,7 @@ impl Robot {
         buildings_manager: &mut BuildingsManager,
         robots_grid: &mut Vec<Vec<HashSet<i32>>>,
         robots_destination: &mut HashMap<i32, HashSet<i32>>,
-    ) {
+    ) -> Result<()> {
         let Robot {
             x_position,
             y_position,
@@ -99,16 +117,17 @@ impl Robot {
                     robots_grid[x as usize][y as usize].insert(self.id);
                 }
                 None => {
-                    self.enter_building(buildings_manager);
+                    self.enter_building(buildings_manager)?;
                 }
             }
         } else {
             *stay_in_time -= 1;
             if *stay_in_time == 0 {
-                self.exit_building(buildings_manager);
-                self.assign_destination(buildings_manager, robots_destination);
+                self.exit_building(buildings_manager)?;
+                self.assign_destination(buildings_manager, robots_destination)?;
             }
         }
+        Ok(())
     }
 }
 
@@ -116,7 +135,7 @@ impl RobotsManager {
     fn initiate_robots(
         buildings_manager: &BuildingsManager,
         robots_destination: &mut HashMap<i32, HashSet<i32>>,
-    ) -> HashMap<i32, Robot> {
+    ) -> Result<HashMap<i32, Robot>> {
         let mut robots = HashMap::new();
         for id in 1..=1000 {
             robots.insert(
@@ -132,11 +151,11 @@ impl RobotsManager {
                 },
             );
         }
-        buildings_manager.assign_initial_buildings(&mut robots);
+        buildings_manager.assign_initial_buildings(&mut robots)?;
         for robot in robots.values_mut() {
-            robot.assign_destination(buildings_manager, robots_destination);
+            robot.assign_destination(buildings_manager, robots_destination)?;
         }
-        robots
+        Ok(robots)
     }
 
     fn get_robots_grid(robots: &HashMap<i32, Robot>) -> Vec<Vec<HashSet<i32>>> {
@@ -149,15 +168,15 @@ impl RobotsManager {
         grid
     }
 
-    pub fn new(buildings_manager: &BuildingsManager) -> Self {
+    pub fn new(buildings_manager: &BuildingsManager) -> Result<Self> {
         let mut robots_destination = HashMap::new();
-        let robots = Self::initiate_robots(buildings_manager, &mut robots_destination);
+        let robots = Self::initiate_robots(buildings_manager, &mut robots_destination)?;
         let robots_grid = Self::get_robots_grid(&robots);
-        RobotsManager {
+        Ok(RobotsManager {
             robots,
             robots_grid,
             robots_destination,
-        }
+        })
     }
 
     /// damage and reassign destinations for robots at location x, y with damage = emp.damage
@@ -167,22 +186,27 @@ impl RobotsManager {
         x: i32,
         y: i32,
         buildings_manager: &BuildingsManager,
-    ) {
+    ) -> Result<()> {
         let robot_ids = &self.robots_grid[x as usize][y as usize];
         for robot_id in robot_ids {
-            let robot = self.robots.get_mut(robot_id).unwrap();
+            let robot = self.robots.get_mut(robot_id).ok_or(KeyError {
+                key: *robot_id,
+                hashmap: "robots".to_string(),
+            })?;
             robot.take_damage(damage);
-            robot.assign_destination(buildings_manager, &mut self.robots_destination);
+            robot.assign_destination(buildings_manager, &mut self.robots_destination)?;
         }
+        Ok(())
     }
 
-    pub fn move_robots(&mut self, buildings_manager: &mut BuildingsManager) {
+    pub fn move_robots(&mut self, buildings_manager: &mut BuildingsManager) -> Result<()> {
         for robot in self.robots.values_mut() {
             robot.move_robot(
                 buildings_manager,
                 &mut self.robots_grid,
                 &mut self.robots_destination,
-            );
+            )?;
         }
+        Ok(())
     }
 }

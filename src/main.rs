@@ -4,6 +4,7 @@ use flexi_logger::{Cleanup, Criterion, Duplicate, FileSpec, Naming};
 use crate::api::{attack, auth, defense, stats};
 
 mod api;
+mod error;
 mod models;
 mod schema;
 mod simulation;
