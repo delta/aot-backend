@@ -1,5 +1,7 @@
+use crate::error::DieselError;
 /// CRUD functions
 use crate::models::*;
+use crate::util::function;
 use anyhow::Result;
 use diesel::prelude::*;
 use serde::Serialize;
@@ -21,12 +23,22 @@ pub fn fetch_map_layout(conn: &PgConnection, player_id: i32) -> Result<MapLayout
         .select(levels_fixture::id)
         .filter(levels_fixture::start_date.le(today))
         .filter(levels_fixture::end_date.gt(today))
-        .first::<i32>(conn)?;
+        .first::<i32>(conn)
+        .map_err(|err| DieselError {
+            table: "levels_fixture",
+            function: function!(),
+            error: err,
+        })?;
 
     Ok(map_layout::table
         .filter(map_layout::player.eq(player_id))
         .filter(map_layout::level_id.eq(level_id))
-        .first::<MapLayout>(conn)?)
+        .first::<MapLayout>(conn)
+        .map_err(|err| DieselError {
+            table: "map_layout",
+            function: function!(),
+            error: err,
+        })?)
 }
 
 pub fn get_details_from_map_layout(conn: &PgConnection, map: MapLayout) -> Result<DefenseResponse> {
@@ -34,10 +46,20 @@ pub fn get_details_from_map_layout(conn: &PgConnection, map: MapLayout) -> Resul
 
     let map_spaces = map_spaces::table
         .filter(map_spaces::map_id.eq(map.id))
-        .load::<MapSpaces>(conn)?;
+        .load::<MapSpaces>(conn)
+        .map_err(|err| DieselError {
+            table: "map_spaces",
+            function: function!(),
+            error: err,
+        })?;
     let levels_fixture = levels_fixture::table
         .filter(levels_fixture::id.eq(map.level_id))
-        .first::<LevelsFixture>(conn)?;
+        .first::<LevelsFixture>(conn)
+        .map_err(|err| DieselError {
+            table: "levels_fixture",
+            function: function!(),
+            error: err,
+        })?;
     let blocks: Vec<BlockType> = fetch_blocks(conn)?;
 
     Ok(DefenseResponse {
@@ -50,7 +72,13 @@ pub fn get_details_from_map_layout(conn: &PgConnection, map: MapLayout) -> Resul
 pub fn fetch_blocks(conn: &PgConnection) -> Result<Vec<BlockType>> {
     use crate::schema::block_type::dsl::*;
 
-    Ok(block_type.load::<BlockType>(conn)?)
+    Ok(block_type
+        .load::<BlockType>(conn)
+        .map_err(|err| DieselError {
+            table: "block_type",
+            function: function!(),
+            error: err,
+        })?)
 }
 
 pub fn put_base_details(maps: &[NewMapSpaces], map: &MapLayout, conn: &PgConnection) -> Result<()> {
@@ -58,7 +86,12 @@ pub fn put_base_details(maps: &[NewMapSpaces], map: &MapLayout, conn: &PgConnect
 
     diesel::delete(map_spaces)
         .filter(map_id.eq(map.id))
-        .execute(conn)?;
+        .execute(conn)
+        .map_err(|err| DieselError {
+            table: "map_spaces",
+            function: function!(),
+            error: err,
+        })?;
     let m: Vec<NewMapSpaces> = maps
         .iter()
         .map(|e| NewMapSpaces {
@@ -72,7 +105,12 @@ pub fn put_base_details(maps: &[NewMapSpaces], map: &MapLayout, conn: &PgConnect
     diesel::insert_into(map_spaces)
         .values(m)
         .on_conflict_do_nothing()
-        .execute(conn)?;
+        .execute(conn)
+        .map_err(|err| DieselError {
+            table: "map_spaces",
+            function: function!(),
+            error: err,
+        })?;
 
     Ok(())
 }
@@ -83,7 +121,12 @@ pub fn get_road_id(conn: &PgConnection) -> Result<i32> {
     Ok(block_type
         .filter(name.eq("road"))
         .select(id)
-        .first::<i32>(conn)?)
+        .first::<i32>(conn)
+        .map_err(|err| DieselError {
+            table: "block_type",
+            function: function!(),
+            error: err,
+        })?)
 }
 
 pub fn get_level_constraints(conn: &PgConnection, map_level_id: i32) -> Result<HashMap<i32, i32>> {
@@ -91,7 +134,12 @@ pub fn get_level_constraints(conn: &PgConnection, map_level_id: i32) -> Result<H
 
     Ok(level_constraints
         .filter(level_id.eq(map_level_id))
-        .load::<LevelConstraints>(conn)?
+        .load::<LevelConstraints>(conn)
+        .map_err(|err| DieselError {
+            table: "level_constraints",
+            function: function!(),
+            error: err,
+        })?
         .iter()
         .map(|constraint| (constraint.block_id, constraint.no_of_buildings))
         .collect())
@@ -102,7 +150,12 @@ pub fn set_map_valid(conn: &PgConnection, map_id: i32) -> Result<()> {
 
     diesel::update(map_layout.find(map_id))
         .set(is_valid.eq(true))
-        .execute(conn)?;
+        .execute(conn)
+        .map_err(|err| DieselError {
+            table: "map_layout",
+            function: function!(),
+            error: err,
+        })?;
 
     Ok(())
 }
@@ -112,7 +165,12 @@ pub fn set_map_invalid(conn: &PgConnection, map_id: i32) -> Result<()> {
 
     diesel::update(map_layout.find(map_id))
         .set(is_valid.eq(false))
-        .execute(conn)?;
+        .execute(conn)
+        .map_err(|err| DieselError {
+            table: "map_layout",
+            function: function!(),
+            error: err,
+        })?;
 
     Ok(())
 }

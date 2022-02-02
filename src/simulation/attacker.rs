@@ -1,4 +1,8 @@
+use crate::error::DieselError;
 use crate::models::*;
+use crate::simulation::error::EmptyAttackerPathError;
+use crate::util::function;
+use anyhow::Result;
 use diesel::prelude::*;
 use diesel::{PgConnection, QueryDsl};
 
@@ -14,14 +18,17 @@ impl Attacker {
         }
     }
 
-    pub fn is_planted(&self, path_id: i32) -> bool {
-        self.path.last().unwrap().id >= path_id
+    pub fn is_planted(&self, path_id: i32) -> Result<bool> {
+        match self.path.last() {
+            Some(attacker_path) => Ok(attacker_path.id >= path_id),
+            None => Err(EmptyAttackerPathError.into()),
+        }
     }
 
-    pub fn get_current_position(&self) -> (i32, i32) {
+    pub fn get_current_position(&self) -> Result<(i32, i32)> {
         match self.path.last() {
-            Some(attacker_path) => (attacker_path.x_coord, attacker_path.y_coord),
-            None => panic!("Empty Attacker Path"),
+            Some(attacker_path) => Ok((attacker_path.x_coord, attacker_path.y_coord)),
+            None => Err(EmptyAttackerPathError.into()),
         }
     }
 
@@ -29,16 +36,20 @@ impl Attacker {
         self.is_alive = false;
     }
 
-    pub fn new(conn: &PgConnection, game_id: i32) -> Self {
+    pub fn new(conn: &PgConnection, game_id: i32) -> Result<Self> {
         use crate::schema::attacker_path;
         let path = attacker_path::table
             .filter(attacker_path::game_id.eq(game_id))
             .order_by(attacker_path::id.desc())
             .load::<AttackerPath>(conn)
-            .expect("Couldn't get attacker path");
-        Self {
+            .map_err(|err| DieselError {
+                table: "attacker_path",
+                function: function!(),
+                error: err,
+            })?;
+        Ok(Self {
             is_alive: true,
             path,
-        }
+        })
     }
 }

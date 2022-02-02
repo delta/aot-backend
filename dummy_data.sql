@@ -32,7 +32,7 @@ COPY public.attack_type (id, att_type, attack_radius, attack_damage) FROM stdin;
 --
 
 COPY public.levels_fixture (id, start_date, end_date, no_of_bombs) FROM stdin;
-1	2022-01-01	2022-02-01	10
+1	2022-01-01	2022-03-01	10
 \.
 
 
@@ -69,115 +69,115 @@ COPY public.game (id, attack_id, defend_id, map_layout_id, attack_score, defend_
 --
 
 COPY public.attacker_path (id, y_coord, x_coord, is_emp, game_id, emp_type, emp_time) FROM stdin;
-7	33	6	t	1	3	100
-33	12	11	t	1	2	140
-1	39	6	f	1	\N	\N
-2	38	6	f	1	\N	\N
-3	37	6	f	1	\N	\N
-4	36	6	f	1	\N	\N
-5	35	6	f	1	\N	\N
-6	34	6	f	1	\N	\N
-8	32	6	f	1	\N	\N
-9	31	6	f	1	\N	\N
-10	30	6	f	1	\N	\N
-11	29	6	f	1	\N	\N
-12	28	6	f	1	\N	\N
-13	27	6	f	1	\N	\N
-14	26	6	f	1	\N	\N
-15	25	6	f	1	\N	\N
-16	24	6	f	1	\N	\N
-17	23	6	f	1	\N	\N
-18	22	6	f	1	\N	\N
-19	21	6	f	1	\N	\N
-20	20	6	f	1	\N	\N
-21	19	6	f	1	\N	\N
-22	18	6	f	1	\N	\N
-23	17	6	f	1	\N	\N
-24	16	6	f	1	\N	\N
-25	15	6	f	1	\N	\N
-26	14	6	f	1	\N	\N
-27	13	6	f	1	\N	\N
-28	12	6	f	1	\N	\N
-29	12	7	f	1	\N	\N
-30	12	8	f	1	\N	\N
-31	12	9	f	1	\N	\N
-32	12	10	f	1	\N	\N
-34	13	11	f	1	\N	\N
-35	14	11	f	1	\N	\N
-36	15	11	f	1	\N	\N
-37	16	11	f	1	\N	\N
-38	17	11	f	1	\N	\N
-39	18	11	f	1	\N	\N
-40	19	11	f	1	\N	\N
-41	20	11	f	1	\N	\N
-42	21	11	f	1	\N	\N
-43	22	11	f	1	\N	\N
-44	23	11	f	1	\N	\N
-45	24	11	f	1	\N	\N
-46	25	11	f	1	\N	\N
-47	26	11	f	1	\N	\N
-49	27	12	f	1	\N	\N
-50	27	13	f	1	\N	\N
-51	27	14	f	1	\N	\N
-52	27	15	f	1	\N	\N
-53	27	16	f	1	\N	\N
-54	27	17	f	1	\N	\N
-55	26	17	f	1	\N	\N
-56	25	17	f	1	\N	\N
-57	24	17	f	1	\N	\N
-58	23	17	f	1	\N	\N
-59	22	17	f	1	\N	\N
-61	20	17	f	1	\N	\N
-62	19	17	f	1	\N	\N
-64	18	18	f	1	\N	\N
-65	18	19	f	1	\N	\N
-66	18	20	f	1	\N	\N
-67	18	21	f	1	\N	\N
-69	19	22	f	1	\N	\N
-70	20	22	f	1	\N	\N
-72	22	22	f	1	\N	\N
-73	23	22	f	1	\N	\N
-74	24	22	f	1	\N	\N
-75	25	22	f	1	\N	\N
-76	26	22	f	1	\N	\N
-77	27	22	f	1	\N	\N
-78	27	23	f	1	\N	\N
-79	27	24	f	1	\N	\N
-80	27	25	f	1	\N	\N
-81	27	26	f	1	\N	\N
-82	27	27	f	1	\N	\N
-84	26	28	f	1	\N	\N
-85	25	28	f	1	\N	\N
-86	24	28	f	1	\N	\N
-87	23	28	f	1	\N	\N
-88	22	28	f	1	\N	\N
-89	21	28	f	1	\N	\N
-90	20	28	f	1	\N	\N
-91	19	28	f	1	\N	\N
-92	18	28	f	1	\N	\N
-93	17	28	f	1	\N	\N
-94	16	28	f	1	\N	\N
-95	15	28	f	1	\N	\N
-96	14	28	f	1	\N	\N
-97	13	28	f	1	\N	\N
-99	11	28	f	1	\N	\N
-100	10	28	f	1	\N	\N
-101	9	28	f	1	\N	\N
-102	8	28	f	1	\N	\N
-103	7	28	f	1	\N	\N
-104	6	28	f	1	\N	\N
-105	6	29	f	1	\N	\N
-106	6	30	f	1	\N	\N
-107	6	31	f	1	\N	\N
-108	6	32	f	1	\N	\N
-48	27	11	t	1	2	180
-60	21	17	t	1	1	220
-63	18	17	t	1	1	260
-68	18	22	t	1	1	300
-71	21	22	t	1	1	340
-83	27	28	t	1	2	380
-98	12	28	t	1	2	420
-109	6	33	t	1	3	460
+0	39	6	f	1	\N	\N
+1	38	6	f	1	\N	\N
+2	37	6	f	1	\N	\N
+3	36	6	f	1	\N	\N
+4	35	6	f	1	\N	\N
+5	34	6	f	1	\N	\N
+6	33	6	t	1	3	100
+7	32	6	f	1	\N	\N
+8	31	6	f	1	\N	\N
+9	30	6	f	1	\N	\N
+10	29	6	f	1	\N	\N
+11	28	6	f	1	\N	\N
+12	27	6	f	1	\N	\N
+13	26	6	f	1	\N	\N
+14	25	6	f	1	\N	\N
+15	24	6	f	1	\N	\N
+16	23	6	f	1	\N	\N
+17	22	6	f	1	\N	\N
+18	21	6	f	1	\N	\N
+19	20	6	f	1	\N	\N
+20	19	6	f	1	\N	\N
+21	18	6	f	1	\N	\N
+22	17	6	f	1	\N	\N
+23	16	6	f	1	\N	\N
+24	15	6	f	1	\N	\N
+25	14	6	f	1	\N	\N
+26	13	6	f	1	\N	\N
+27	12	6	f	1	\N	\N
+28	12	7	f	1	\N	\N
+29	12	8	f	1	\N	\N
+30	12	9	f	1	\N	\N
+31	12	10	f	1	\N	\N
+32	12	11	t	1	2	140
+33	13	11	f	1	\N	\N
+34	14	11	f	1	\N	\N
+35	15	11	f	1	\N	\N
+36	16	11	f	1	\N	\N
+37	17	11	f	1	\N	\N
+38	18	11	f	1	\N	\N
+39	19	11	f	1	\N	\N
+40	20	11	f	1	\N	\N
+41	21	11	f	1	\N	\N
+42	22	11	f	1	\N	\N
+43	23	11	f	1	\N	\N
+44	24	11	f	1	\N	\N
+45	25	11	f	1	\N	\N
+46	26	11	f	1	\N	\N
+47	27	11	t	1	2	180
+48	27	12	f	1	\N	\N
+49	27	13	f	1	\N	\N
+50	27	14	f	1	\N	\N
+51	27	15	f	1	\N	\N
+52	27	16	f	1	\N	\N
+53	27	17	f	1	\N	\N
+54	26	17	f	1	\N	\N
+55	25	17	f	1	\N	\N
+56	24	17	f	1	\N	\N
+57	23	17	f	1	\N	\N
+58	22	17	f	1	\N	\N
+59	21	17	t	1	1	220
+60	20	17	f	1	\N	\N
+61	19	17	f	1	\N	\N
+62	18	17	t	1	1	260
+63	18	18	f	1	\N	\N
+64	18	19	f	1	\N	\N
+65	18	20	f	1	\N	\N
+66	18	21	f	1	\N	\N
+67	18	22	t	1	1	300
+68	19	22	f	1	\N	\N
+69	20	22	f	1	\N	\N
+70	21	22	t	1	1	340
+71	22	22	f	1	\N	\N
+72	23	22	f	1	\N	\N
+73	24	22	f	1	\N	\N
+74	25	22	f	1	\N	\N
+75	26	22	f	1	\N	\N
+76	27	22	f	1	\N	\N
+77	27	23	f	1	\N	\N
+78	27	24	f	1	\N	\N
+79	27	25	f	1	\N	\N
+80	27	26	f	1	\N	\N
+81	27	27	f	1	\N	\N
+82	27	28	t	1	2	380
+83	26	28	f	1	\N	\N
+84	25	28	f	1	\N	\N
+85	24	28	f	1	\N	\N
+86	23	28	f	1	\N	\N
+87	22	28	f	1	\N	\N
+88	21	28	f	1	\N	\N
+89	20	28	f	1	\N	\N
+90	19	28	f	1	\N	\N
+91	18	28	f	1	\N	\N
+92	17	28	f	1	\N	\N
+93	16	28	f	1	\N	\N
+94	15	28	f	1	\N	\N
+95	14	28	f	1	\N	\N
+96	13	28	f	1	\N	\N
+97	12	28	t	1	2	420
+98	11	28	f	1	\N	\N
+99	10	28	f	1	\N	\N
+100	9	28	f	1	\N	\N
+101	8	28	f	1	\N	\N
+102	7	28	f	1	\N	\N
+103	6	28	f	1	\N	\N
+104	6	29	f	1	\N	\N
+105	6	30	f	1	\N	\N
+106	6	31	f	1	\N	\N
+107	6	32	f	1	\N	\N
+108	6	33	t	1	3	460
 \.
 
 
@@ -230,9 +230,9 @@ COPY public.building_weights ("time", building_id, weight) FROM stdin;
 --
 
 COPY public.level_constraints (level_id, block_id, no_of_buildings) FROM stdin;
-1	1	15
-1	2	20
-1	3	15
+1	1	12
+1	2	18
+1	3	12
 \.
 
 
@@ -19712,7 +19712,7 @@ SELECT pg_catalog.setval('public.game_defend_id_seq', 1, false);
 -- Name: game_id_seq; Type: SEQUENCE SET; Schema: public; Owner: aot
 --
 
-SELECT pg_catalog.setval('public.game_id_seq', 1, false);
+SELECT pg_catalog.setval('public.game_id_seq', 18, true);
 
 
 --

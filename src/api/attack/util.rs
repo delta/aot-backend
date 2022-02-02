@@ -1,13 +1,17 @@
-use std::collections::HashSet;
-
+use crate::error::DieselError;
 use crate::models::{Game, LevelsFixture, NewAttackerPath, NewGame};
-use anyhow::Result;
+use crate::simulation::{RenderAttacker, Simulator};
+use crate::simulation::{RenderRobot, NO_OF_FRAMES};
+use crate::util::function;
+use anyhow::{Context, Result};
 use chrono::{Local, NaiveTime};
 use diesel::dsl::exists;
 use diesel::prelude::*;
 use diesel::select;
 use diesel::PgConnection;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
+use std::io::Write;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct NewAttack {
@@ -47,7 +51,7 @@ pub struct LeaderboardEntry {
     pub overall_rating: i32,
 }
 
-const START_HOUR: u32 = 9;
+const START_HOUR: u32 = 7;
 const END_HOUR: u32 = 23;
 const TOTAL_ATTACKS_PER_LEVEL: i64 = 2;
 
@@ -71,7 +75,12 @@ pub fn get_current_levels_fixture(conn: &PgConnection) -> Result<LevelsFixture> 
     let level: LevelsFixture = levels_fixture::table
         .filter(levels_fixture::start_date.le(current_date))
         .filter(levels_fixture::end_date.gt(current_date))
-        .first(conn)?;
+        .first(conn)
+        .map_err(|err| DieselError {
+            table: "levels_fixture",
+            function: function!(),
+            error: err,
+        })?;
     Ok(level)
 }
 
@@ -81,7 +90,12 @@ pub fn get_map_id(defender_id: &i32, level_id: &i32, conn: &PgConnection) -> Res
         .filter(map_layout::player.eq(defender_id))
         .filter(map_layout::level_id.eq(level_id))
         .select(map_layout::id)
-        .first(conn)?;
+        .first(conn)
+        .map_err(|err| DieselError {
+            table: "map_layout",
+            function: function!(),
+            error: err,
+        })?;
     Ok(map_id)
 }
 
@@ -92,7 +106,12 @@ pub fn get_valid_road_paths(map_id: i32, conn: &PgConnection) -> Result<HashSet<
         .filter(map_spaces::map_id.eq(map_id))
         .filter(map_spaces::blk_type.eq(ROAD_ID))
         .select((map_spaces::x_coordinate, map_spaces::y_coordinate))
-        .load::<(i32, i32)>(conn)?
+        .load::<(i32, i32)>(conn)
+        .map_err(|err| DieselError {
+            table: "map_spaces",
+            function: function!(),
+            error: err,
+        })?
         .iter()
         .cloned()
         .collect();
@@ -109,7 +128,12 @@ pub fn is_attack_allowed(attacker_id: i32, defender_id: i32, conn: &PgConnection
         .filter(levels_fixture::start_date.le(current_date))
         .filter(levels_fixture::end_date.gt(current_date))
         .count()
-        .get_result(conn)?;
+        .get_result(conn)
+        .map_err(|err| DieselError {
+            table: "joined_table",
+            function: function!(),
+            error: err,
+        })?;
     let is_duplicate_attack: bool = select(exists(
         joined_table
             .filter(game::attack_id.eq(attacker_id))
@@ -117,7 +141,12 @@ pub fn is_attack_allowed(attacker_id: i32, defender_id: i32, conn: &PgConnection
             .filter(levels_fixture::start_date.le(current_date))
             .filter(levels_fixture::end_date.gt(current_date)),
     ))
-    .get_result(conn)?;
+    .get_result(conn)
+    .map_err(|err| DieselError {
+        table: "joined_table",
+        function: function!(),
+        error: err,
+    })?;
     Ok(total_attacks_this_level < TOTAL_ATTACKS_PER_LEVEL && !is_duplicate_attack)
 }
 
@@ -126,7 +155,7 @@ pub fn insert_attack(
     new_attack: &NewAttack,
     map_layout_id: i32,
     conn: &PgConnection,
-) -> Result<()> {
+) -> Result<i32> {
     use crate::schema::{attacker_path, game};
 
     // insert in game table
@@ -141,7 +170,12 @@ pub fn insert_attack(
 
     let inserted_game: Game = diesel::insert_into(game::table)
         .values(&new_game)
-        .get_result(conn)?;
+        .get_result(conn)
+        .map_err(|err| DieselError {
+            table: "game",
+            function: function!(),
+            error: err,
+        })?;
 
     // insert in attacker path table
 
@@ -163,9 +197,14 @@ pub fn insert_attack(
 
     diesel::insert_into(attacker_path::table)
         .values(new_attacker_paths)
-        .execute(conn)?;
+        .execute(conn)
+        .map_err(|err| DieselError {
+            table: "attacker_path",
+            function: function!(),
+            error: err,
+        })?;
 
-    Ok(())
+    Ok(inserted_game.id)
 }
 
 pub fn get_attack_history(attacker_id: i32, conn: &PgConnection) -> Result<AttackHistoryResponse> {
@@ -180,7 +219,14 @@ pub fn get_attack_history(attacker_id: i32, conn: &PgConnection) -> Result<Attac
 
 pub fn get_leaderboard(page: i64, limit: i64, conn: &PgConnection) -> Result<LeaderboardResponse> {
     use crate::schema::user;
-    let total_entries: i64 = user::table.count().get_result(conn)?;
+    let total_entries: i64 = user::table
+        .count()
+        .get_result(conn)
+        .map_err(|err| DieselError {
+            table: "user",
+            function: function!(),
+            error: err,
+        })?;
     let offset: i64 = (page - 1) * limit;
     let last_page: i64 = (total_entries as f64 / limit as f64).ceil() as i64;
 
@@ -189,10 +235,68 @@ pub fn get_leaderboard(page: i64, limit: i64, conn: &PgConnection) -> Result<Lea
         .order_by(user::overall_rating.desc())
         .offset(offset)
         .limit(limit)
-        .load::<LeaderboardEntry>(conn)?;
+        .load::<LeaderboardEntry>(conn)
+        .map_err(|err| DieselError {
+            table: "user",
+            function: function!(),
+            error: err,
+        })?;
 
     Ok(LeaderboardResponse {
         leaderboard_entries,
         last_page,
     })
+}
+
+pub fn run_simulation(game_id: i32, conn: &PgConnection) -> Result<Vec<u8>> {
+    let mut simulator =
+        Simulator::new(game_id, conn).with_context(|| "Failed to create simulator")?;
+    let mut content = Vec::new();
+
+    writeln!(content, "emps")?;
+    writeln!(content, "id,time,type")?;
+    let emps = simulator.render_emps();
+    for emp in emps {
+        writeln!(content, "{},{},{}", emp.id, emp.time, emp.emp_type)?;
+    }
+
+    for frame in 1..=NO_OF_FRAMES {
+        writeln!(content, "frame {}", frame)?;
+        let simulated_frame = simulator
+            .simulate()
+            .with_context(|| format!("Failed to simulate frame {}", frame))?;
+
+        writeln!(content, "attacker")?;
+        writeln!(content, "x,y,is_alive,emp_id")?;
+        let RenderAttacker {
+            x_position,
+            y_position,
+            is_alive,
+            emp_id,
+        } = simulated_frame.attacker;
+        writeln!(
+            content,
+            "{},{},{},{}",
+            x_position, y_position, is_alive, emp_id
+        )?;
+
+        writeln!(content, "robots")?;
+        writeln!(content, "id,health,x,y,in_building")?;
+        for robot in simulated_frame.robots {
+            let RenderRobot {
+                id,
+                health,
+                x_position,
+                y_position,
+                in_building,
+            } = robot;
+            writeln!(
+                content,
+                "{},{},{},{},{}",
+                id, health, x_position, y_position, in_building
+            )?;
+        }
+    }
+
+    Ok(content)
 }

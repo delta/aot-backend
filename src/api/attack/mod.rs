@@ -1,21 +1,20 @@
-use std::collections::HashSet;
-
+use super::error;
+use crate::models::LevelsFixture;
 use actix_web::error::ErrorBadRequest;
-use actix_web::{web, Responder, Result};
+use actix_web::{web, HttpResponse, Responder, Result};
+use anyhow::Context;
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
+use std::collections::HashSet;
+use util::{LeaderboardQuery, NewAttack};
 
 mod util;
 mod validate;
 
-use super::error;
-use crate::models::LevelsFixture;
-use util::{LeaderboardQuery, NewAttack};
-
 pub fn routes(cfg: &mut web::ServiceConfig) {
-    cfg.service(web::resource("/leaderboard").route(web::get().to(list_leaderboard)));
-    cfg.service(web::resource("").route(web::post().to(create_attack)));
-    cfg.service(web::resource("/history").route(web::get().to(attack_history)));
+    cfg.service(web::resource("").route(web::post().to(create_attack)))
+        .service(web::resource("/leaderboard").route(web::get().to(list_leaderboard)))
+        .service(web::resource("/history").route(web::get().to(attack_history)));
 }
 
 type DbPool = Pool<ConnectionManager<PgConnection>>;
@@ -65,20 +64,19 @@ async fn create_attack(
         return Err(ErrorBadRequest("Invalid attack path"));
     }
     let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-    web::block(move || {
-        Ok(util::insert_attack(
-            attacker_id,
-            &new_attack,
-            map_id,
-            &conn,
-        )?) as anyhow::Result<()>
+    let game_id = web::block(move || util::insert_attack(attacker_id, &new_attack, map_id, &conn))
+        .await
+        .map_err(|err| error::handle_error(err.into()))?;
+
+    let file_content = web::block(move || {
+        let conn = pool.get()?;
+        util::run_simulation(game_id, &conn)
+            .with_context(|| format!("Failed to run simulation for game {}", game_id))
     })
     .await
     .map_err(|err| error::handle_error(err.into()))?;
 
-    // TODO: Simulate attack, generate csv, send csv response
-
-    Ok("Added Attack")
+    Ok(HttpResponse::Ok().body(file_content))
 }
 
 async fn attack_history(pool: web::Data<DbPool>) -> Result<impl Responder> {
