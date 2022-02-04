@@ -10,7 +10,7 @@ default-run = "aot-backend"
 actix-web = "3"
 anyhow = "1.0.53"
 chrono = { version = "0.4", features = ["serde"] }
-diesel = { version = "1.4.4", features = ["chrono", "postgres", "r2d2"] }
+diesel = { version = "1.4.4", features = ["chrono", "postgres", "r2d2", "numeric"] }
 dotenv = "0.15.0"
 flexi_logger = "0.20.1"
 log = "0.4.14"

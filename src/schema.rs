@@ -104,10 +104,10 @@ table! {
         email -> Varchar,
         phone -> Varchar,
         username -> Varchar,
-        overall_rating -> Int4,
         is_pragyan -> Bool,
         password -> Varchar,
         is_verified -> Bool,
+        overall_rating -> Float4,
     }
 }
 

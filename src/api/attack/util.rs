@@ -44,7 +44,7 @@ pub struct LeaderboardResponse {
 #[derive(Queryable, Deserialize, Serialize)]
 pub struct LeaderboardEntry {
     pub username: String,
-    pub overall_rating: i32,
+    pub overall_rating: f32,
 }
 
 const START_HOUR: u32 = 9;
