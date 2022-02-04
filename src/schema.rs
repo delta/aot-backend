@@ -46,6 +46,10 @@ table! {
         map_layout_id -> Int4,
         attack_score -> Int4,
         defend_score -> Int4,
+        robots_destroyed -> Int4,
+        emps_used -> Int4,
+        damage_done -> Int4,
+        no_of_attacker_suicided -> Int4,
     }
 }
 
@@ -108,6 +112,7 @@ table! {
         is_pragyan -> Bool,
         password -> Varchar,
         is_verified -> Bool,
+        highest_rating -> Int4,
     }
 }
 

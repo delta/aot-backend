@@ -166,6 +166,10 @@ pub fn insert_attack(
         map_layout_id: &map_layout_id,
         attack_score: &0,
         defend_score: &0,
+        no_of_attacker_suicided: &0,
+        robots_destroyed: &0,
+        damage_done: &0,
+        emps_used: &0,
     };
 
     let inserted_game: Game = diesel::insert_into(game::table)
