@@ -49,7 +49,7 @@ table! {
         robots_destroyed -> Int4,
         emps_used -> Int4,
         damage_done -> Int4,
-        no_of_attacker_suicided -> Int4,
+        is_attacker_alive -> Bool,
     }
 }
 

@@ -100,12 +100,14 @@ pub fn make_response(
             stats.total_damage_attack += attack.damage_done;
             stats.no_of_robots_killed += attack.robots_destroyed;
             stats.no_of_emps_used += attack.emps_used;
-            stats.no_of_attackers_suicided += attack.no_of_attacker_suicided;
+            if !attack.is_attacker_alive {
+                stats.no_of_attackers_suicided += 1;
+            }
         }
     }
     if !defense_game.is_empty() {
+        stats.highest_defense_score = defense_game[0].defend_score;
         for defend in defense_game {
-            stats.highest_defense_score = defense_game[0].defend_score;
             stats.total_damage_defense += defend.damage_done;
             stats.no_of_robots_got_killed += defend.robots_destroyed;
         }

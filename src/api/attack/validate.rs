@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use super::util::NewAttack;
-use crate::simulation::GAME_MINUTES_PER_FRAME;
+use crate::constants;
 
 pub fn is_attack_valid(
     new_attack: &NewAttack,
@@ -23,7 +23,7 @@ pub fn is_attack_valid(
                     return false;
                 }
                 // check if emp_time is valid
-                let game_minutes = GAME_MINUTES_PER_FRAME * (i as i32);
+                let game_minutes = constants::GAME_MINUTES_PER_FRAME * (i as i32);
                 if emp_time <= game_minutes {
                     return false;
                 }

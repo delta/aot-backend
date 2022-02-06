@@ -1,4 +1,5 @@
 use super::robots::Robot;
+use crate::constants::{self, MAP_SPACES};
 use crate::error::DieselError;
 use crate::models::{BlockType, MapSpaces, ShortestPath};
 use crate::simulation::error::*;
@@ -9,8 +10,6 @@ use diesel::{PgConnection, QueryDsl};
 use rand::distributions::WeightedIndex;
 use rand::prelude::*;
 use std::collections::{HashMap, HashSet};
-
-const EMP_TIMEOUT: i32 = 20;
 
 #[derive(Debug)]
 struct BuildingType {
@@ -41,7 +40,7 @@ pub struct BuildingsManager {
     pub shortest_paths: HashMap<SourceDest, Vec<(i32, i32)>>,
     impacted_buildings: HashMap<i32, HashSet<i32>>,
     is_impacted: HashSet<i32>,
-    pub buildings_grid: [[i32; 40]; 40],
+    pub buildings_grid: [[i32; MAP_SPACES as usize]; MAP_SPACES as usize],
 }
 
 // Associated functions
@@ -176,11 +175,15 @@ impl BuildingsManager {
     }
 
     // Returns a matrix with each element containing the map_space id of the building in that location
-    fn get_building_grid(conn: &PgConnection, map_id: i32) -> Result<[[i32; 40]; 40]> {
+    fn get_building_grid(
+        conn: &PgConnection,
+        map_id: i32,
+    ) -> Result<[[i32; MAP_SPACES as usize]; MAP_SPACES as usize]> {
         use crate::schema::block_type;
 
         let map_spaces: Vec<MapSpaces> = Self::get_building_map_spaces(conn, map_id)?;
-        let mut building_grid: [[i32; 40]; 40] = [[0; 40]; 40];
+        let mut building_grid: [[i32; MAP_SPACES as usize]; MAP_SPACES as usize] =
+            [[0; MAP_SPACES as usize]; MAP_SPACES as usize];
 
         for map_space in map_spaces {
             let BlockType { width, height, .. } = block_type::table
@@ -246,7 +249,8 @@ impl BuildingsManager {
         let mut buildings: HashMap<i32, Building> = HashMap::new();
         let impacted_buildings: HashMap<i32, HashSet<i32>> = HashMap::new();
         let is_impacted: HashSet<i32> = HashSet::new();
-        let buildings_grid: [[i32; 40]; 40] = Self::get_building_grid(conn, map_id)?;
+        let buildings_grid: [[i32; MAP_SPACES as usize]; MAP_SPACES as usize] =
+            Self::get_building_grid(conn, map_id)?;
 
         for map_space in map_spaces {
             let (absolute_entrance_x, absolute_entrance_y) = Self::get_absolute_entrance(
@@ -320,7 +324,7 @@ impl BuildingsManager {
     }
 
     pub fn revive_buildings(&mut self, time: i32) {
-        let time = time - EMP_TIMEOUT;
+        let time = time - constants::EMP_TIMEOUT;
         let BuildingsManager {
             impacted_buildings,
             is_impacted,

@@ -87,7 +87,7 @@ pub struct Game {
     pub robots_destroyed: i32,
     pub emps_used: i32,
     pub damage_done: i32,
-    pub no_of_attacker_suicided: i32,
+    pub is_attacker_alive: bool,
 }
 
 #[derive(Insertable)]
@@ -101,7 +101,7 @@ pub struct NewGame<'a> {
     pub robots_destroyed: &'a i32,
     pub emps_used: &'a i32,
     pub damage_done: &'a i32,
-    pub no_of_attacker_suicided: &'a i32,
+    pub is_attacker_alive: &'a bool,
 }
 
 #[derive(Queryable, Serialize)]

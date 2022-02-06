@@ -1,7 +1,8 @@
+use crate::constants;
 use crate::error::DieselError;
 use crate::models::{Game, LevelsFixture, NewAttackerPath, NewGame};
+use crate::simulation::RenderRobot;
 use crate::simulation::{RenderAttacker, Simulator};
-use crate::simulation::{RenderRobot, NO_OF_FRAMES};
 use crate::util::function;
 use anyhow::{Context, Result};
 use chrono::{Local, NaiveTime};
@@ -166,7 +167,7 @@ pub fn insert_attack(
         map_layout_id: &map_layout_id,
         attack_score: &0,
         defend_score: &0,
-        no_of_attacker_suicided: &0,
+        is_attacker_alive: &false,
         robots_destroyed: &0,
         damage_done: &0,
         emps_used: &0,
@@ -253,6 +254,7 @@ pub fn get_leaderboard(page: i64, limit: i64, conn: &PgConnection) -> Result<Lea
 }
 
 pub fn run_simulation(game_id: i32, conn: &PgConnection) -> Result<Vec<u8>> {
+    use crate::schema::game;
     let mut simulator =
         Simulator::new(game_id, conn).with_context(|| "Failed to create simulator")?;
     let mut content = Vec::new();
@@ -264,7 +266,7 @@ pub fn run_simulation(game_id: i32, conn: &PgConnection) -> Result<Vec<u8>> {
         writeln!(content, "{},{},{}", emp.id, emp.time, emp.emp_type)?;
     }
 
-    for frame in 1..=NO_OF_FRAMES {
+    for frame in 1..=constants::NO_OF_FRAMES {
         writeln!(content, "frame {}", frame)?;
         let simulated_frame = simulator
             .simulate()
@@ -301,6 +303,13 @@ pub fn run_simulation(game_id: i32, conn: &PgConnection) -> Result<Vec<u8>> {
             )?;
         }
     }
-
+    diesel::update(game::table.find(game_id))
+        .set((
+            game::damage_done.eq(simulator.get_damage_done()),
+            game::robots_destroyed.eq(simulator.get_no_of_robots_destroyed()),
+            game::is_attacker_alive.eq(simulator.get_is_attacker_alive()),
+            game::emps_used.eq(simulator.get_emps_used()),
+        ))
+        .execute(conn)?;
     Ok(content)
 }
