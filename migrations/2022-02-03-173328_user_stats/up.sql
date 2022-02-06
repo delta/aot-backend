@@ -8,4 +8,4 @@ ADD COLUMN is_attacker_alive boolean NOT NULL DEFAULT false;
 
 
 ALTER TABLE "user"
-ADD COLUMN highest_rating INTEGER NOT NULL;
+ADD COLUMN highest_rating INTEGER NOT NULL DEFAULT 0;

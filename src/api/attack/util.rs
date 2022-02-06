@@ -52,13 +52,9 @@ pub struct LeaderboardEntry {
     pub overall_rating: i32,
 }
 
-const START_HOUR: u32 = 7;
-const END_HOUR: u32 = 23;
-const TOTAL_ATTACKS_PER_LEVEL: i64 = 2;
-
 /// checks if the attack is allowed at current time
 pub fn is_attack_allowed_now() -> bool {
-    let start_time = NaiveTime::from_hms(START_HOUR, 0, 0);
+    let start_time = NaiveTime::from_hms(START_HOUR as u32, 0, 0);
     let end_time = NaiveTime::from_hms(END_HOUR, 0, 0);
     let current_time = Local::now().naive_local().time();
     current_time >= start_time && current_time <= end_time
@@ -102,7 +98,6 @@ pub fn get_map_id(defender_id: &i32, level_id: &i32, conn: &PgConnection) -> Res
 
 pub fn get_valid_road_paths(map_id: i32, conn: &PgConnection) -> Result<HashSet<(i32, i32)>> {
     use crate::schema::map_spaces;
-    const ROAD_ID: i32 = 4;
     let valid_road_paths: HashSet<(i32, i32)> = map_spaces::table
         .filter(map_spaces::map_id.eq(map_id))
         .filter(map_spaces::blk_type.eq(ROAD_ID))

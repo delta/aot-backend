@@ -1,4 +1,5 @@
 use crate::api::error;
+use crate::constants::ROAD_ID;
 use crate::models::*;
 use actix_web::error::ErrorBadRequest;
 use actix_web::web::{self, Data, Json};
@@ -71,20 +72,19 @@ async fn confirm_base_details(
 ) -> Result<impl Responder> {
     let map_spaces = map_spaces.into_inner();
     let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-    let (map, blocks, road_id, mut level_constraints) = web::block(move || {
+    let (map, blocks, mut level_constraints) = web::block(move || {
         let map = util::fetch_map_layout(&conn, 2)?;
         Ok((
             map.clone(),
             util::fetch_blocks(&conn)?,
-            util::get_road_id(&conn)?,
             util::get_level_constraints(&conn, map.level_id)?,
-        )) as anyhow::Result<(MapLayout, Vec<BlockType>, i32, HashMap<i32, i32>)>
+        )) as anyhow::Result<(MapLayout, Vec<BlockType>, HashMap<i32, i32>)>
     })
     .await
     .map_err(|err| error::handle_error(err.into()))?;
 
     if validate::is_valid_update_layout(&map_spaces, &map, &blocks)
-        && validate::is_valid_save_layout(&map_spaces, road_id, &mut level_constraints, &blocks)
+        && validate::is_valid_save_layout(&map_spaces, ROAD_ID, &mut level_constraints, &blocks)
     {
         web::block(move || {
             let conn = pool.get()?;

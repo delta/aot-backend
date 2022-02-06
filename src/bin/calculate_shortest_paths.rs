@@ -1,3 +1,4 @@
+use aot_backend::constants::*;
 use aot_backend::models::*;
 use aot_backend::schema::{block_type, map_spaces, shortest_path};
 use aot_backend::util;
@@ -30,8 +31,6 @@ fn get_absolute_coordinates(
 
 //running shortest path simulation
 pub fn run_shortest_paths(conn: &PgConnection, input_map_layout_id: i32) {
-    const MAP_SIZE: usize = 40;
-    const ROAD_ID: i32 = 4;
     // reading map_spaces
     let mapspaces_list = map_spaces::table
         .filter(map_spaces::map_id.eq(input_map_layout_id))

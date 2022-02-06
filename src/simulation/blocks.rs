@@ -47,21 +47,11 @@ pub struct BuildingsManager {
 impl BuildingsManager {
     // Get all map_spaces for this map excluding roads
     fn get_building_map_spaces(conn: &PgConnection, map_id: i32) -> Result<Vec<MapSpaces>> {
-        use crate::schema::{block_type, map_spaces};
-
-        let road_id: i32 = block_type::table
-            .filter(block_type::name.eq("road"))
-            .select(block_type::id)
-            .first(conn)
-            .map_err(|err| DieselError {
-                table: "block_type",
-                function: function!(),
-                error: err,
-            })?;
+        use crate::schema::map_spaces;
 
         Ok(map_spaces::table
             .filter(map_spaces::map_id.eq(map_id))
-            .filter(map_spaces::blk_type.ne(road_id))
+            .filter(map_spaces::blk_type.ne(ROAD_ID))
             .load::<MapSpaces>(conn)
             .map_err(|err| DieselError {
                 table: "map_spaces",
