@@ -84,6 +84,10 @@ pub struct Game {
     pub map_layout_id: i32,
     pub attack_score: i32,
     pub defend_score: i32,
+    pub robots_destroyed: i32,
+    pub emps_used: i32,
+    pub damage_done: i32,
+    pub is_attacker_alive: bool,
 }
 
 #[derive(Insertable)]
@@ -94,6 +98,10 @@ pub struct NewGame<'a> {
     pub map_layout_id: &'a i32,
     pub attack_score: &'a i32,
     pub defend_score: &'a i32,
+    pub robots_destroyed: &'a i32,
+    pub emps_used: &'a i32,
+    pub damage_done: &'a i32,
+    pub is_attacker_alive: &'a bool,
 }
 
 #[derive(Queryable, Serialize)]
@@ -194,6 +202,7 @@ pub struct User {
     pub is_pragyan: bool,
     pub password: String,
     pub is_verified: bool,
+    pub highest_rating: i32,
 }
 
 #[derive(Insertable)]
@@ -207,4 +216,5 @@ pub struct NewUser<'a> {
     pub is_pragyan: &'a bool,
     pub password: &'a str,
     pub is_verified: &'a bool,
+    pub highest_rating: &'a i32,
 }

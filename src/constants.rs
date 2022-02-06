@@ -1,0 +1,13 @@
+pub const EMP_TIMEOUT: i32 = 20;
+pub const HEALTH: i32 = 20;
+pub const NO_OF_ROBOTS: i32 = 1000;
+pub const GAME_TIME_MINUTES: i32 = 420;
+pub const GAME_MINUTES_PER_FRAME: i32 = 2;
+pub const ATTACKER_RESTRICTED_FRAMES: i32 = 30;
+pub const START_HOUR: i32 = 9;
+pub const NO_OF_FRAMES: i32 = GAME_TIME_MINUTES / GAME_MINUTES_PER_FRAME;
+pub const MAX_STAY_IN_TIME: i32 = 10;
+pub const MAP_SIZE: usize = 40;
+pub const END_HOUR: u32 = 23;
+pub const TOTAL_ATTACKS_PER_LEVEL: i64 = 2;
+pub const ROAD_ID: i32 = 4;

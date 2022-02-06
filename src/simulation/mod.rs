@@ -1,3 +1,4 @@
+use crate::constants::*;
 use crate::error::DieselError;
 use crate::util::function;
 use crate::{models::AttackerPath, simulation::error::EmpDetailsError};
@@ -14,12 +15,6 @@ pub mod blocks;
 pub mod emp;
 pub mod error;
 pub mod robots;
-
-const GAME_TIME_MINUTES: i32 = 420;
-pub const GAME_MINUTES_PER_FRAME: i32 = 2;
-const ATTACKER_RESTRICTED_FRAMES: i32 = 30;
-const START_HOUR: i32 = 9;
-pub const NO_OF_FRAMES: i32 = GAME_TIME_MINUTES / GAME_MINUTES_PER_FRAME;
 
 #[derive(Debug, Serialize)]
 pub struct RenderAttacker {
@@ -130,6 +125,32 @@ impl Simulator {
 
     pub fn render_emps(&self) -> Vec<RenderEmp> {
         self.render_emps.clone()
+    }
+
+    pub fn get_emps_used(&self) -> i32 {
+        self.render_emps.len() as i32
+    }
+
+    pub fn get_is_attacker_alive(&self) -> bool {
+        self.attacker.is_alive
+    }
+
+    pub fn get_no_of_robots_destroyed(&self) -> i32 {
+        let mut destroyed = 0;
+        for r in self.robots_manager.robots.iter() {
+            if r.1.health == 0 {
+                destroyed += 1;
+            }
+        }
+        destroyed
+    }
+
+    pub fn get_damage_done(&self) -> i32 {
+        let mut sum_health = 0;
+        for r in self.robots_manager.robots.iter() {
+            sum_health += r.1.health;
+        }
+        HEALTH * NO_OF_ROBOTS - sum_health
     }
 
     pub fn simulate(&mut self) -> Result<RenderSimulation> {

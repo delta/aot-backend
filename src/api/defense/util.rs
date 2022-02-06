@@ -115,20 +115,6 @@ pub fn put_base_details(maps: &[NewMapSpaces], map: &MapLayout, conn: &PgConnect
     Ok(())
 }
 
-pub fn get_road_id(conn: &PgConnection) -> Result<i32> {
-    use crate::schema::block_type::dsl::*;
-
-    Ok(block_type
-        .filter(name.eq("road"))
-        .select(id)
-        .first::<i32>(conn)
-        .map_err(|err| DieselError {
-            table: "block_type",
-            function: function!(),
-            error: err,
-        })?)
-}
-
 pub fn get_level_constraints(conn: &PgConnection, map_level_id: i32) -> Result<HashMap<i32, i32>> {
     use crate::schema::level_constraints::dsl::*;
 

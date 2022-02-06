@@ -1,7 +1,8 @@
+use crate::constants::*;
 use crate::error::DieselError;
 use crate::models::{Game, LevelsFixture, NewAttackerPath, NewGame};
+use crate::simulation::RenderRobot;
 use crate::simulation::{RenderAttacker, Simulator};
-use crate::simulation::{RenderRobot, NO_OF_FRAMES};
 use crate::util::function;
 use anyhow::{Context, Result};
 use chrono::{Local, NaiveTime};
@@ -51,13 +52,9 @@ pub struct LeaderboardEntry {
     pub overall_rating: i32,
 }
 
-const START_HOUR: u32 = 7;
-const END_HOUR: u32 = 23;
-const TOTAL_ATTACKS_PER_LEVEL: i64 = 2;
-
 /// checks if the attack is allowed at current time
 pub fn is_attack_allowed_now() -> bool {
-    let start_time = NaiveTime::from_hms(START_HOUR, 0, 0);
+    let start_time = NaiveTime::from_hms(START_HOUR as u32, 0, 0);
     let end_time = NaiveTime::from_hms(END_HOUR, 0, 0);
     let current_time = Local::now().naive_local().time();
     current_time >= start_time && current_time <= end_time
@@ -101,7 +98,6 @@ pub fn get_map_id(defender_id: &i32, level_id: &i32, conn: &PgConnection) -> Res
 
 pub fn get_valid_road_paths(map_id: i32, conn: &PgConnection) -> Result<HashSet<(i32, i32)>> {
     use crate::schema::map_spaces;
-    const ROAD_ID: i32 = 4;
     let valid_road_paths: HashSet<(i32, i32)> = map_spaces::table
         .filter(map_spaces::map_id.eq(map_id))
         .filter(map_spaces::blk_type.eq(ROAD_ID))
@@ -166,6 +162,10 @@ pub fn insert_attack(
         map_layout_id: &map_layout_id,
         attack_score: &0,
         defend_score: &0,
+        is_attacker_alive: &false,
+        robots_destroyed: &0,
+        damage_done: &0,
+        emps_used: &0,
     };
 
     let inserted_game: Game = diesel::insert_into(game::table)
@@ -249,6 +249,7 @@ pub fn get_leaderboard(page: i64, limit: i64, conn: &PgConnection) -> Result<Lea
 }
 
 pub fn run_simulation(game_id: i32, conn: &PgConnection) -> Result<Vec<u8>> {
+    use crate::schema::game;
     let mut simulator =
         Simulator::new(game_id, conn).with_context(|| "Failed to create simulator")?;
     let mut content = Vec::new();
@@ -297,6 +298,18 @@ pub fn run_simulation(game_id: i32, conn: &PgConnection) -> Result<Vec<u8>> {
             )?;
         }
     }
-
+    diesel::update(game::table.find(game_id))
+        .set((
+            game::damage_done.eq(simulator.get_damage_done()),
+            game::robots_destroyed.eq(simulator.get_no_of_robots_destroyed()),
+            game::is_attacker_alive.eq(simulator.get_is_attacker_alive()),
+            game::emps_used.eq(simulator.get_emps_used()),
+        ))
+        .execute(conn)
+        .map_err(|err| DieselError {
+            table: "game",
+            function: function!(),
+            error: err,
+        })?;
     Ok(content)
 }

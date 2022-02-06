@@ -1,11 +1,9 @@
+use crate::constants::*;
 use crate::simulation::blocks::{BuildingsManager, SourceDest};
 use crate::simulation::error::*;
 use anyhow::Result;
 use rand::Rng;
 use std::collections::{HashMap, HashSet};
-
-const HEALTH: i32 = 20;
-const MAX_STAY_IN_TIME: i32 = 10;
 
 #[derive(Debug)]
 pub struct Robot {
@@ -159,7 +157,7 @@ impl RobotsManager {
     }
 
     fn get_robots_grid(robots: &HashMap<i32, Robot>) -> Vec<Vec<HashSet<i32>>> {
-        let mut grid = vec![vec![HashSet::new(); 40]; 40];
+        let mut grid = vec![vec![HashSet::new(); MAP_SIZE]; MAP_SIZE];
         for robot in robots.values() {
             let x = robot.x_position;
             let y = robot.y_position;

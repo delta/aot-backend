@@ -1,5 +1,5 @@
 /// Functions to check if a base layout is valid
-use crate::models::*;
+use crate::{constants::*, models::*};
 use petgraph::{self, prelude::*, Graph};
 use std::collections::{HashMap, HashSet};
 
@@ -74,7 +74,9 @@ pub fn is_valid_update_layout(
 
         for i in 0..width {
             for j in 0..height {
-                if (0..40).contains(&(x + i)) && (0..40).contains(&(y + j)) {
+                if (0..MAP_SIZE as i32).contains(&(x + i))
+                    && (0..MAP_SIZE as i32).contains(&(y + j))
+                {
                     if occupied_positions.contains(&(x + i, y + j)) {
                         return false;
                     }

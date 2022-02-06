@@ -1,4 +1,5 @@
 use super::robots::Robot;
+use crate::constants::*;
 use crate::error::DieselError;
 use crate::models::{BlockType, MapSpaces, ShortestPath};
 use crate::simulation::error::*;
@@ -9,8 +10,6 @@ use diesel::{PgConnection, QueryDsl};
 use rand::distributions::WeightedIndex;
 use rand::prelude::*;
 use std::collections::{HashMap, HashSet};
-
-const EMP_TIMEOUT: i32 = 20;
 
 #[derive(Debug)]
 struct BuildingType {
@@ -41,28 +40,18 @@ pub struct BuildingsManager {
     pub shortest_paths: HashMap<SourceDest, Vec<(i32, i32)>>,
     impacted_buildings: HashMap<i32, HashSet<i32>>,
     is_impacted: HashSet<i32>,
-    pub buildings_grid: [[i32; 40]; 40],
+    pub buildings_grid: [[i32; MAP_SIZE]; MAP_SIZE],
 }
 
 // Associated functions
 impl BuildingsManager {
     // Get all map_spaces for this map excluding roads
     fn get_building_map_spaces(conn: &PgConnection, map_id: i32) -> Result<Vec<MapSpaces>> {
-        use crate::schema::{block_type, map_spaces};
-
-        let road_id: i32 = block_type::table
-            .filter(block_type::name.eq("road"))
-            .select(block_type::id)
-            .first(conn)
-            .map_err(|err| DieselError {
-                table: "block_type",
-                function: function!(),
-                error: err,
-            })?;
+        use crate::schema::map_spaces;
 
         Ok(map_spaces::table
             .filter(map_spaces::map_id.eq(map_id))
-            .filter(map_spaces::blk_type.ne(road_id))
+            .filter(map_spaces::blk_type.ne(ROAD_ID))
             .load::<MapSpaces>(conn)
             .map_err(|err| DieselError {
                 table: "map_spaces",
@@ -176,11 +165,11 @@ impl BuildingsManager {
     }
 
     // Returns a matrix with each element containing the map_space id of the building in that location
-    fn get_building_grid(conn: &PgConnection, map_id: i32) -> Result<[[i32; 40]; 40]> {
+    fn get_building_grid(conn: &PgConnection, map_id: i32) -> Result<[[i32; MAP_SIZE]; MAP_SIZE]> {
         use crate::schema::block_type;
 
         let map_spaces: Vec<MapSpaces> = Self::get_building_map_spaces(conn, map_id)?;
-        let mut building_grid: [[i32; 40]; 40] = [[0; 40]; 40];
+        let mut building_grid: [[i32; MAP_SIZE]; MAP_SIZE] = [[0; MAP_SIZE]; MAP_SIZE];
 
         for map_space in map_spaces {
             let BlockType { width, height, .. } = block_type::table
@@ -246,7 +235,7 @@ impl BuildingsManager {
         let mut buildings: HashMap<i32, Building> = HashMap::new();
         let impacted_buildings: HashMap<i32, HashSet<i32>> = HashMap::new();
         let is_impacted: HashSet<i32> = HashSet::new();
-        let buildings_grid: [[i32; 40]; 40] = Self::get_building_grid(conn, map_id)?;
+        let buildings_grid: [[i32; MAP_SIZE]; MAP_SIZE] = Self::get_building_grid(conn, map_id)?;
 
         for map_space in map_spaces {
             let (absolute_entrance_x, absolute_entrance_y) = Self::get_absolute_entrance(

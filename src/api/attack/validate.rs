@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use super::util::NewAttack;
-use crate::simulation::GAME_MINUTES_PER_FRAME;
+use crate::constants::*;
 
 pub fn is_attack_valid(
     new_attack: &NewAttack,
