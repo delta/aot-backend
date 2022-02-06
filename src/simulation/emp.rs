@@ -1,4 +1,4 @@
-use crate::constants;
+use crate::constants::*;
 use crate::error::DieselError;
 use crate::models::{AttackType, AttackerPath};
 use crate::simulation::attacker::Attacker;
@@ -104,9 +104,7 @@ impl Emps {
 
             for x in emp.x_coord - radius..=emp.x_coord + radius {
                 for y in emp.y_coord - radius..=emp.y_coord + radius {
-                    if !(0..=constants::MAP_SPACES).contains(&x)
-                        || !(0..=constants::MAP_SPACES).contains(&y)
-                    {
+                    if !(0..MAP_SIZE as i32).contains(&x) || !(0..MAP_SIZE as i32).contains(&y) {
                         continue;
                     }
                     let distance = (x - emp.x_coord).pow(2) + (y - emp.y_coord).pow(2);

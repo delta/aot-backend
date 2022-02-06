@@ -1,9 +1,9 @@
 -- Your SQL goes here
 
 ALTER TABLE game
-ADD COLUMN robots_destroyed INTEGER NOT NULL,
-ADD COLUMN emps_used INTEGER NOT NULL,
-ADD COLUMN damage_done INTEGER NOT NULL,
+ADD COLUMN robots_destroyed INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN emps_used INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN damage_done INTEGER NOT NULL DEFAULT 0,
 ADD COLUMN is_attacker_alive boolean NOT NULL DEFAULT false;
 
 

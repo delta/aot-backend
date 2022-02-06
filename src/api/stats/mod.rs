@@ -1,5 +1,5 @@
 use crate::api::error;
-use actix_web::error::ErrorBadRequest;
+use actix_web::error::ErrorNotFound;
 use actix_web::web::{self, Data, Json, Path};
 use actix_web::{Responder, Result};
 use diesel::pg::PgConnection;
@@ -13,7 +13,7 @@ pub async fn get_user_stats(user_id: Path<i32>, pool: Data<Pool>) -> Result<impl
     let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let user = web::block(move || util::fetch_user(&conn, user_id.0))
         .await
-        .map_err(|_| ErrorBadRequest("USER NOT FOUND"))?;
+        .map_err(|_| ErrorNotFound("USER NOT FOUND"))?;
     let response = web::block(move || {
         let conn = pool.get()?;
         let attack_game = util::fetch_attack_game(&conn, user_id.0)?;

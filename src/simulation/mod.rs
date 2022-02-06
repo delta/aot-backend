@@ -1,4 +1,4 @@
-use crate::constants;
+use crate::constants::*;
 use crate::error::DieselError;
 use crate::util::function;
 use crate::{models::AttackerPath, simulation::error::EmpDetailsError};
@@ -108,11 +108,11 @@ impl Simulator {
     }
 
     pub fn attacker_allowed(frames_passed: i32) -> bool {
-        frames_passed > constants::ATTACKER_RESTRICTED_FRAMES
+        frames_passed > ATTACKER_RESTRICTED_FRAMES
     }
 
     pub fn get_minute(frames_passed: i32) -> i32 {
-        frames_passed * constants::GAME_MINUTES_PER_FRAME
+        frames_passed * GAME_MINUTES_PER_FRAME
     }
 
     pub fn is_hour(frames_passed: i32) -> bool {
@@ -120,7 +120,7 @@ impl Simulator {
     }
 
     pub fn get_hour(frames_passed: i32) -> i32 {
-        constants::START_HOUR + Self::get_minute(frames_passed) / 60
+        START_HOUR + Self::get_minute(frames_passed) / 60
     }
 
     pub fn render_emps(&self) -> Vec<RenderEmp> {
@@ -150,7 +150,7 @@ impl Simulator {
         for r in self.robots_manager.robots.iter() {
             sum_health += r.1.health;
         }
-        constants::HEALTH * constants::NO_OF_ROBOTS - sum_health
+        HEALTH * NO_OF_ROBOTS - sum_health
     }
 
     pub fn simulate(&mut self) -> Result<RenderSimulation> {

@@ -1,4 +1,4 @@
-use crate::constants;
+use crate::constants::*;
 use crate::error::DieselError;
 use crate::models::{Game, LevelsFixture, NewAttackerPath, NewGame};
 use crate::simulation::RenderRobot;
@@ -266,7 +266,7 @@ pub fn run_simulation(game_id: i32, conn: &PgConnection) -> Result<Vec<u8>> {
         writeln!(content, "{},{},{}", emp.id, emp.time, emp.emp_type)?;
     }
 
-    for frame in 1..=constants::NO_OF_FRAMES {
+    for frame in 1..=NO_OF_FRAMES {
         writeln!(content, "frame {}", frame)?;
         let simulated_frame = simulator
             .simulate()
@@ -310,6 +310,11 @@ pub fn run_simulation(game_id: i32, conn: &PgConnection) -> Result<Vec<u8>> {
             game::is_attacker_alive.eq(simulator.get_is_attacker_alive()),
             game::emps_used.eq(simulator.get_emps_used()),
         ))
-        .execute(conn)?;
+        .execute(conn)
+        .map_err(|err| DieselError {
+            table: "game",
+            function: function!(),
+            error: err,
+        })?;
     Ok(content)
 }

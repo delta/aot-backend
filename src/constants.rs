@@ -7,4 +7,4 @@ pub const ATTACKER_RESTRICTED_FRAMES: i32 = 30;
 pub const START_HOUR: i32 = 9;
 pub const NO_OF_FRAMES: i32 = GAME_TIME_MINUTES / GAME_MINUTES_PER_FRAME;
 pub const MAX_STAY_IN_TIME: i32 = 10;
-pub const MAP_SPACES: i32 = 40;
+pub const MAP_SIZE: usize = 40;
