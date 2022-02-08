@@ -64,13 +64,24 @@ async fn login(
 
 //Handler for POST /register
 async fn register(db: web::Data<Pool>, item: web::Json<InputUser>) -> Result<HttpResponse, Error> {
-    let result = web::block(move || add_user(db, item)).await;
-    match result {
-        Ok(userdata) => Ok(web::block(move || send_otp(&userdata.phone))
-            .await
-            .map(|otp| HttpResponse::Ok().json(otp))
-            .map_err(|err| HttpResponse::InternalServerError().body(err.to_string()))?),
-        Err(err) => Ok(HttpResponse::InternalServerError().body(err.to_string())),
+    let check = check_user(&db, &item);
+
+    match check {
+        Ok(Some(string)) => Ok(HttpResponse::Ok().body(string)),
+        Ok(None) => {
+            let result = add_user(db, item);
+
+            match result {
+                Ok(userdata) => Ok(web::block(move || send_otp(&userdata.phone))
+                    .await
+                    .map(|otp| HttpResponse::Ok().json(otp))
+                    .map_err(|_| {
+                        HttpResponse::InternalServerError().body("Internal Server Error")
+                    })?),
+                Err(err) => Ok(HttpResponse::InternalServerError().body(err.to_string())),
+            }
+        }
+        Err(_) => Ok(HttpResponse::InternalServerError().body("Internal Server Error")),
     }
 }
 
@@ -86,8 +97,8 @@ async fn verification(
         Ok(_) => Ok(web::block(move || server_verify_update(db, &item.username))
             .await
             .map(|_| HttpResponse::Ok().body("Account Successfully verified"))
-            .map_err(|err| HttpResponse::InternalServerError().body(err.to_string()))?),
-        Err(err) => Ok(HttpResponse::InternalServerError().body(err.to_string())),
+            .map_err(|_| HttpResponse::InternalServerError().body("Internal Server Error"))?),
+        Err(_) => Ok(HttpResponse::InternalServerError().body("Internal Server Error")),
     }
 }
 
@@ -116,8 +127,16 @@ fn handle_sign_in(
 
             Ok(HttpResponse::Ok().body("Successfully Logged In"))
         }
-        Ok(None) => Ok(HttpResponse::Ok().body("Invalid Password or Account Not verified...")),
-        Err(err) => Ok(HttpResponse::InternalServerError().body(err.to_string())),
+        Ok(None) => Ok(HttpResponse::MovedPermanently()
+            .header(LOCATION, "/verify")
+            .finish()),
+        Err(err) => {
+            if err.to_string() == "NotFound" {
+                Ok(HttpResponse::InternalServerError().body("Invalid Username or Password"))
+            } else {
+                Ok(HttpResponse::InternalServerError().body("Internal server error"))
+            }
+        }
     }
 }
 
@@ -135,13 +154,37 @@ fn find_user(
             if bcrypt::verify(&data.password, &userdata.password) {
                 Ok(Some(userdata))
             } else {
-                Ok(None)
+                Err(diesel::result::Error::NotFound)
             }
         } else {
             Ok(None)
         }
     } else {
         Err(diesel::result::Error::NotFound)
+    }
+}
+
+//function to check data exist or not
+fn check_user(
+    db: &web::Data<Pool>,
+    data: &web::Json<InputUser>,
+) -> Result<Option<String>, diesel::result::Error> {
+    let mut items = user
+        .filter(username.eq(&data.username))
+        .or_filter(phone.eq(&data.phone))
+        .or_filter(email.eq(&data.email))
+        .load::<User>(&db.get().unwrap())?;
+
+    if let Some(userdata) = items.pop() {
+        if userdata.phone == data.phone {
+            Ok(Some(String::from("Phone number already exist")))
+        } else if userdata.email == data.email {
+            Ok(Some(String::from("Email already exist")))
+        } else {
+            Ok(Some(String::from("Username already exist")))
+        }
+    } else {
+        Ok(None)
     }
 }
 

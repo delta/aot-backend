@@ -43,9 +43,7 @@ pub fn is_signed_in(session: &Session) -> bool {
 pub fn set_current_user(session: &Session, user: User) {
     // serializing to string is alright for this case,
     // but binary would be preferred in production use-cases.
-    session
-        .set("user", serde_json::to_string(&user).unwrap())
-        .unwrap();
+    session.set("user", &user.id).unwrap();
 }
 pub fn get_current_user(session: &Session) -> Result<User, AuthError> {
     let err = AuthError::AuthenticationError(String::from("Could not retrieve user from session"));
