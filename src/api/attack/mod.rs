@@ -1,5 +1,7 @@
 use super::error;
 use crate::models::LevelsFixture;
+use crate::util::*;
+use actix_session::Session;
 use actix_web::error::ErrorBadRequest;
 use actix_web::{web, HttpResponse, Responder, Result};
 use anyhow::Context;
@@ -22,9 +24,20 @@ type DbPool = Pool<ConnectionManager<PgConnection>>;
 async fn create_attack(
     new_attack: web::Json<NewAttack>,
     pool: web::Data<DbPool>,
+    session: Session,
 ) -> Result<impl Responder> {
-    // TODO: get attacker_id from session
-    let attacker_id = 1;
+    // getting attacker_id from session
+    let attacker_id;
+    let attacker = get_current_user(&session);
+
+    match attacker {
+        Ok(userdata) => {
+            attacker_id = userdata.id;
+        }
+        Err(_) => {
+            return Err(ErrorBadRequest("Session error"));
+        }
+    }
 
     if !util::is_attack_allowed_now() {
         return Err(ErrorBadRequest("Attack not allowed"));

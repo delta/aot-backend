@@ -1,6 +1,8 @@
 use crate::api::error;
 use crate::constants::ROAD_ID;
 use crate::models::*;
+use crate::util::*;
+use actix_session::Session;
 use actix_web::error::ErrorBadRequest;
 use actix_web::web::{self, Data, Json};
 use actix_web::{Responder, Result};
@@ -25,12 +27,23 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
     .data(web::JsonConfig::default().limit(1024 * 1024));
 }
 
-// TODO: Get player id from session
+// Get defence id from session
+static mut DEFENDER_ID: i32 = 0;
 
-async fn get_base_details(pool: Data<Pool>) -> Result<impl Responder> {
+async fn get_base_details(pool: Data<Pool>, session: Session) -> Result<impl Responder> {
+    let defender = get_current_user(&session);
+
+    match defender {
+        Ok(userdata) => unsafe {
+            DEFENDER_ID = userdata.id;
+        },
+        Err(_) => {
+            return Err(ErrorBadRequest("Session error"));
+        }
+    }
     let response = web::block(move || {
         let conn = pool.get()?;
-        let map = util::fetch_map_layout(&conn, 2)?;
+        let map = util::fetch_map_layout(&conn, unsafe { DEFENDER_ID })?;
         util::get_details_from_map_layout(&conn, map)
     })
     .await
@@ -47,7 +60,7 @@ async fn set_base_details(
     let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let (map, blocks) = web::block(move || {
         Ok((
-            util::fetch_map_layout(&conn, 2)?,
+            util::fetch_map_layout(&conn, unsafe { DEFENDER_ID })?,
             util::fetch_blocks(&conn)?,
         )) as anyhow::Result<(MapLayout, Vec<BlockType>)>
     })
@@ -75,7 +88,7 @@ async fn confirm_base_details(
     let map_spaces = map_spaces.into_inner();
     let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let (map, blocks, mut level_constraints) = web::block(move || {
-        let map = util::fetch_map_layout(&conn, 2)?;
+        let map = util::fetch_map_layout(&conn, unsafe { DEFENDER_ID })?;
         Ok((
             map.clone(),
             util::fetch_blocks(&conn)?,
