@@ -13,8 +13,9 @@ use serde::{Deserialize, Serialize};
 pub fn routes(cfg: &mut web::ServiceConfig) {
     cfg.service(web::resource("/login").route(web::post().to(login)));
     cfg.service(web::resource("/register").route(web::post().to(register)));
-    cfg.service(web::resource("/register/verify").route(web::post().to(verification)));
+    cfg.service(web::resource("/verify").route(web::post().to(verification)));
     cfg.service(web::resource("/logout").route(web::get().to(logout)));
+    cfg.service(web::resource("/resetverify").route(web::post().to(resetverify)));
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -110,6 +111,25 @@ pub async fn logout(session: Session, req: HttpRequest) -> HttpResponse {
         false => HttpResponse::MovedPermanently()
             .header(LOCATION, "/user/login")
             .finish(),
+    }
+}
+
+//Handler for reset verification
+async fn resetverify(
+    data: web::Json<AuthData>,
+    pool: web::Data<Pool>,
+) -> Result<HttpResponse, Error> {
+    let result = find_user(data.into_inner(), &pool);
+
+    match result {
+        Ok(Some(userdata)) => Ok(web::block(move || send_otp(&userdata.phone))
+            .await
+            .map(|otp| HttpResponse::Ok().json(otp))
+            .map_err(|_| HttpResponse::InternalServerError().body("Internal Server Error"))?),
+        Ok(None) => Ok(HttpResponse::MovedPermanently()
+            .header(LOCATION, "/verify")
+            .finish()),
+        Err(_) => Ok(HttpResponse::InternalServerError().body("Internal Server Error")),
     }
 }
 
