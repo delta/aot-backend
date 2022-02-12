@@ -1,6 +1,6 @@
+use super::auth::session;
 use super::error;
 use crate::models::LevelsFixture;
-use crate::util::*;
 use actix_session::Session;
 use actix_web::error::ErrorBadRequest;
 use actix_web::{web, HttpResponse, Responder, Result};
@@ -26,18 +26,7 @@ async fn create_attack(
     pool: web::Data<DbPool>,
     session: Session,
 ) -> Result<impl Responder> {
-    // getting attacker_id from session
-    let attacker_id;
-    let attacker = get_current_user(&session);
-
-    match attacker {
-        Ok(userdata) => {
-            attacker_id = userdata.id;
-        }
-        Err(_) => {
-            return Err(ErrorBadRequest("Session error"));
-        }
-    }
+    let attacker_id = session::get_current_user(&session)?;
 
     if !util::is_attack_allowed_now() {
         return Err(ErrorBadRequest("Attack not allowed"));
@@ -95,9 +84,9 @@ async fn create_attack(
 async fn attack_history(
     attacker_id: web::Path<i32>,
     pool: web::Data<DbPool>,
+    session: Session,
 ) -> Result<impl Responder> {
-    // TODO: get user_id from session
-    let user_id = 1;
+    let user_id = session::get_current_user(&session)?;
     let attacker_id = attacker_id.0;
     let response = web::block(move || {
         let conn = pool.get()?;
@@ -108,9 +97,8 @@ async fn attack_history(
     Ok(web::Json(response))
 }
 
-async fn get_top_attacks(pool: web::Data<DbPool>) -> Result<impl Responder> {
-    // TODO: get user_id from session
-    let user_id = 1;
+async fn get_top_attacks(pool: web::Data<DbPool>, session: Session) -> Result<impl Responder> {
+    let user_id = session::get_current_user(&session)?;
     let response = web::block(move || {
         let conn = pool.get()?;
         util::fetch_top_attacks(user_id, &conn)

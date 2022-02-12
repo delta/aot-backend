@@ -391,16 +391,12 @@ dependencies = [
  "dotenv",
  "flexi_logger",
  "log",
- "num-integer",
  "petgraph",
  "pwhash",
- "r2d2",
  "rand 0.8.4",
  "rayon",
  "reqwest",
  "serde",
- "serde_derive",
- "serde_json",
  "thiserror",
 ]
 

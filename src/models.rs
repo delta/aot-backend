@@ -203,6 +203,7 @@ pub struct User {
     pub password: String,
     pub is_verified: bool,
     pub highest_rating: i32,
+    pub otp_session_id: String,
 }
 
 #[derive(Insertable, Debug)]
@@ -230,4 +231,11 @@ pub struct SimulationLog {
 pub struct NewSimulationLog<'a> {
     pub game_id: &'a i32,
     pub log_text: &'a str,
+}
+
+#[derive(AsChangeset, Debug, Deserialize)]
+#[table_name = "user"]
+pub struct UpdateUser {
+    name: Option<String>,
+    pub username: Option<String>,
 }
