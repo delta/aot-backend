@@ -102,6 +102,13 @@ table! {
 }
 
 table! {
+    simulation_log (game_id) {
+        game_id -> Int4,
+        log_text -> Text,
+    }
+}
+
+table! {
     user (id) {
         id -> Int4,
         name -> Varchar,
@@ -127,6 +134,7 @@ joinable!(map_layout -> user (player));
 joinable!(map_spaces -> block_type (blk_type));
 joinable!(map_spaces -> map_layout (map_id));
 joinable!(shortest_path -> map_layout (base_id));
+joinable!(simulation_log -> game (game_id));
 
 allow_tables_to_appear_in_same_query!(
     attack_type,
@@ -139,5 +147,6 @@ allow_tables_to_appear_in_same_query!(
     map_layout,
     map_spaces,
     shortest_path,
+    simulation_log,
     user,
 );

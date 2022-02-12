@@ -20,6 +20,8 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
             .route(web::get().to(get_base_details)),
     )
     .service(web::resource("/save").route(web::put().to(confirm_base_details)))
+    .service(web::resource("/{defender_id}/history").route(web::get().to(defense_history)))
+    .service(web::resource("/top").route(web::get().to(get_top_defenses)))
     .data(web::JsonConfig::default().limit(1024 * 1024));
 }
 
@@ -97,4 +99,32 @@ async fn confirm_base_details(
     } else {
         Err(ErrorBadRequest("Invalid map layout"))
     }
+}
+
+async fn defense_history(
+    defender_id: web::Path<i32>,
+    pool: web::Data<Pool>,
+) -> Result<impl Responder> {
+    // TODO: get user_id from session
+    let user_id = 1;
+    let defender_id = defender_id.0;
+    let response = web::block(move || {
+        let conn = pool.get()?;
+        util::fetch_defense_history(defender_id, user_id, &conn)
+    })
+    .await
+    .map_err(|err| error::handle_error(err.into()))?;
+    Ok(web::Json(response))
+}
+
+async fn get_top_defenses(pool: web::Data<Pool>) -> Result<impl Responder> {
+    // TODO: get user_id from session
+    let user_id = 1;
+    let response = web::block(move || {
+        let conn = pool.get()?;
+        util::fetch_top_defenses(user_id, &conn)
+    })
+    .await
+    .map_err(|err| error::handle_error(err.into()))?;
+    Ok(web::Json(response))
 }

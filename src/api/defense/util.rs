@@ -1,10 +1,12 @@
-use crate::error::DieselError;
+use crate::api::util::{can_show_replay, GameHistoryEntry};
 /// CRUD functions
 use crate::models::*;
 use crate::util::function;
+use crate::{api::util::GameHistoryResponse, error::DieselError};
 use anyhow::Result;
+use chrono::Local;
 use diesel::prelude::*;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Serialize)]
@@ -12,6 +14,11 @@ pub struct DefenseResponse {
     pub map_spaces: Vec<MapSpaces>,
     pub blocks: Vec<BlockType>,
     pub levels_fixture: LevelsFixture,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct DefenceHistoryResponse {
+    pub games: Vec<Game>,
 }
 
 pub fn fetch_map_layout(conn: &PgConnection, player_id: i32) -> Result<MapLayout> {
@@ -159,4 +166,53 @@ pub fn set_map_invalid(conn: &PgConnection, map_id: i32) -> Result<()> {
         })?;
 
     Ok(())
+}
+
+pub fn fetch_defense_history(
+    attacker_id: i32,
+    user_id: i32,
+    conn: &PgConnection,
+) -> Result<GameHistoryResponse> {
+    use crate::schema::{game, levels_fixture, map_layout};
+
+    let current_date = Local::now().naive_local().date();
+
+    let joined_table = game::table.inner_join(map_layout::table.inner_join(levels_fixture::table));
+    let games = joined_table
+        .filter(game::defend_id.eq(attacker_id))
+        .load::<(Game, (MapLayout, LevelsFixture))>(conn)?
+        .into_iter()
+        .map(|(game, (_, levels_fixture))| {
+            let is_replay_available =
+                can_show_replay(user_id, &game, &levels_fixture, current_date);
+            GameHistoryEntry {
+                game,
+                is_replay_available,
+            }
+        })
+        .collect();
+    Ok(GameHistoryResponse { games })
+}
+
+pub fn fetch_top_defenses(user_id: i32, conn: &PgConnection) -> Result<GameHistoryResponse> {
+    use crate::schema::{game, levels_fixture, map_layout};
+
+    let current_date = Local::now().naive_local().date();
+
+    let joined_table = game::table.inner_join(map_layout::table.inner_join(levels_fixture::table));
+    let games = joined_table
+        .order_by(game::defend_score.desc())
+        .limit(10)
+        .load::<(Game, (MapLayout, LevelsFixture))>(conn)?
+        .into_iter()
+        .map(|(game, (_, levels_fixture))| {
+            let is_replay_available =
+                can_show_replay(user_id, &game, &levels_fixture, current_date);
+            GameHistoryEntry {
+                game,
+                is_replay_available,
+            }
+        })
+        .collect();
+    Ok(GameHistoryResponse { games })
 }

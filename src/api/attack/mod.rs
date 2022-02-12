@@ -14,7 +14,9 @@ mod validate;
 pub fn routes(cfg: &mut web::ServiceConfig) {
     cfg.service(web::resource("").route(web::post().to(create_attack)))
         .service(web::resource("/leaderboard").route(web::get().to(list_leaderboard)))
-        .service(web::resource("/history").route(web::get().to(attack_history)));
+        .service(web::resource("/{attacker_id}/history").route(web::get().to(attack_history)))
+        .service(web::resource("/{game_id}/replay").route(web::get().to(get_replay)))
+        .service(web::resource("/top").route(web::get().to(get_top_attacks)));
 }
 
 type DbPool = Pool<ConnectionManager<PgConnection>>;
@@ -79,12 +81,28 @@ async fn create_attack(
     Ok(HttpResponse::Ok().body(file_content))
 }
 
-async fn attack_history(pool: web::Data<DbPool>) -> Result<impl Responder> {
-    // TODO: get attacker_id from session
-    let attacker_id = 1;
+async fn attack_history(
+    attacker_id: web::Path<i32>,
+    pool: web::Data<DbPool>,
+) -> Result<impl Responder> {
+    // TODO: get user_id from session
+    let user_id = 1;
+    let attacker_id = attacker_id.0;
     let response = web::block(move || {
         let conn = pool.get()?;
-        util::get_attack_history(attacker_id, &conn)
+        util::fetch_attack_history(attacker_id, user_id, &conn)
+    })
+    .await
+    .map_err(|err| error::handle_error(err.into()))?;
+    Ok(web::Json(response))
+}
+
+async fn get_top_attacks(pool: web::Data<DbPool>) -> Result<impl Responder> {
+    // TODO: get user_id from session
+    let user_id = 1;
+    let response = web::block(move || {
+        let conn = pool.get()?;
+        util::fetch_top_attacks(user_id, &conn)
     })
     .await
     .map_err(|err| error::handle_error(err.into()))?;
@@ -103,6 +121,31 @@ async fn list_leaderboard(
     let response = web::block(move || {
         let conn = pool.get()?;
         util::get_leaderboard(page, limit, &conn)
+    })
+    .await
+    .map_err(|err| error::handle_error(err.into()))?;
+    Ok(web::Json(response))
+}
+
+async fn get_replay(game_id: web::Path<i32>, pool: web::Data<DbPool>) -> Result<impl Responder> {
+    // TODO: get user id from session
+    let user_id = 1;
+    let game_id = game_id.0;
+
+    let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+    let is_replay_allowed = web::block(move || {
+        Ok(util::fetch_is_replay_allowed(game_id, user_id, &conn)) as anyhow::Result<bool>
+    })
+    .await
+    .map_err(|err| error::handle_error(err.into()))?;
+
+    if !is_replay_allowed {
+        return Err(ErrorBadRequest("Requested replay is not available"));
+    }
+
+    let response = web::block(move || {
+        let conn = pool.get()?;
+        util::fetch_replay(game_id, &conn)
     })
     .await
     .map_err(|err| error::handle_error(err.into()))?;
