@@ -5,11 +5,18 @@ use log;
 use thiserror::Error;
 
 #[derive(Debug, Display, Error)]
-pub struct SessionError;
+pub enum AuthError {
+    SessionError,
+    UnVerifiedError,
+}
 
-impl ResponseError for SessionError {
+impl ResponseError for AuthError {
     fn error_response(&self) -> actix_web::HttpResponse {
-        actix_web::HttpResponse::Unauthorized().body("Session Error. Please login again.")
+        let response_body = match self {
+            AuthError::SessionError => "Session Error. Please login again.",
+            AuthError::UnVerifiedError => "Please verify your account.",
+        };
+        actix_web::HttpResponse::Unauthorized().body(response_body)
     }
 }
 

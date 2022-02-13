@@ -7,9 +7,22 @@ use diesel::prelude::*;
 use pwhash::bcrypt;
 use rand::{distributions::Alphanumeric, Rng};
 
-pub fn get_user(conn: &PgConnection, username: &str) -> Result<Option<User>> {
+pub fn get_user(conn: &PgConnection, id: i32) -> Result<Option<User>> {
     let user = user::table
-        .filter(user::username.eq(&username))
+        .find(id)
+        .first::<User>(conn)
+        .optional()
+        .map_err(|err| DieselError {
+            table: "user",
+            function: function!(),
+            error: err,
+        })?;
+    Ok(user)
+}
+
+pub fn get_user_by_username(conn: &PgConnection, username: &str) -> Result<Option<User>> {
+    let user = user::table
+        .filter(user::username.eq(username))
         .first::<User>(conn)
         .optional()
         .map_err(|err| DieselError {
@@ -64,22 +77,8 @@ pub fn get_pragyan_user(conn: &PgConnection, email: &str, name: &str) -> Result<
     }
 }
 
-pub fn get_user_ph_no(conn: &PgConnection, username: &str) -> Result<String> {
-    let user = user::table
-        .filter(user::username.eq(&username))
-        .select(user::phone)
-        .first::<String>(conn)
-        .map_err(|err| DieselError {
-            table: "user",
-            function: function!(),
-            error: err,
-        })?;
-    Ok(user)
-}
-
-pub fn set_otp_session_id(conn: &PgConnection, username: &str, session_id: &str) -> Result<()> {
-    diesel::update(user::table)
-        .filter(user::username.eq(&username))
+pub fn set_otp_session_id(conn: &PgConnection, user_id: i32, session_id: &str) -> Result<()> {
+    diesel::update(user::table.find(user_id))
         .set(user::otp_session_id.eq(&session_id))
         .execute(conn)
         .map_err(|err| DieselError {
@@ -90,9 +89,9 @@ pub fn set_otp_session_id(conn: &PgConnection, username: &str, session_id: &str)
     Ok(())
 }
 
-pub fn get_otp_session_id(conn: &PgConnection, username: &str) -> Result<String> {
+pub fn get_otp_session_id(conn: &PgConnection, user_id: i32) -> Result<String> {
     let session_id = user::table
-        .filter(user::username.eq(&username))
+        .find(user_id)
         .select(user::otp_session_id)
         .first::<String>(conn)
         .map_err(|err| DieselError {
@@ -103,9 +102,8 @@ pub fn get_otp_session_id(conn: &PgConnection, username: &str) -> Result<String>
     Ok(session_id)
 }
 
-pub fn verify_user(conn: &PgConnection, username: &str) -> Result<()> {
-    let user: User = diesel::update(user::table)
-        .filter(user::username.eq(&username))
+pub fn verify_user(conn: &PgConnection, id: i32) -> Result<()> {
+    let user: User = diesel::update(user::table.find(id))
         .set(user::is_verified.eq(true))
         .get_result(conn)
         .map_err(|err| DieselError {
@@ -116,7 +114,7 @@ pub fn verify_user(conn: &PgConnection, username: &str) -> Result<()> {
     // If some other user(s) have used the same phone number, but have not verified
     diesel::delete(user::table)
         .filter(user::phone.eq(&user.phone))
-        .filter(user::username.ne(&username))
+        .filter(user::username.ne(&user.username))
         .execute(conn)
         .map_err(|err| DieselError {
             table: "user",
@@ -129,6 +127,7 @@ pub fn verify_user(conn: &PgConnection, username: &str) -> Result<()> {
 pub fn get_user_with_phone(conn: &PgConnection, phone: &str) -> Result<Option<User>> {
     let user = user::table
         .filter(user::phone.eq(&phone))
+        .filter(user::is_verified.eq(true))
         .first::<User>(conn)
         .optional()
         .map_err(|err| DieselError {

@@ -32,13 +32,11 @@ struct LoginRequest {
 
 #[derive(Deserialize)]
 struct OtpRequest {
-    username: String,
     recaptcha: String,
 }
 
 #[derive(Deserialize)]
 struct OtpVerifyRequest {
-    username: String,
     otp: String,
     recaptcha: String,
 }
@@ -69,20 +67,22 @@ async fn login(
     }
     let username = request.username.clone();
     let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-    let user = web::block(move || util::get_user(&conn, &username))
+    let user = web::block(move || util::get_user_by_username(&conn, &username))
         .await
         .map_err(|err| error::handle_error(err.into()))?;
     if let Some(user) = user {
         if !user.is_pragyan && bcrypt::verify(&request.password, &user.password) {
+            session
+                .set("user", user.id)
+                .map_err(|err| error::handle_error(err.into()))?;
             if user.is_verified {
                 session
-                    .set("user", user.id)
+                    .set("is_verified", true)
                     .map_err(|err| error::handle_error(err.into()))?;
                 return Ok("Successfully Logged In");
-            } else {
-                // Account not verified
-                return Err(ErrorUnauthorized("App account not verified"));
             }
+            // Account not verified
+            return Err(ErrorUnauthorized("App account not verified"));
         }
     }
 
@@ -106,6 +106,9 @@ async fn login(
                 session
                     .set("user", user_id)
                     .map_err(|err| error::handle_error(err.into()))?;
+                session
+                    .set("is_verified", true)
+                    .map_err(|err| error::handle_error(err.into()))?;
                 Ok("Successfully Logged In")
             } else {
                 Err(anyhow::anyhow!(
@@ -127,13 +130,17 @@ async fn logout(session: Session) -> impl Responder {
     HttpResponse::NoContent().finish()
 }
 
-async fn sendotp(pool: Data<Pool>, request: Json<OtpRequest>) -> Result<impl Responder> {
+async fn sendotp(
+    pool: Data<Pool>,
+    request: Json<OtpRequest>,
+    session: Session,
+) -> Result<impl Responder> {
     let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-    let username = request.username.clone();
-    let user = web::block(move || util::get_user(&conn, &username))
+    let user_id = session::get_unverified_user(&session)?;
+    let user = web::block(move || util::get_user(&conn, user_id))
         .await
         .map_err(|err| error::handle_error(err.into()))?;
-    if let Some(user) = user {
+    if let Some(ref user) = user {
         if user.is_verified {
             return Err(ErrorBadRequest("Account already verified"));
         }
@@ -141,8 +148,16 @@ async fn sendotp(pool: Data<Pool>, request: Json<OtpRequest>) -> Result<impl Res
         return Err(ErrorBadRequest("User not found"));
     }
 
-    let request = request.into_inner();
+    let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+    let phone_number = user.clone().unwrap().phone;
+    let duplicate_user = web::block(move || util::get_user_with_phone(&conn, &phone_number))
+        .await
+        .map_err(|err| error::handle_error(err.into()))?;
+    if duplicate_user.is_some() {
+        return Err(ErrorBadRequest("Phone number already registered"));
+    }
 
+    let request = request.into_inner();
     let is_valid_recatpcha = web::block(|| otp::verify_recaptcha(request.recaptcha))
         .await
         .map_err(|err| error::handle_error(err.into()))?;
@@ -150,12 +165,8 @@ async fn sendotp(pool: Data<Pool>, request: Json<OtpRequest>) -> Result<impl Res
         return Err(ErrorUnauthorized("Invalid reCAPTCHA"));
     }
 
-    let username = request.username.clone();
-    let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-    let phone_number = web::block(move || util::get_user_ph_no(&conn, &username))
-        .await
-        .map_err(|err| error::handle_error(err.into()))?;
     let two_factor_response = web::block(move || {
+        let phone_number = user.unwrap().phone;
         let template_name = std::env::var("TWOFACTOR_VERIFY_TEMPLATE")?;
         otp::send_otp(&phone_number, &template_name)
     })
@@ -164,8 +175,7 @@ async fn sendotp(pool: Data<Pool>, request: Json<OtpRequest>) -> Result<impl Res
     if two_factor_response.status == "Success" {
         web::block(move || {
             let conn = pool.get()?;
-            let username = request.username.clone();
-            util::set_otp_session_id(&conn, &username, &two_factor_response.details)
+            util::set_otp_session_id(&conn, user_id, &two_factor_response.details)
         })
         .await
         .map_err(|err| error::handle_error(err.into()))?;
@@ -175,18 +185,18 @@ async fn sendotp(pool: Data<Pool>, request: Json<OtpRequest>) -> Result<impl Res
     }
 }
 
-async fn verify(pool: Data<Pool>, request: Json<OtpVerifyRequest>) -> Result<impl Responder> {
-    let OtpVerifyRequest {
-        username,
-        otp,
-        recaptcha,
-    } = request.into_inner();
+async fn verify(
+    pool: Data<Pool>,
+    request: Json<OtpVerifyRequest>,
+    session: Session,
+) -> Result<impl Responder> {
+    let OtpVerifyRequest { otp, recaptcha } = request.into_inner();
     if otp.len() < 4 || otp.len() > 6 {
         return Err(ErrorBadRequest("Invalid OTP"));
     }
-    let _username = username.clone();
+    let user_id = session::get_unverified_user(&session)?;
     let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-    let user = web::block(move || util::get_user(&conn, &_username))
+    let user = web::block(move || util::get_user(&conn, user_id))
         .await
         .map_err(|err| error::handle_error(err.into()))?;
     if user.is_none() {
@@ -201,26 +211,28 @@ async fn verify(pool: Data<Pool>, request: Json<OtpVerifyRequest>) -> Result<imp
     }
 
     let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-    let _username = username.clone();
-    let session_id = web::block(move || util::get_otp_session_id(&conn, &_username))
-        .await
-        .map_err(|err| error::handle_error(err.into()))?;
-    let two_factor_response = web::block(move || otp::verify_otp(&session_id, &otp))
-        .await
-        .map_err(|err| error::handle_error(err.into()))?;
+    let two_factor_response = web::block(move || {
+        let user_id = user.unwrap().id;
+        let session_id = util::get_otp_session_id(&conn, user_id)?;
+        otp::verify_otp(&session_id, &otp)
+    })
+    .await
+    .map_err(|err| error::handle_error(err.into()))?;
     match two_factor_response.details.as_str() {
         "OTP Matched" => {
             web::block(move || {
                 let conn = pool.get()?;
-                util::verify_user(&conn, &username)
+                util::verify_user(&conn, user_id)
             })
             .await
             .map_err(|err| error::handle_error(err.into()))?;
+            session
+                .set("is_verified", true)
+                .map_err(|err| error::handle_error(err.into()))?;
             Ok("Account successfully verified")
         }
-        "OTP Mismatch" => Err(ErrorUnauthorized("OTP Mismatch")),
         "OTP Expired" => Err(ErrorUnauthorized("OTP Expired")),
-        _ => Err(ErrorBadRequest("Invalid SessionId")),
+        _ => Err(ErrorUnauthorized("OTP Mismatch")),
     }
 }
 
@@ -256,8 +268,8 @@ async fn send_resetpw_otp(
     if two_factor_response.status == "Success" {
         web::block(move || {
             let conn = pool.get()?;
-            let username = user.unwrap().username;
-            util::set_otp_session_id(&conn, &username, &two_factor_response.details)
+            let user_id = user.unwrap().id;
+            util::set_otp_session_id(&conn, user_id, &two_factor_response.details)
         })
         .await
         .map_err(|err| error::handle_error(err.into()))?;
@@ -294,13 +306,13 @@ async fn reset_pw(pool: Data<Pool>, request: Json<ResetPwVerifyRequest>) -> Resu
     }
 
     let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-    let username = user.unwrap().username;
-    let session_id = web::block(move || util::get_otp_session_id(&conn, &username))
-        .await
-        .map_err(|err| error::handle_error(err.into()))?;
-    let two_factor_response = web::block(move || otp::verify_otp(&session_id, &otp))
-        .await
-        .map_err(|err| error::handle_error(err.into()))?;
+    let two_factor_response = web::block(move || {
+        let user_id = user.unwrap().id;
+        let session_id = util::get_otp_session_id(&conn, user_id)?;
+        otp::verify_otp(&session_id, &otp)
+    })
+    .await
+    .map_err(|err| error::handle_error(err.into()))?;
     match two_factor_response.details.as_str() {
         "OTP Matched" => {
             web::block(move || {
@@ -311,8 +323,7 @@ async fn reset_pw(pool: Data<Pool>, request: Json<ResetPwVerifyRequest>) -> Resu
             .map_err(|err| error::handle_error(err.into()))?;
             Ok("Password reset successfully")
         }
-        "OTP Mismatch" => Err(ErrorUnauthorized("OTP Mismatch")),
         "OTP Expired" => Err(ErrorUnauthorized("OTP Expired")),
-        _ => Err(ErrorBadRequest("Invalid SessionId")),
+        _ => Err(ErrorUnauthorized("OTP Mismatch")),
     }
 }

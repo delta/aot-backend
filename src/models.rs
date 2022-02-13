@@ -191,7 +191,7 @@ pub struct NewShortestPath {
     pub pathlist: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Queryable)]
+#[derive(Clone, Debug, Serialize, Deserialize, Queryable)]
 pub struct User {
     pub id: i32,
     pub name: String,
