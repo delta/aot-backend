@@ -6,15 +6,15 @@ use anyhow::Context;
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
 use std::collections::HashSet;
-use util::{LeaderboardQuery, NewAttack};
+use util::NewAttack;
 
 mod util;
 mod validate;
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
     cfg.service(web::resource("").route(web::post().to(create_attack)))
-        .service(web::resource("/leaderboard").route(web::get().to(list_leaderboard)))
-        .service(web::resource("/history").route(web::get().to(attack_history)));
+        .service(web::resource("/{attacker_id}/history").route(web::get().to(attack_history)))
+        .service(web::resource("/top").route(web::get().to(get_top_attacks)));
 }
 
 type DbPool = Pool<ConnectionManager<PgConnection>>;
@@ -79,30 +79,28 @@ async fn create_attack(
     Ok(HttpResponse::Ok().body(file_content))
 }
 
-async fn attack_history(pool: web::Data<DbPool>) -> Result<impl Responder> {
-    // TODO: get attacker_id from session
-    let attacker_id = 1;
+async fn attack_history(
+    attacker_id: web::Path<i32>,
+    pool: web::Data<DbPool>,
+) -> Result<impl Responder> {
+    // TODO: get user_id from session
+    let user_id = 1;
+    let attacker_id = attacker_id.0;
     let response = web::block(move || {
         let conn = pool.get()?;
-        util::get_attack_history(attacker_id, &conn)
+        util::fetch_attack_history(attacker_id, user_id, &conn)
     })
     .await
     .map_err(|err| error::handle_error(err.into()))?;
     Ok(web::Json(response))
 }
 
-async fn list_leaderboard(
-    query: web::Query<LeaderboardQuery>,
-    pool: web::Data<DbPool>,
-) -> Result<impl Responder> {
-    let page = query.page.unwrap_or(1);
-    let limit = query.limit.unwrap_or(20);
-    if page <= 0 || limit <= 0 {
-        return Err(ErrorBadRequest("Invalid query params"));
-    }
+async fn get_top_attacks(pool: web::Data<DbPool>) -> Result<impl Responder> {
+    // TODO: get user_id from session
+    let user_id = 1;
     let response = web::block(move || {
         let conn = pool.get()?;
-        util::get_leaderboard(page, limit, &conn)
+        util::fetch_top_attacks(user_id, &conn)
     })
     .await
     .map_err(|err| error::handle_error(err.into()))?;

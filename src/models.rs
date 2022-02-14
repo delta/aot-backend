@@ -218,3 +218,16 @@ pub struct NewUser<'a> {
     pub is_verified: &'a bool,
     pub highest_rating: &'a i32,
 }
+
+#[derive(Queryable, Deserialize, Serialize)]
+pub struct SimulationLog {
+    pub game_id: i32,
+    pub log_text: String,
+}
+
+#[derive(Insertable)]
+#[table_name = "simulation_log"]
+pub struct NewSimulationLog<'a> {
+    pub game_id: &'a i32,
+    pub log_text: &'a str,
+}
