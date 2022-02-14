@@ -1,7 +1,7 @@
 use actix_web::{middleware, web, App, HttpResponse, HttpServer};
 use flexi_logger::{Cleanup, Criterion, Duplicate, FileSpec, Naming};
 
-use crate::api::{attack, auth, defense, stats};
+use crate::api::{attack, auth, defense, game, stats};
 
 mod api;
 mod constants;
@@ -45,6 +45,7 @@ async fn main() -> std::io::Result<()> {
             .service(web::scope("/attack").configure(attack::routes))
             .service(web::scope("/user").configure(auth::routes))
             .service(web::scope("/base").configure(defense::routes))
+            .service(web::scope("/game").configure(game::routes))
     })
     .bind("0.0.0.0:8000")?
     .run()

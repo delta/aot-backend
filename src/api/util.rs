@@ -2,7 +2,7 @@ use crate::{
     constants::END_HOUR,
     models::{Game, LevelsFixture},
 };
-use chrono::{Local, NaiveDate, NaiveTime};
+use chrono::{Local, NaiveTime};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize)]
@@ -16,13 +16,9 @@ pub struct GameHistoryEntry {
     pub is_replay_available: bool,
 }
 
-pub fn can_show_replay(
-    requested_user: i32,
-    game: &Game,
-    levels_fixture: &LevelsFixture,
-    current_date: NaiveDate,
-) -> bool {
+pub fn can_show_replay(requested_user: i32, game: &Game, levels_fixture: &LevelsFixture) -> bool {
     let end_time = NaiveTime::from_hms(END_HOUR, 0, 0);
+    let current_date = Local::now().naive_local().date();
     let current_time = Local::now().naive_local().time();
     let is_current_round_over = current_time > end_time;
     is_current_round_over // current round is over
