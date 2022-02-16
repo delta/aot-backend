@@ -13,8 +13,8 @@ use serde::Serialize;
 pub struct StatsResponse {
     pub highest_attack_score: i32,
     pub highest_defense_score: i32,
-    pub rating: i32,
-    pub highest_rating: i32,
+    pub rating: f32,
+    pub highest_rating: f32,
     pub position_in_leaderboard: i32,
     pub no_of_robots_killed: i32,
     pub no_of_robots_got_killed: i32,

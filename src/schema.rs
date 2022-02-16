@@ -8,18 +8,6 @@ table! {
 }
 
 table! {
-    attacker_path (id, game_id) {
-        id -> Int4,
-        y_coord -> Int4,
-        x_coord -> Int4,
-        is_emp -> Bool,
-        game_id -> Int4,
-        emp_type -> Nullable<Int4>,
-        emp_time -> Nullable<Int4>,
-    }
-}
-
-table! {
     block_type (id) {
         id -> Int4,
         name -> Varchar,
@@ -115,17 +103,15 @@ table! {
         email -> Varchar,
         phone -> Varchar,
         username -> Varchar,
-        overall_rating -> Int4,
+        overall_rating -> Float4,
         is_pragyan -> Bool,
         password -> Varchar,
         is_verified -> Bool,
-        highest_rating -> Int4,
         otp_session_id -> Varchar,
+        highest_rating -> Float4,
     }
 }
 
-joinable!(attacker_path -> attack_type (emp_type));
-joinable!(attacker_path -> game (game_id));
 joinable!(building_weights -> block_type (building_id));
 joinable!(game -> map_layout (map_layout_id));
 joinable!(level_constraints -> block_type (block_id));
@@ -139,7 +125,6 @@ joinable!(simulation_log -> game (game_id));
 
 allow_tables_to_appear_in_same_query!(
     attack_type,
-    attacker_path,
     block_type,
     building_weights,
     game,

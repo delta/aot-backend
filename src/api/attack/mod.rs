@@ -10,6 +10,7 @@ use diesel::PgConnection;
 use std::collections::HashSet;
 use util::NewAttack;
 
+mod rating;
 mod util;
 mod validate;
 
@@ -27,6 +28,7 @@ async fn create_attack(
     session: Session,
 ) -> Result<impl Responder> {
     let attacker_id = session::get_current_user(&session)?;
+    let attacker_path = new_attack.attacker_path.clone();
 
     if !util::is_attack_allowed_now() {
         return Err(ErrorBadRequest("Attack not allowed"));
@@ -54,7 +56,7 @@ async fn create_attack(
         .map_err(|err| error::handle_error(err.into()))?;
 
     if !is_attack_allowed {
-        return Err(ErrorBadRequest("Invalid attack"));
+        return Err(ErrorBadRequest("Attack not allowed"));
     }
 
     if !validate::is_attack_valid(
@@ -66,13 +68,13 @@ async fn create_attack(
         return Err(ErrorBadRequest("Invalid attack path"));
     }
     let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-    let game_id = web::block(move || util::insert_attack(attacker_id, &new_attack, map_id, &conn))
+    let game_id = web::block(move || util::add_game(attacker_id, &new_attack, map_id, &conn))
         .await
         .map_err(|err| error::handle_error(err.into()))?;
 
     let file_content = web::block(move || {
         let conn = pool.get()?;
-        util::run_simulation(game_id, &conn)
+        util::run_simulation(game_id, attacker_path, &conn)
             .with_context(|| format!("Failed to run simulation for game {}", game_id))
     })
     .await

@@ -1,4 +1,5 @@
-use super::error;
+use super::{auth::session, error};
+use actix_session::Session;
 use actix_web::{error::ErrorBadRequest, web, Responder, Result};
 use diesel::{
     r2d2::{ConnectionManager, Pool},
@@ -33,9 +34,12 @@ async fn list_leaderboard(
     Ok(web::Json(response))
 }
 
-async fn get_replay(game_id: web::Path<i32>, pool: web::Data<DbPool>) -> Result<impl Responder> {
-    // TODO: get user id from session
-    let user_id = 1;
+async fn get_replay(
+    game_id: web::Path<i32>,
+    pool: web::Data<DbPool>,
+    session: Session,
+) -> Result<impl Responder> {
+    let user_id = session::get_current_user(&session)?;
     let game_id = game_id.0;
 
     let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;

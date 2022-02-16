@@ -3,8 +3,9 @@ use derive_more::Display;
 use thiserror::Error;
 
 #[derive(Debug, Display, Error)]
+#[display(fmt = "{:?}", self)]
 pub struct EmpDetailsError {
-    pub path_id: i32,
+    pub path_id: usize,
 }
 
 #[derive(Debug, Display, Error)]
@@ -18,6 +19,7 @@ pub struct KeyError {
 }
 
 #[derive(Debug, Display, Error)]
+#[display(fmt = "{:?}", self)]
 pub struct MapSpaceRotationError {
     pub map_space_id: i32,
 }

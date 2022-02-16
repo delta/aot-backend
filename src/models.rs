@@ -18,27 +18,23 @@ pub struct NewAttackType<'a> {
     pub attack_damage: &'a i32,
 }
 
-#[derive(Queryable, Debug)]
+#[derive(Debug)]
 pub struct AttackerPath {
-    pub id: i32,
+    pub id: usize,
     pub y_coord: i32,
     pub x_coord: i32,
     pub is_emp: bool,
-    pub game_id: i32,
     pub emp_type: Option<i32>,
     pub emp_time: Option<i32>,
 }
 
-#[derive(Insertable)]
-#[table_name = "attacker_path"]
-pub struct NewAttackerPath<'a> {
-    pub id: i32,
-    pub y_coord: &'a i32,
-    pub x_coord: &'a i32,
-    pub is_emp: &'a bool,
-    pub game_id: &'a i32,
-    pub emp_type: Option<&'a i32>,
-    pub emp_time: Option<&'a i32>,
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct NewAttackerPath {
+    pub y_coord: i32,
+    pub x_coord: i32,
+    pub is_emp: bool,
+    pub emp_type: Option<i32>,
+    pub emp_time: Option<i32>,
 }
 
 #[derive(Queryable, Clone, Debug, Serialize)]
@@ -198,12 +194,12 @@ pub struct User {
     pub email: String,
     pub phone: String,
     pub username: String,
-    pub overall_rating: i32,
+    pub overall_rating: f32,
     pub is_pragyan: bool,
     pub password: String,
     pub is_verified: bool,
-    pub highest_rating: i32,
     pub otp_session_id: String,
+    pub highest_rating: f32,
 }
 
 #[derive(Insertable, Debug)]
@@ -213,11 +209,11 @@ pub struct NewUser<'a> {
     pub email: &'a str,
     pub phone: &'a str,
     pub username: &'a str,
-    pub overall_rating: &'a i32,
+    pub overall_rating: &'a f32,
     pub is_pragyan: &'a bool,
     pub password: &'a str,
     pub is_verified: &'a bool,
-    pub highest_rating: &'a i32,
+    pub highest_rating: &'a f32,
 }
 
 #[derive(Queryable, Deserialize, Serialize)]

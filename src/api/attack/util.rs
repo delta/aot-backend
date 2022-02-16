@@ -18,16 +18,7 @@ use std::io::Write;
 #[derive(Debug, Deserialize, Serialize)]
 pub struct NewAttack {
     pub defender_id: i32,
-    pub attacker_path: Vec<NewPath>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct NewPath {
-    pub y_coord: i32,
-    pub x_coord: i32,
-    pub is_emp: bool,
-    pub emp_type: Option<i32>,
-    pub emp_time: Option<i32>,
+    pub attacker_path: Vec<NewAttackerPath>,
 }
 
 /// checks if the attack is allowed at current time
@@ -108,6 +99,17 @@ pub fn is_attack_allowed(attacker_id: i32, defender_id: i32, conn: &PgConnection
             function: function!(),
             error: err,
         })?;
+    let total_attacks_on_a_base: i64 = joined_table
+        .filter(game::attack_id.eq(defender_id))
+        .filter(levels_fixture::start_date.le(current_date))
+        .filter(levels_fixture::end_date.gt(current_date))
+        .count()
+        .get_result(conn)
+        .map_err(|err| DieselError {
+            table: "joined_table",
+            function: function!(),
+            error: err,
+        })?;
     let is_duplicate_attack: bool = select(exists(
         joined_table
             .filter(game::attack_id.eq(attacker_id))
@@ -121,16 +123,18 @@ pub fn is_attack_allowed(attacker_id: i32, defender_id: i32, conn: &PgConnection
         function: function!(),
         error: err,
     })?;
-    Ok(total_attacks_this_level < TOTAL_ATTACKS_PER_LEVEL && !is_duplicate_attack)
+    Ok(total_attacks_this_level < TOTAL_ATTACKS_PER_LEVEL
+        && total_attacks_on_a_base < TOTAL_ATTACKS_ON_A_BASE
+        && !is_duplicate_attack)
 }
 
-pub fn insert_attack(
+pub fn add_game(
     attacker_id: i32,
     new_attack: &NewAttack,
     map_layout_id: i32,
     conn: &PgConnection,
 ) -> Result<i32> {
-    use crate::schema::{attacker_path, game};
+    use crate::schema::game;
 
     // insert in game table
 
@@ -140,10 +144,10 @@ pub fn insert_attack(
         map_layout_id: &map_layout_id,
         attack_score: &0,
         defend_score: &0,
-        is_attacker_alive: &false,
         robots_destroyed: &0,
         damage_done: &0,
         emps_used: &0,
+        is_attacker_alive: &false,
     };
 
     let inserted_game: Game = diesel::insert_into(game::table)
@@ -151,33 +155,6 @@ pub fn insert_attack(
         .get_result(conn)
         .map_err(|err| DieselError {
             table: "game",
-            function: function!(),
-            error: err,
-        })?;
-
-    // insert in attacker path table
-
-    let new_attacker_paths: Vec<NewAttackerPath> = new_attack
-        .attacker_path
-        .iter()
-        .enumerate()
-        .map(|(id, path)| (id as i32, path))
-        .map(|(id, path)| NewAttackerPath {
-            id,
-            y_coord: &path.y_coord,
-            x_coord: &path.x_coord,
-            is_emp: &path.is_emp,
-            game_id: &inserted_game.id,
-            emp_type: path.emp_type.as_ref(),
-            emp_time: path.emp_time.as_ref(),
-        })
-        .collect();
-
-    diesel::insert_into(attacker_path::table)
-        .values(new_attacker_paths)
-        .execute(conn)
-        .map_err(|err| DieselError {
-            table: "attacker_path",
             function: function!(),
             error: err,
         })?;
@@ -228,18 +205,47 @@ pub fn fetch_top_attacks(user_id: i32, conn: &PgConnection) -> Result<GameHistor
     Ok(GameHistoryResponse { games })
 }
 
-pub fn run_simulation(game_id: i32, conn: &PgConnection) -> Result<Vec<u8>> {
-    use crate::schema::game;
-    let mut simulator =
-        Simulator::new(game_id, conn).with_context(|| "Failed to create simulator")?;
+pub fn run_simulation(
+    game_id: i32,
+    attacker_path: Vec<NewAttackerPath>,
+    conn: &PgConnection,
+) -> Result<Vec<u8>> {
     let mut content = Vec::new();
+    writeln!(content, "attacker_path")?;
+    writeln!(content, "id,y,x,is_emp")?;
+    attacker_path
+        .iter()
+        .enumerate()
+        .try_for_each(|(id, path)| {
+            writeln!(
+                content,
+                "{},{},{},{}",
+                id, path.y_coord, path.x_coord, path.is_emp
+            )
+        })?;
+
+    use crate::schema::game;
+    let mut simulator = Simulator::new(game_id, &attacker_path, conn)
+        .with_context(|| "Failed to create simulator")?;
 
     writeln!(content, "emps")?;
     writeln!(content, "id,time,type")?;
-    let emps = simulator.render_emps();
-    for emp in emps {
-        writeln!(content, "{},{},{}", emp.id, emp.time, emp.emp_type)?;
-    }
+    attacker_path
+        .iter()
+        .enumerate()
+        .try_for_each(|(id, path)| {
+            if path.is_emp {
+                writeln!(
+                    content,
+                    "{},{},{}",
+                    id,
+                    path.emp_time.unwrap(),
+                    path.emp_type.unwrap()
+                )
+            } else {
+                Ok(())
+            }
+        })?;
 
     for frame in 1..=NO_OF_FRAMES {
         writeln!(content, "frame {}", frame)?;
@@ -278,16 +284,25 @@ pub fn run_simulation(game_id: i32, conn: &PgConnection) -> Result<Vec<u8>> {
             )?;
         }
     }
+    let (attack_score, defend_score) = simulator.get_scores();
     diesel::update(game::table.find(game_id))
         .set((
             game::damage_done.eq(simulator.get_damage_done()),
             game::robots_destroyed.eq(simulator.get_no_of_robots_destroyed()),
             game::is_attacker_alive.eq(simulator.get_is_attacker_alive()),
             game::emps_used.eq(simulator.get_emps_used()),
+            game::attack_score.eq(attack_score),
+            game::defend_score.eq(defend_score),
         ))
-        .execute(conn)
+        .get_result::<Game>(conn)
         .map_err(|err| DieselError {
             table: "game",
+            function: function!(),
+            error: err,
+        })?
+        .update_rating(conn)
+        .map_err(|err| DieselError {
+            table: "user",
             function: function!(),
             error: err,
         })?;
