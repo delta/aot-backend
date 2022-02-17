@@ -7,7 +7,7 @@ default-run = "aot-backend"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-actix-web = "3"
+actix-web = {version = "3", features = ["rustls"] }
 anyhow = "1.0.53"
 derive_more = "0.99.17"
 chrono = { version = "0.4.10", features = ["serde"] }
@@ -23,4 +23,3 @@ array2d = "0.2.1"
 petgraph = "0.5.0"
 serde = { version = "1.0", features = ["derive"] }
 pwhash = "1"
-reqwest = { version = "0.10", features = ["blocking", "json"] }

@@ -89,9 +89,9 @@ async fn login(
     let LoginRequest { username, password } = request.into_inner();
     // Pragyan users need to login with email
     let email = username.clone();
-    let pragyan_auth = web::block(|| pragyan::auth(email, password))
+    let pragyan_auth = pragyan::auth(email, password)
         .await
-        .map_err(|err| error::handle_error(err.into()))?;
+        .map_err(|err| error::handle_error(err))?;
     match pragyan_auth.status_code {
         200 => {
             if let PragyanMessage::Success(pragyan_user) = pragyan_auth.message {
@@ -158,20 +158,19 @@ async fn sendotp(
     }
 
     let request = request.into_inner();
-    let is_valid_recatpcha = web::block(|| otp::verify_recaptcha(request.recaptcha))
+    let is_valid_recatpcha = otp::verify_recaptcha(request.recaptcha)
         .await
-        .map_err(|err| error::handle_error(err.into()))?;
+        .map_err(|err| error::handle_error(err))?;
     if !is_valid_recatpcha {
         return Err(ErrorUnauthorized("Invalid reCAPTCHA"));
     }
 
-    let two_factor_response = web::block(move || {
-        let phone_number = user.unwrap().phone;
-        let template_name = std::env::var("TWOFACTOR_VERIFY_TEMPLATE")?;
-        otp::send_otp(&phone_number, &template_name)
-    })
-    .await
-    .map_err(|err| error::handle_error(err.into()))?;
+    let phone_number = user.unwrap().phone;
+    let template_name = std::env::var("TWOFACTOR_VERIFY_TEMPLATE")
+        .map_err(|err| error::handle_error(err.into()))?;
+    let two_factor_response = otp::send_otp(&phone_number, &template_name)
+        .await
+        .map_err(|err| error::handle_error(err))?;
     if two_factor_response.status == "Success" {
         web::block(move || {
             let conn = pool.get()?;
@@ -203,21 +202,21 @@ async fn verify(
         return Err(ErrorBadRequest("User not found"));
     }
 
-    let is_valid_recatpcha = web::block(|| otp::verify_recaptcha(recaptcha))
+    let is_valid_recatpcha = otp::verify_recaptcha(recaptcha)
         .await
-        .map_err(|err| error::handle_error(err.into()))?;
+        .map_err(|err| error::handle_error(err))?;
     if !is_valid_recatpcha {
         return Err(ErrorUnauthorized("Invalid reCAPTCHA"));
     }
 
     let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-    let two_factor_response = web::block(move || {
-        let user_id = user.unwrap().id;
-        let session_id = util::get_otp_session_id(&conn, user_id)?;
-        otp::verify_otp(&session_id, &otp)
-    })
-    .await
-    .map_err(|err| error::handle_error(err.into()))?;
+    let user_id = user.unwrap().id;
+    let session_id = web::block(move || util::get_otp_session_id(&conn, user_id))
+        .await
+        .map_err(|err| error::handle_error(err.into()))?;
+    let two_factor_response = otp::verify_otp(&session_id, &otp)
+        .await
+        .map_err(|err| error::handle_error(err))?;
     match two_factor_response.details.as_str() {
         "OTP Matched" => {
             web::block(move || {
@@ -251,20 +250,19 @@ async fn send_resetpw_otp(
 
     let request = request.into_inner();
 
-    let is_valid_recatpcha = web::block(|| otp::verify_recaptcha(request.recaptcha))
+    let is_valid_recatpcha = otp::verify_recaptcha(request.recaptcha)
         .await
-        .map_err(|err| error::handle_error(err.into()))?;
+        .map_err(|err| error::handle_error(err))?;
     if !is_valid_recatpcha {
         return Err(ErrorUnauthorized("Invalid reCAPTCHA"));
     }
 
-    let two_factor_response = web::block(move || {
-        let template_name = std::env::var("TWOFACTOR_RESETPW_TEMPLATE")?;
-        let phone_number = request.phone_number;
-        otp::send_otp(&phone_number, &template_name)
-    })
-    .await
-    .map_err(|err| error::handle_error(err.into()))?;
+    let template_name = std::env::var("TWOFACTOR_RESETPW_TEMPLATE")
+        .map_err(|err| error::handle_error(err.into()))?;
+    let phone_number = request.phone_number;
+    let two_factor_response = otp::send_otp(&phone_number, &template_name)
+        .await
+        .map_err(|err| error::handle_error(err))?;
     if two_factor_response.status == "Success" {
         web::block(move || {
             let conn = pool.get()?;
@@ -298,21 +296,21 @@ async fn reset_pw(pool: Data<Pool>, request: Json<ResetPwVerifyRequest>) -> Resu
         return Err(ErrorBadRequest("Invalid phone number"));
     }
 
-    let is_valid_recatpcha = web::block(|| otp::verify_recaptcha(recaptcha))
+    let is_valid_recatpcha = otp::verify_recaptcha(recaptcha)
         .await
-        .map_err(|err| error::handle_error(err.into()))?;
+        .map_err(|err| error::handle_error(err))?;
     if !is_valid_recatpcha {
         return Err(ErrorUnauthorized("Invalid reCAPTCHA"));
     }
 
     let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-    let two_factor_response = web::block(move || {
-        let user_id = user.unwrap().id;
-        let session_id = util::get_otp_session_id(&conn, user_id)?;
-        otp::verify_otp(&session_id, &otp)
-    })
-    .await
-    .map_err(|err| error::handle_error(err.into()))?;
+    let user_id = user.unwrap().id;
+    let session_id = web::block(move || util::get_otp_session_id(&conn, user_id))
+        .await
+        .map_err(|err| error::handle_error(err.into()))?;
+    let two_factor_response = otp::verify_otp(&session_id, &otp)
+        .await
+        .map_err(|err| error::handle_error(err))?;
     match two_factor_response.details.as_str() {
         "OTP Matched" => {
             web::block(move || {

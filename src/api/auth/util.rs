@@ -1,7 +1,7 @@
-use crate::error::DieselError;
 use crate::models::*;
 use crate::schema::user;
 use crate::util::function;
+use crate::{constants::INITIAL_RATING, error::DieselError};
 use anyhow::Result;
 use diesel::prelude::*;
 use pwhash::bcrypt;
@@ -59,11 +59,11 @@ pub fn get_pragyan_user(conn: &PgConnection, email: &str, name: &str) -> Result<
             email,
             phone: "",
             username,
-            overall_rating: &0,
+            overall_rating: &INITIAL_RATING,
             is_pragyan: &true,
             password: "",
             is_verified: &true,
-            highest_rating: &0,
+            highest_rating: &INITIAL_RATING,
         };
         let user: User = diesel::insert_into(user::table)
             .values(&new_user)

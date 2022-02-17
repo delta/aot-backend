@@ -1,4 +1,5 @@
 use super::InputUser;
+use crate::constants::INITIAL_RATING;
 use crate::error::DieselError;
 use crate::models::NewUser;
 use crate::models::{Game, UpdateUser, User};
@@ -58,11 +59,11 @@ pub fn add_user(conn: &PgConnection, user: &InputUser) -> anyhow::Result<()> {
         email: "",
         phone: &user.phone,
         username: &user.username,
-        overall_rating: &0,
+        overall_rating: &INITIAL_RATING,
         is_pragyan: &false,
         password: &hashed_password,
         is_verified: &false,
-        highest_rating: &0,
+        highest_rating: &INITIAL_RATING,
     };
     diesel::insert_into(user::table)
         .values(&new_user)

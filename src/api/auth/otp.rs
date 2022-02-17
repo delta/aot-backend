@@ -1,5 +1,4 @@
-use anyhow::Result;
-use reqwest::blocking::Client;
+use actix_web::client::Client;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize)]
@@ -21,46 +20,53 @@ pub struct TwoFactorResponse {
     pub details: String,
 }
 
-pub fn verify_recaptcha(response: String) -> Result<bool> {
+type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+
+pub async fn verify_recaptcha(response: String) -> Result<bool> {
     let secret = std::env::var("RECAPTCHA_SECRET")?;
-    let recaptcha_response: ReCaptchaResponse = Client::new()
+    let recaptcha_response: ReCaptchaResponse = Client::default()
         .post("https://www.google.com/recaptcha/api/siteverify")
-        .form(&ReCaptchaRequest { secret, response })
-        .send()?
-        .json()?;
+        .send_form(&ReCaptchaRequest { secret, response })
+        .await?
+        .json()
+        .await?;
     Ok(recaptcha_response.success)
 }
 
-pub fn send_otp(input_phone: &str, template_name: &str) -> Result<TwoFactorResponse> {
+pub async fn send_otp(input_phone: &str, template_name: &str) -> Result<TwoFactorResponse> {
     let api_key = std::env::var("TWOFACTOR_API_TOKEN")?;
     let url = format!(
         "https://2factor.in/API/V1/{}/SMS/{}/AUTOGEN/{}",
         &api_key, &input_phone, &template_name
     );
-    let response: TwoFactorResponse = Client::new()
+    let response: TwoFactorResponse = Client::default()
         .get(&url)
         .header("content-type", "application/x-www-form-urlencoded")
-        .send()?
-        .json()?;
+        .send()
+        .await?
+        .json()
+        .await?;
     if response.status == "Success"
         || response.details == "Invalid Phone Number - Length Mismatch(Expected >= 10)"
     {
         Ok(response)
     } else {
-        Err(anyhow::anyhow!("Error in sending OTP: {:?}", response))
+        return Err(anyhow::anyhow!("Error in sending OTP: {:?}", response).into());
     }
 }
 
-pub fn verify_otp(session_id: &str, otp: &str) -> Result<TwoFactorResponse> {
+pub async fn verify_otp(session_id: &str, otp: &str) -> Result<TwoFactorResponse> {
     let api_key = std::env::var("TWOFACTOR_API_TOKEN")?;
     let url = format!(
         "http://2factor.in/API/V1/{}/SMS/VERIFY/{}/{}",
         &api_key, &session_id, &otp
     );
-    let response: TwoFactorResponse = Client::new()
+    let response: TwoFactorResponse = Client::default()
         .get(&url)
         .header("content-type", "application/x-www-form-urlencoded")
-        .send()?
-        .json()?;
+        .send()
+        .await?
+        .json()
+        .await?;
     Ok(response)
 }

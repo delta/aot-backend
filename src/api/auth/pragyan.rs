@@ -1,5 +1,4 @@
-use anyhow::Result;
-use reqwest::blocking::Client;
+use actix_web::client::Client;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize)]
@@ -28,19 +27,22 @@ pub struct PragyanResponse {
     pub message: PragyanMessage,
 }
 
-pub fn auth(user_email: String, user_pass: String) -> Result<PragyanResponse> {
+type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+
+pub async fn auth(user_email: String, user_pass: String) -> Result<PragyanResponse> {
     let pragyan_login_url = std::env::var("PRAGYAN_LOGIN_URL")?;
     let event_id = std::env::var("PRAGYAN_EVENT_ID")?;
     let event_secret = std::env::var("PRAGYAN_EVENT_SECRET")?;
-    let pragyan_response: PragyanResponse = Client::new()
+    let pragyan_response: PragyanResponse = Client::default()
         .post(&pragyan_login_url)
-        .form(&PragyanRequest {
+        .send_form(&PragyanRequest {
             user_email,
             user_pass,
             event_id,
             event_secret,
         })
-        .send()?
-        .json()?;
+        .await?
+        .json()
+        .await?;
     Ok(pragyan_response)
 }
