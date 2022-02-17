@@ -11,3 +11,4 @@ pub const MAP_SIZE: usize = 40;
 pub const END_HOUR: u32 = 23;
 pub const TOTAL_ATTACKS_PER_LEVEL: i64 = 2;
 pub const ROAD_ID: i32 = 4;
+pub const INITIAL_RATING: i32 = 1000;

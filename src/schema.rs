@@ -120,6 +120,7 @@ table! {
         password -> Varchar,
         is_verified -> Bool,
         highest_rating -> Int4,
+        otp_session_id -> Varchar,
     }
 }
 

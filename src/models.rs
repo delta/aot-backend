@@ -191,7 +191,7 @@ pub struct NewShortestPath {
     pub pathlist: String,
 }
 
-#[derive(Queryable)]
+#[derive(Clone, Debug, Serialize, Deserialize, Queryable)]
 pub struct User {
     pub id: i32,
     pub name: String,
@@ -203,9 +203,10 @@ pub struct User {
     pub password: String,
     pub is_verified: bool,
     pub highest_rating: i32,
+    pub otp_session_id: String,
 }
 
-#[derive(Insertable)]
+#[derive(Insertable, Debug)]
 #[table_name = "user"]
 pub struct NewUser<'a> {
     pub name: &'a str,
@@ -230,4 +231,11 @@ pub struct SimulationLog {
 pub struct NewSimulationLog<'a> {
     pub game_id: &'a i32,
     pub log_text: &'a str,
+}
+
+#[derive(AsChangeset, Debug, Deserialize)]
+#[table_name = "user"]
+pub struct UpdateUser {
+    name: Option<String>,
+    pub username: Option<String>,
 }

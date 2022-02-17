@@ -1,6 +1,8 @@
+use super::auth::session;
 use crate::api::error;
 use crate::constants::ROAD_ID;
 use crate::models::*;
+use actix_session::Session;
 use actix_web::error::ErrorBadRequest;
 use actix_web::web::{self, Data, Json};
 use actix_web::{Responder, Result};
@@ -25,12 +27,11 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
     .data(web::JsonConfig::default().limit(1024 * 1024));
 }
 
-// TODO: Get player id from session
-
-async fn get_base_details(pool: Data<Pool>) -> Result<impl Responder> {
+async fn get_base_details(pool: Data<Pool>, session: Session) -> Result<impl Responder> {
+    let defender_id = session::get_current_user(&session)?;
     let response = web::block(move || {
         let conn = pool.get()?;
-        let map = util::fetch_map_layout(&conn, 2)?;
+        let map = util::fetch_map_layout(&conn, defender_id)?;
         util::get_details_from_map_layout(&conn, map)
     })
     .await
@@ -42,12 +43,14 @@ async fn get_base_details(pool: Data<Pool>) -> Result<impl Responder> {
 async fn set_base_details(
     map_spaces: Json<Vec<NewMapSpaces>>,
     pool: Data<Pool>,
+    session: Session,
 ) -> Result<impl Responder> {
+    let defender_id = session::get_current_user(&session)?;
     let map_spaces = map_spaces.into_inner();
     let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let (map, blocks) = web::block(move || {
         Ok((
-            util::fetch_map_layout(&conn, 2)?,
+            util::fetch_map_layout(&conn, defender_id)?,
             util::fetch_blocks(&conn)?,
         )) as anyhow::Result<(MapLayout, Vec<BlockType>)>
     })
@@ -71,11 +74,13 @@ async fn set_base_details(
 async fn confirm_base_details(
     map_spaces: Json<Vec<NewMapSpaces>>,
     pool: Data<Pool>,
+    session: Session,
 ) -> Result<impl Responder> {
+    let defender_id = session::get_current_user(&session)?;
     let map_spaces = map_spaces.into_inner();
     let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let (map, blocks, mut level_constraints) = web::block(move || {
-        let map = util::fetch_map_layout(&conn, 2)?;
+        let map = util::fetch_map_layout(&conn, defender_id)?;
         Ok((
             map.clone(),
             util::fetch_blocks(&conn)?,
@@ -104,9 +109,9 @@ async fn confirm_base_details(
 async fn defense_history(
     defender_id: web::Path<i32>,
     pool: web::Data<Pool>,
+    session: Session,
 ) -> Result<impl Responder> {
-    // TODO: get user_id from session
-    let user_id = 1;
+    let user_id = session::get_current_user(&session)?;
     let defender_id = defender_id.0;
     let response = web::block(move || {
         let conn = pool.get()?;
@@ -117,9 +122,8 @@ async fn defense_history(
     Ok(web::Json(response))
 }
 
-async fn get_top_defenses(pool: web::Data<Pool>) -> Result<impl Responder> {
-    // TODO: get user_id from session
-    let user_id = 1;
+async fn get_top_defenses(pool: web::Data<Pool>, session: Session) -> Result<impl Responder> {
+    let user_id = session::get_current_user(&session)?;
     let response = web::block(move || {
         let conn = pool.get()?;
         util::fetch_top_defenses(user_id, &conn)

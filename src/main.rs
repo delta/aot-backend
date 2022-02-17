@@ -1,7 +1,8 @@
+use actix_session::CookieSession;
 use actix_web::{middleware, web, App, HttpResponse, HttpServer};
 use flexi_logger::{Cleanup, Criterion, Duplicate, FileSpec, Naming};
 
-use crate::api::{attack, auth, defense, game, stats};
+use crate::api::{attack, auth, defense, game, user};
 
 mod api;
 mod constants;
@@ -36,14 +37,27 @@ async fn main() -> std::io::Result<()> {
             .wrap(middleware::Logger::new(
                 "%{r}a %r %s %b %{Referer}i %{User-Agent}i %t",
             ))
+            .wrap(
+                CookieSession::signed(
+                    std::env::var("COOKIE_KEY")
+                        .expect("COOKIE_KEY must be set")
+                        .as_ref(),
+                )
+                .name("session")
+                .secure(false)
+                .expires_in(30 * 24 * 60 * 60),
+            )
             .data(pool.clone())
             .route(
                 "/",
                 web::get().to(|| HttpResponse::Ok().body("Hello from AOT")),
             )
-            .route("/user/{id}/stats", web::get().to(stats::get_user_stats))
             .service(web::scope("/attack").configure(attack::routes))
-            .service(web::scope("/user").configure(auth::routes))
+            .service(
+                web::scope("/user")
+                    .configure(user::routes)
+                    .configure(auth::routes),
+            )
             .service(web::scope("/base").configure(defense::routes))
             .service(web::scope("/game").configure(game::routes))
     })

@@ -1,8 +1,12 @@
+use super::InputUser;
+use crate::constants::INITIAL_RATING;
 use crate::error::DieselError;
-use crate::models::{Game, User};
+use crate::models::NewUser;
+use crate::models::{Game, UpdateUser, User};
 use crate::util::function;
 use anyhow::Result;
 use diesel::prelude::*;
+use pwhash::bcrypt;
 use serde::Serialize;
 
 #[derive(Serialize)]
@@ -39,6 +43,72 @@ pub fn fetch_all_user(conn: &PgConnection) -> Result<Vec<User>> {
     Ok(user::table
         .order_by(user::overall_rating.desc())
         .load::<User>(conn)
+        .map_err(|err| DieselError {
+            table: "user",
+            function: function!(),
+            error: err,
+        })?)
+}
+
+pub fn add_user(conn: &PgConnection, user: &InputUser) -> anyhow::Result<()> {
+    use crate::schema::user;
+
+    let hashed_password = bcrypt::hash(&user.password)?;
+    let new_user = NewUser {
+        name: &user.name,
+        email: "",
+        phone: &user.phone,
+        username: &user.username,
+        overall_rating: &INITIAL_RATING,
+        is_pragyan: &false,
+        password: &hashed_password,
+        is_verified: &false,
+        highest_rating: &INITIAL_RATING,
+    };
+    diesel::insert_into(user::table)
+        .values(&new_user)
+        .execute(conn)
+        .map_err(|err| DieselError {
+            table: "user",
+            function: function!(),
+            error: err,
+        })?;
+    Ok(())
+}
+
+pub fn update_user(conn: &PgConnection, user_id: i32, update_user: &UpdateUser) -> Result<()> {
+    use crate::schema::user;
+    diesel::update(user::table.find(user_id))
+        .set(update_user)
+        .execute(conn)
+        .map_err(|err| DieselError {
+            table: "user",
+            function: function!(),
+            error: err,
+        })?;
+    Ok(())
+}
+
+pub fn get_duplicate_users(conn: &PgConnection, user: &InputUser) -> Result<Vec<User>> {
+    use crate::schema::user;
+    let duplicates = user::table
+        .filter(user::username.eq(&user.username))
+        .or_filter(user::phone.eq(&user.phone))
+        .load::<User>(conn)
+        .map_err(|err| DieselError {
+            table: "user",
+            function: function!(),
+            error: err,
+        })?;
+    Ok(duplicates)
+}
+
+pub fn get_duplicate_username(conn: &PgConnection, username: &str) -> Result<Option<User>> {
+    use crate::schema::user;
+    Ok(user::table
+        .filter(user::username.eq(username))
+        .first::<User>(conn)
+        .optional()
         .map_err(|err| DieselError {
             table: "user",
             function: function!(),
