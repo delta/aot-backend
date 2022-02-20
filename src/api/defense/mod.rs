@@ -31,7 +31,7 @@ async fn get_base_details(pool: Data<Pool>, session: Session) -> Result<impl Res
     let defender_id = session::get_current_user(&session)?;
     let response = web::block(move || {
         let conn = pool.get()?;
-        let map = util::fetch_map_layout(&conn, defender_id)?;
+        let map = util::fetch_map_layout(&conn, &defender_id)?;
         util::get_details_from_map_layout(&conn, map)
     })
     .await
@@ -50,7 +50,7 @@ async fn set_base_details(
     let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let (map, blocks) = web::block(move || {
         Ok((
-            util::fetch_map_layout(&conn, defender_id)?,
+            util::fetch_map_layout(&conn, &defender_id)?,
             util::fetch_blocks(&conn)?,
         )) as anyhow::Result<(MapLayout, Vec<BlockType>)>
     })
@@ -80,7 +80,7 @@ async fn confirm_base_details(
     let map_spaces = map_spaces.into_inner();
     let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let (map, blocks, mut level_constraints) = web::block(move || {
-        let map = util::fetch_map_layout(&conn, defender_id)?;
+        let map = util::fetch_map_layout(&conn, &defender_id)?;
         Ok((
             map.clone(),
             util::fetch_blocks(&conn)?,

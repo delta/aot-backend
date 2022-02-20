@@ -22,7 +22,7 @@ pub struct LeaderboardResponse {
 #[derive(Queryable, Deserialize, Serialize)]
 pub struct LeaderboardEntry {
     pub username: String,
-    pub overall_rating: i32,
+    pub overall_rating: f32,
 }
 
 pub fn get_leaderboard(page: i64, limit: i64, conn: &PgConnection) -> Result<LeaderboardResponse> {

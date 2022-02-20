@@ -20,12 +20,12 @@ pub struct DefenceHistoryResponse {
     pub games: Vec<Game>,
 }
 
-pub fn fetch_map_layout(conn: &PgConnection, player_id: i32) -> Result<MapLayout> {
+pub fn fetch_map_layout(conn: &PgConnection, player: &i32) -> Result<MapLayout> {
     use crate::schema::{levels_fixture, map_layout};
     use diesel::dsl::{date, now};
 
     let today = date(now.at_time_zone("Asia/Calcutta"));
-    let level_id = levels_fixture::table
+    let level_id = &levels_fixture::table
         .select(levels_fixture::id)
         .filter(levels_fixture::start_date.le(today))
         .filter(levels_fixture::end_date.gt(today))
@@ -36,15 +36,30 @@ pub fn fetch_map_layout(conn: &PgConnection, player_id: i32) -> Result<MapLayout
             error: err,
         })?;
 
-    Ok(map_layout::table
-        .filter(map_layout::player.eq(player_id))
+    let layout = map_layout::table
+        .filter(map_layout::player.eq(player))
         .filter(map_layout::level_id.eq(level_id))
         .first::<MapLayout>(conn)
+        .optional()
         .map_err(|err| DieselError {
             table: "map_layout",
             function: function!(),
             error: err,
-        })?)
+        })?;
+
+    if let Some(layout) = layout {
+        Ok(layout)
+    } else {
+        let new_map_layout = NewMapLayout { player, level_id };
+        Ok(diesel::insert_into(map_layout::table)
+            .values(&new_map_layout)
+            .get_result(conn)
+            .map_err(|err| DieselError {
+                table: "map_layout",
+                function: function!(),
+                error: err,
+            })?)
+    }
 }
 
 pub fn get_details_from_map_layout(conn: &PgConnection, map: MapLayout) -> Result<DefenseResponse> {

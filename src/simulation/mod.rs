@@ -1,7 +1,7 @@
 use crate::constants::*;
 use crate::error::DieselError;
+use crate::models::{AttackerPath, NewAttackerPath};
 use crate::util::function;
-use crate::{models::AttackerPath, simulation::error::EmpDetailsError};
 use anyhow::Result;
 use attacker::Attacker;
 use blocks::BuildingsManager;
@@ -21,14 +21,7 @@ pub struct RenderAttacker {
     pub x_position: i32,
     pub y_position: i32,
     pub is_alive: bool,
-    pub emp_id: i32,
-}
-
-#[derive(Clone, Debug)]
-pub struct RenderEmp {
-    pub id: i32,
-    pub time: i32,
-    pub emp_type: i32,
+    pub emp_id: usize,
 }
 
 #[derive(Debug, Serialize)]
@@ -52,12 +45,15 @@ pub struct Simulator {
     attacker: Attacker,
     emps: Emps,
     frames_passed: i32,
-    render_emps: Vec<RenderEmp>,
 }
 
 impl Simulator {
-    pub fn new(game_id: i32, conn: &PgConnection) -> Result<Self> {
-        use crate::schema::{attacker_path, game};
+    pub fn new(
+        game_id: i32,
+        attacker_path: &[NewAttackerPath],
+        conn: &PgConnection,
+    ) -> Result<Self> {
+        use crate::schema::game;
 
         let map_id = game::table
             .filter(game::id.eq(game_id))
@@ -71,31 +67,21 @@ impl Simulator {
 
         let buildings_manager = BuildingsManager::new(conn, map_id)?;
         let robots_manager = RobotsManager::new(&buildings_manager)?;
-        let attacker = Attacker::new(conn, game_id)?;
-        let emps = Emps::new(conn, game_id)?;
-        let render_emps: Result<Vec<RenderEmp>> = attacker_path::table
-            .filter(attacker_path::game_id.eq(game_id))
-            .filter(attacker_path::is_emp.eq(true))
-            .load::<AttackerPath>(conn)
-            .map_err(|err| DieselError {
-                table: "attacker_path",
-                function: function!(),
-                error: err,
-            })?
+        let mut attacker_path: Vec<AttackerPath> = attacker_path
             .iter()
-            .map(|path| {
-                if let (Some(emp_type), Some(time)) = (path.emp_type, path.emp_time) {
-                    Ok(RenderEmp {
-                        id: path.id,
-                        time,
-                        emp_type,
-                    })
-                } else {
-                    Err(EmpDetailsError { path_id: path.id }.into())
-                }
+            .enumerate()
+            .map(|(id, path)| AttackerPath {
+                id: id + 1,
+                x_coord: path.x_coord,
+                y_coord: path.y_coord,
+                is_emp: path.is_emp,
+                emp_type: path.emp_type,
+                emp_time: path.emp_time,
             })
             .collect();
-        let render_emps = render_emps?;
+        attacker_path.reverse();
+        let emps = Emps::new(conn, &attacker_path)?;
+        let attacker = Attacker::new(attacker_path);
 
         Ok(Simulator {
             buildings_manager,
@@ -103,7 +89,6 @@ impl Simulator {
             attacker,
             emps,
             frames_passed: 0,
-            render_emps,
         })
     }
 
@@ -123,12 +108,8 @@ impl Simulator {
         START_HOUR + Self::get_minute(frames_passed) / 60
     }
 
-    pub fn render_emps(&self) -> Vec<RenderEmp> {
-        self.render_emps.clone()
-    }
-
     pub fn get_emps_used(&self) -> i32 {
-        self.render_emps.len() as i32
+        self.attacker.path.iter().filter(|path| path.is_emp).count() as i32
     }
 
     pub fn get_is_attacker_alive(&self) -> bool {
@@ -151,6 +132,15 @@ impl Simulator {
             sum_health += r.1.health;
         }
         HEALTH * NO_OF_ROBOTS - sum_health
+    }
+
+    pub fn get_scores(&self) -> (i32, i32) {
+        let damage_done = self.get_damage_done();
+        let no_of_robots_destroyed = self.get_no_of_robots_destroyed();
+        let emps_used = self.get_emps_used();
+        let attack_score = damage_done + HEALTH * no_of_robots_destroyed - EMP_PENALTY * emps_used;
+        let defend_score = MAX_SCORE - attack_score;
+        (attack_score, defend_score)
     }
 
     pub fn simulate(&mut self) -> Result<RenderSimulation> {

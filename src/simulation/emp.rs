@@ -8,12 +8,12 @@ use crate::simulation::robots::RobotsManager;
 use crate::util::function;
 use anyhow::Result;
 use diesel::prelude::*;
-use diesel::{PgConnection, QueryDsl};
+use diesel::PgConnection;
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Eq, Hash, PartialEq)]
 struct Emp {
-    path_id: i32,
+    path_id: usize,
     x_coord: i32,
     y_coord: i32,
     radius: i32,
@@ -24,8 +24,8 @@ pub struct Emps(HashMap<i32, HashSet<Emp>>);
 
 impl Emps {
     // Returns a hashmap of Emp with time as key
-    pub fn new(conn: &PgConnection, game_id: i32) -> Result<Self> {
-        use crate::schema::{attack_type, attacker_path};
+    pub fn new(conn: &PgConnection, attacker_path: &[AttackerPath]) -> Result<Self> {
+        use crate::schema::attack_type;
 
         let mut emps = HashMap::new();
         let emp_types: HashMap<i32, AttackType> = attack_type::table
@@ -39,37 +39,29 @@ impl Emps {
             .map(|emp| (emp.id, emp))
             .collect();
 
-        attacker_path::table
-            .filter(attacker_path::game_id.eq(game_id))
-            .filter(attacker_path::is_emp.eq(true))
-            .load::<AttackerPath>(conn)
-            .map_err(|err| DieselError {
-                table: "attacker_path",
-                function: function!(),
-                error: err,
-            })?
-            .into_iter()
-            .try_for_each(|path| {
-                if let (Some(emp_type), Some(emp_time)) = (path.emp_type, path.emp_time) {
-                    let emp_type = emp_types.get(&emp_type).ok_or(KeyError {
-                        key: emp_type,
-                        hashmap: "emp_types".to_string(),
-                    })?;
-                    let emp = Emp {
-                        path_id: path.id,
-                        x_coord: path.x_coord,
-                        y_coord: path.y_coord,
-                        radius: emp_type.attack_radius,
-                        damage: emp_type.attack_damage,
-                    };
+        for path in attacker_path {
+            if !path.is_emp {
+                continue;
+            }
+            if let (Some(emp_type), Some(emp_time)) = (path.emp_type, path.emp_time) {
+                let emp_type = emp_types.get(&emp_type).ok_or(KeyError {
+                    key: emp_type,
+                    hashmap: "emp_types".to_string(),
+                })?;
+                let emp = Emp {
+                    path_id: path.id,
+                    x_coord: path.x_coord,
+                    y_coord: path.y_coord,
+                    radius: emp_type.attack_radius,
+                    damage: emp_type.attack_damage,
+                };
 
-                    emps.entry(emp_time).or_insert_with(HashSet::new);
-                    emps.get_mut(&emp_time).unwrap().insert(emp);
-                    anyhow::Ok(())
-                } else {
-                    Err(EmpDetailsError { path_id: path.id }.into())
-                }
-            })?;
+                emps.entry(emp_time).or_insert_with(HashSet::new);
+                emps.get_mut(&emp_time).unwrap().insert(emp);
+            } else {
+                return Err(EmpDetailsError { path_id: path.id }.into());
+            }
+        }
         Ok(Emps(emps))
     }
 
