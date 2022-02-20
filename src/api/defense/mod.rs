@@ -21,6 +21,7 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
             .route(web::put().to(set_base_details))
             .route(web::get().to(get_base_details)),
     )
+    .service(web::resource("/{defender_id}").route(web::get().to(get_valid_base_details)))
     .service(web::resource("/save").route(web::put().to(confirm_base_details)))
     .service(web::resource("/{defender_id}/history").route(web::get().to(defense_history)))
     .service(web::resource("/top").route(web::get().to(get_top_defenses)))
@@ -36,6 +37,27 @@ async fn get_base_details(pool: Data<Pool>, session: Session) -> Result<impl Res
     })
     .await
     .map_err(|err| error::handle_error(err.into()))?;
+
+    Ok(Json(response))
+}
+
+async fn get_valid_base_details(
+    defender_id: web::Path<i32>,
+    pool: web::Data<Pool>,
+) -> Result<impl Responder> {
+    let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+    let map = web::block(move || util::fetch_map_layout(&conn, &defender_id.0))
+        .await
+        .map_err(|err| error::handle_error(err.into()))?;
+
+    if !map.is_valid {
+        return Err(ErrorBadRequest("Invalid Base"));
+    }
+
+    let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+    let response = web::block(move || util::get_details_from_map_layout(&conn, map))
+        .await
+        .map_err(|err| error::handle_error(err.into()))?;
 
     Ok(Json(response))
 }

@@ -1,7 +1,7 @@
-use std::collections::HashSet;
-
 use super::util::NewAttack;
 use crate::constants::*;
+
+use std::collections::HashSet;
 
 pub fn is_attack_valid(
     new_attack: &NewAttack,

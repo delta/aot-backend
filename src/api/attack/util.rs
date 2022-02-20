@@ -50,13 +50,15 @@ pub fn get_current_levels_fixture(conn: &PgConnection) -> Result<LevelsFixture> 
     Ok(level)
 }
 
-pub fn get_map_id(defender_id: &i32, level_id: &i32, conn: &PgConnection) -> Result<i32> {
+pub fn get_map_id(defender_id: &i32, level_id: &i32, conn: &PgConnection) -> Result<Option<i32>> {
     use crate::schema::map_layout;
-    let map_id: i32 = map_layout::table
+    let map_id = map_layout::table
         .filter(map_layout::player.eq(defender_id))
         .filter(map_layout::level_id.eq(level_id))
+        .filter(map_layout::is_valid.eq(true))
         .select(map_layout::id)
-        .first(conn)
+        .first::<i32>(conn)
+        .optional()
         .map_err(|err| DieselError {
             table: "map_layout",
             function: function!(),
