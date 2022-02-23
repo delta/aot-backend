@@ -74,13 +74,10 @@ async fn create_attack(
     ) {
         return Err(ErrorBadRequest("Invalid attack path"));
     }
-    let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-    let game_id = web::block(move || util::add_game(attacker_id, &new_attack, map_id, &conn))
-        .await
-        .map_err(|err| error::handle_error(err.into()))?;
 
     let file_content = web::block(move || {
         let conn = pool.get()?;
+        let game_id = util::add_game(attacker_id, &new_attack, map_id, &conn)?;
         util::run_simulation(game_id, attacker_path, &conn)
             .with_context(|| format!("Failed to run simulation for game {}", game_id))
     })

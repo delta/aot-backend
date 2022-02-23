@@ -107,8 +107,8 @@ table! {
         is_pragyan -> Bool,
         password -> Varchar,
         is_verified -> Bool,
-        otp_session_id -> Varchar,
         highest_rating -> Float4,
+        otp_session_id -> Varchar,
     }
 }
 
