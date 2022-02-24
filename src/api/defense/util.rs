@@ -1,5 +1,5 @@
-use crate::api::util::{can_show_replay, GameHistoryEntry};
 /// CRUD functions
+use crate::api::util::{can_show_replay, get_current_levels_fixture, GameHistoryEntry};
 use crate::models::*;
 use crate::util::function;
 use crate::{api::util::GameHistoryResponse, error::DieselError};
@@ -21,21 +21,9 @@ pub struct DefenceHistoryResponse {
 }
 
 pub fn fetch_map_layout(conn: &PgConnection, player: &i32) -> Result<MapLayout> {
-    use crate::schema::{levels_fixture, map_layout};
-    use diesel::dsl::{date, now};
+    use crate::schema::map_layout;
 
-    let today = date(now.at_time_zone("Asia/Calcutta"));
-    let level_id = &levels_fixture::table
-        .select(levels_fixture::id)
-        .filter(levels_fixture::start_date.le(today))
-        .filter(levels_fixture::end_date.gt(today))
-        .first::<i32>(conn)
-        .map_err(|err| DieselError {
-            table: "levels_fixture",
-            function: function!(),
-            error: err,
-        })?;
-
+    let level_id = &get_current_levels_fixture(conn)?.id;
     let layout = map_layout::table
         .filter(map_layout::player.eq(player))
         .filter(map_layout::level_id.eq(level_id))

@@ -6,7 +6,7 @@ use crate::simulation::RenderRobot;
 use crate::simulation::{RenderAttacker, Simulator};
 use crate::util::function;
 use anyhow::{Context, Result};
-use chrono::{Local, NaiveTime};
+use chrono::Local;
 use diesel::dsl::exists;
 use diesel::prelude::*;
 use diesel::select;
@@ -21,33 +21,10 @@ pub struct NewAttack {
     pub attacker_path: Vec<NewAttackerPath>,
 }
 
-/// checks if the attack is allowed at current time
-pub fn is_attack_allowed_now() -> bool {
-    let start_time = NaiveTime::from_hms(START_HOUR as u32, 0, 0);
-    let end_time = NaiveTime::from_hms(END_HOUR, 0, 0);
-    let current_time = Local::now().naive_local().time();
-    current_time >= start_time && current_time <= end_time
-}
-
 pub fn get_valid_emp_ids(conn: &PgConnection) -> Result<HashSet<i32>> {
     use crate::schema::attack_type;
     let valid_emp_ids = HashSet::from_iter(attack_type::table.select(attack_type::id).load(conn)?);
     Ok(valid_emp_ids)
-}
-
-pub fn get_current_levels_fixture(conn: &PgConnection) -> Result<LevelsFixture> {
-    use crate::schema::levels_fixture;
-    let current_date = Local::now().naive_local().date();
-    let level: LevelsFixture = levels_fixture::table
-        .filter(levels_fixture::start_date.le(current_date))
-        .filter(levels_fixture::end_date.gt(current_date))
-        .first(conn)
-        .map_err(|err| DieselError {
-            table: "levels_fixture",
-            function: function!(),
-            error: err,
-        })?;
-    Ok(level)
 }
 
 pub fn get_map_id(defender_id: &i32, level_id: &i32, conn: &PgConnection) -> Result<Option<i32>> {

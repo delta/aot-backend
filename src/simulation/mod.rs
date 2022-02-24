@@ -105,7 +105,7 @@ impl Simulator {
     }
 
     pub fn get_hour(frames_passed: i32) -> i32 {
-        START_HOUR + Self::get_minute(frames_passed) / 60
+        GAME_START_HOUR + Self::get_minute(frames_passed) / 60
     }
 
     pub fn get_emps_used(&self) -> i32 {

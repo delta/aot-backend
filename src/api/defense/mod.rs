@@ -1,9 +1,9 @@
 use super::auth::session;
-use crate::api::error;
+use crate::api::{self, error};
 use crate::constants::ROAD_ID;
 use crate::models::*;
 use actix_session::Session;
-use actix_web::error::ErrorBadRequest;
+use actix_web::error::{ErrorBadRequest, ErrorForbidden};
 use actix_web::web::{self, Data, Json};
 use actix_web::{Responder, Result};
 use diesel::pg::PgConnection;
@@ -68,6 +68,11 @@ async fn set_base_details(
     session: Session,
 ) -> Result<impl Responder> {
     let defender_id = session::get_current_user(&session)?;
+
+    if api::util::is_attack_allowed_now() {
+        return Err(ErrorForbidden("Cannot edit base during attack time"));
+    }
+
     let map_spaces = map_spaces.into_inner();
     let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let (map, blocks) = web::block(move || {
@@ -99,6 +104,11 @@ async fn confirm_base_details(
     session: Session,
 ) -> Result<impl Responder> {
     let defender_id = session::get_current_user(&session)?;
+
+    if api::util::is_attack_allowed_now() {
+        return Err(ErrorForbidden("Cannot edit base during attack time"));
+    }
+
     let map_spaces = map_spaces.into_inner();
     let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let (map, blocks, mut level_constraints) = web::block(move || {

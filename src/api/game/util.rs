@@ -1,10 +1,9 @@
-use crate::api::util::can_show_replay;
+use crate::api::util::{can_show_replay, get_current_levels_fixture};
 use crate::constants::TOTAL_ATTACKS_ON_A_BASE;
 use crate::error::DieselError;
 use crate::models::{Game, LevelsFixture, MapLayout, SimulationLog};
 use crate::util::function;
 use anyhow::Result;
-use chrono::Local;
 use diesel::prelude::*;
 use diesel::{PgConnection, QueryDsl};
 use serde::{Deserialize, Serialize};
@@ -30,19 +29,9 @@ pub struct LeaderboardEntry {
 }
 
 pub fn get_leaderboard(page: i64, limit: i64, conn: &PgConnection) -> Result<LeaderboardResponse> {
-    use crate::schema::{game, levels_fixture, map_layout, user};
+    use crate::schema::{game, map_layout, user};
 
-    let current_date = Local::now().naive_local().date();
-    let level_id: i32 = levels_fixture::table
-        .filter(levels_fixture::start_date.le(current_date))
-        .filter(levels_fixture::end_date.gt(current_date))
-        .select(levels_fixture::id)
-        .first(conn)
-        .map_err(|err| DieselError {
-            table: "levels_fixture",
-            function: function!(),
-            error: err,
-        })?;
+    let level_id: i32 = get_current_levels_fixture(conn)?.id;
     let no_of_times_attacked: HashMap<i32, i64> = game::table
         .inner_join(map_layout::table)
         .select(game::defend_id)

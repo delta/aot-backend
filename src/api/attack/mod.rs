@@ -1,5 +1,6 @@
 use super::auth::session;
 use super::error;
+use crate::api;
 use crate::models::LevelsFixture;
 use actix_session::Session;
 use actix_web::error::ErrorBadRequest;
@@ -30,7 +31,7 @@ async fn create_attack(
     let attacker_id = session::get_current_user(&session)?;
     let attacker_path = new_attack.attacker_path.clone();
 
-    if !util::is_attack_allowed_now() {
+    if !api::util::is_attack_allowed_now() {
         return Err(ErrorBadRequest("Attack not allowed"));
     }
 
@@ -38,7 +39,7 @@ async fn create_attack(
     let defender_id = new_attack.defender_id;
     let map_id;
     let (level, map) = web::block(move || {
-        let level = util::get_current_levels_fixture(&conn)?;
+        let level = api::util::get_current_levels_fixture(&conn)?;
         let map = util::get_map_id(&defender_id, &level.id, &conn)?;
         Ok((level, map)) as anyhow::Result<(LevelsFixture, Option<i32>)>
     })

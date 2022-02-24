@@ -1,8 +1,9 @@
+use crate::api::{attack, auth, defense, game, user};
+use crate::constants::{ATTACK_END_TIME, ATTACK_START_TIME};
 use actix_session::CookieSession;
 use actix_web::{middleware, web, App, HttpResponse, HttpServer};
+use chrono::NaiveTime;
 use flexi_logger::{Cleanup, Criterion, Duplicate, FileSpec, Naming};
-
-use crate::api::{attack, auth, defense, game, user};
 
 mod api;
 mod constants;
@@ -29,6 +30,9 @@ async fn main() -> std::io::Result<()> {
         )
         .start()
         .unwrap();
+
+    assert!(NaiveTime::parse_from_str(ATTACK_START_TIME, "%H:%M:%S").is_ok());
+    assert!(NaiveTime::parse_from_str(ATTACK_END_TIME, "%H:%M:%S").is_ok());
 
     let pool = util::get_connection_pool();
 
