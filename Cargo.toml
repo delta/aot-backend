@@ -24,3 +24,4 @@ petgraph = "0.5.0"
 serde = { version = "1.0", features = ["derive"] }
 pwhash = "1"
 actix-cors = "0.5.4"
+diesel_migrations = "1.4.0"

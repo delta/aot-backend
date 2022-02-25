@@ -84,3 +84,25 @@ psql -U aot --set ON_ERROR_STOP=on < dummy_data.sql
 ```
 
 For docker, prefix the above command with ```docker-compose exec -T db```
+
+## Deployment
+
+1. Run:
+
+    ```bash
+    cp .env.example .env
+    ```
+
+    and fill the env variables
+
+2. Start the services:
+
+    ```bash
+    docker-compose -f docker-compose.yaml -f docker-compose.prod.yaml up -d
+    ```
+
+You can attach to containers with:
+
+```bash
+docker attach <container-name>
+```

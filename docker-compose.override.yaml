@@ -1,0 +1,7 @@
+services:
+  server:
+    volumes:
+      - ./:/usr/src/aot-backend
+      - /usr/src/aot-backend/target
+      # Having ./target mounted causes deps to be compiled again on every hot reload
+      # if language server runs cargo check on save

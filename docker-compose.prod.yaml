@@ -1,0 +1,8 @@
+services:
+  server:
+    build:
+      dockerfile: Dockerfile.prod
+    environment:
+      PRODUCTION: 'true'
+    volumes:
+      - ./logs:/usr/src/aot-backend/logs

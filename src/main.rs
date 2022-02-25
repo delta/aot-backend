@@ -4,6 +4,7 @@ use actix_cors::Cors;
 use actix_session::CookieSession;
 use actix_web::{middleware, web, App, HttpResponse, HttpServer};
 use chrono::NaiveTime;
+use diesel_migrations::embed_migrations;
 use flexi_logger::{Cleanup, Criterion, Duplicate, FileSpec, Naming};
 
 mod api;
@@ -16,6 +17,10 @@ mod util;
 
 #[macro_use]
 extern crate diesel;
+#[macro_use]
+extern crate diesel_migrations;
+
+embed_migrations!();
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -39,6 +44,9 @@ async fn main() -> std::io::Result<()> {
     let cookie_key = std::env::var("COOKIE_KEY").expect("COOKIE_KEY must be set");
     let frontend_url = std::env::var("FRONTEND_URL").expect("FRONTEND_URL must be set");
 
+    let conn = pool.get().expect("Could not get connection from pool");
+    embedded_migrations::run_with_output(&conn, &mut std::io::stdout()).expect("Migrations failed");
+
     HttpServer::new(move || {
         App::new()
             .wrap(middleware::Logger::new(
@@ -55,13 +63,14 @@ async fn main() -> std::io::Result<()> {
                     .allowed_origin(&frontend_url)
                     .allow_any_header()
                     .allow_any_method()
+                    .expose_any_header()
                     .supports_credentials()
                     .max_age(3600),
             )
             .data(pool.clone())
             .route(
                 "/",
-                web::get().to(|| HttpResponse::Ok().body("Hello from AOT")),
+                web::get().to(|| HttpResponse::Ok().body("Hello from AoR")),
             )
             .service(web::scope("/attack").configure(attack::routes))
             .service(

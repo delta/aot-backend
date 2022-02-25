@@ -1,2 +1,7 @@
 logs
 target
+.git*
+Dockerfile*
+*.md
+*.sql
+*.yaml

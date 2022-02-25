@@ -23,6 +23,7 @@ pub struct LeaderboardResponse {
 
 #[derive(Queryable, Deserialize, Serialize)]
 pub struct LeaderboardEntry {
+    pub user_id: i32,
     pub username: String,
     pub overall_rating: f32,
     pub can_be_attacked: bool,
@@ -106,10 +107,11 @@ pub fn get_leaderboard(
         })?
         .into_iter()
         .map(
-            |(defender_id, username, overall_rating, map_valid)| LeaderboardEntry {
+            |(user_id, username, overall_rating, map_valid)| LeaderboardEntry {
+                user_id,
                 username,
                 overall_rating,
-                can_be_attacked: can_be_attacked(defender_id, map_valid),
+                can_be_attacked: can_be_attacked(user_id, map_valid),
             },
         )
         .collect();
