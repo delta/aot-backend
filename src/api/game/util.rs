@@ -100,7 +100,7 @@ pub fn get_leaderboard(
         .limit(limit)
         .load::<(i32, String, f32, Option<bool>)>(conn)
         .map_err(|err| DieselError {
-            table: "user",
+            table: "user_join_map_layout",
             function: function!(),
             error: err,
         })?

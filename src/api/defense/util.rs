@@ -36,7 +36,7 @@ pub fn defender_exists(defender: i32, conn: &PgConnection) -> Result<bool> {
     Ok(select(exists(user::table.filter(user::id.eq(defender))))
         .get_result(conn)
         .map_err(|err| DieselError {
-            table: "map_layout",
+            table: "user",
             function: function!(),
             error: err,
         })?)
