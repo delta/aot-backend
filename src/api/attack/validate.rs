@@ -23,7 +23,7 @@ pub fn is_attack_valid(
                     return false;
                 }
                 // check if emp_time is valid
-                let game_minutes = GAME_MINUTES_PER_FRAME * (i as i32);
+                let game_minutes = GAME_MINUTES_PER_FRAME * (i as i32 + ATTACKER_RESTRICTED_FRAMES);
                 if emp_time <= game_minutes {
                     return false;
                 }
