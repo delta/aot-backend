@@ -1,7 +1,7 @@
 use crate::error::DieselError;
 use crate::util::function;
 use crate::{
-    constants::{ATTACK_END_TIME, ATTACK_START_TIME},
+    constants::ATTACK_END_TIME,
     models::{Game, LevelsFixture},
 };
 use anyhow::Result;
@@ -30,14 +30,6 @@ pub fn can_show_replay(requested_user: i32, game: &Game, levels_fixture: &Levels
         || requested_user == game.attack_id // user requesting history if an attacker or defender
         || requested_user == game.defend_id
         || current_date > levels_fixture.start_date // game happened in previous rounds
-}
-
-/// checks if the attack is allowed at current time
-pub fn is_attack_allowed_now() -> bool {
-    let start_time = NaiveTime::parse_from_str(ATTACK_START_TIME, "%H:%M:%S").unwrap();
-    let end_time = NaiveTime::parse_from_str(ATTACK_END_TIME, "%H:%M:%S").unwrap();
-    let current_time = Local::now().naive_local().time();
-    current_time >= start_time && current_time <= end_time
 }
 
 pub fn get_current_levels_fixture(conn: &PgConnection) -> Result<LevelsFixture> {

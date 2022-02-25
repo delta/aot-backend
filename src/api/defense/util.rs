@@ -1,10 +1,13 @@
 /// CRUD functions
 use crate::api::util::{can_show_replay, get_current_levels_fixture, GameHistoryEntry};
+use crate::constants::{DEFENSE_END_TIME, DEFENSE_START_TIME};
 use crate::models::*;
 use crate::util::function;
 use crate::{api::util::GameHistoryResponse, error::DieselError};
 use anyhow::Result;
-use diesel::prelude::*;
+use chrono::{Local, NaiveTime};
+use diesel::dsl::exists;
+use diesel::{prelude::*, select};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -18,6 +21,25 @@ pub struct DefenseResponse {
 #[derive(Deserialize, Serialize)]
 pub struct DefenceHistoryResponse {
     pub games: Vec<Game>,
+}
+
+pub fn is_defense_allowed_now() -> bool {
+    let start_time = NaiveTime::parse_from_str(DEFENSE_START_TIME, "%H:%M:%S").unwrap();
+    let end_time = NaiveTime::parse_from_str(DEFENSE_END_TIME, "%H:%M:%S").unwrap();
+    let current_time = Local::now().naive_local().time();
+    current_time >= start_time && current_time <= end_time
+}
+
+pub fn defender_exists(defender: i32, conn: &PgConnection) -> Result<bool> {
+    use crate::schema::user;
+
+    Ok(select(exists(user::table.filter(user::id.eq(defender))))
+        .get_result(conn)
+        .map_err(|err| DieselError {
+            table: "map_layout",
+            function: function!(),
+            error: err,
+        })?)
 }
 
 pub fn fetch_map_layout(conn: &PgConnection, player: &i32) -> Result<MapLayout> {

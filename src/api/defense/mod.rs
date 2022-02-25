@@ -1,9 +1,9 @@
 use super::auth::session;
-use crate::api::{self, error};
+use crate::api::error;
 use crate::constants::ROAD_ID;
 use crate::models::*;
 use actix_session::Session;
-use actix_web::error::{ErrorBadRequest, ErrorForbidden};
+use actix_web::error::{ErrorBadRequest, ErrorForbidden, ErrorNotFound};
 use actix_web::web::{self, Data, Json};
 use actix_web::{Responder, Result};
 use diesel::pg::PgConnection;
@@ -21,10 +21,10 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
             .route(web::put().to(set_base_details))
             .route(web::get().to(get_base_details)),
     )
-    .service(web::resource("/{defender_id}").route(web::get().to(get_valid_base_details)))
-    .service(web::resource("/save").route(web::put().to(confirm_base_details)))
-    .service(web::resource("/{defender_id}/history").route(web::get().to(defense_history)))
     .service(web::resource("/top").route(web::get().to(get_top_defenses)))
+    .service(web::resource("/save").route(web::put().to(confirm_base_details)))
+    .service(web::resource("/{defender_id}").route(web::get().to(get_valid_base_details)))
+    .service(web::resource("/{defender_id}/history").route(web::get().to(defense_history)))
     .data(web::JsonConfig::default().limit(1024 * 1024));
 }
 
@@ -46,6 +46,14 @@ async fn get_valid_base_details(
     pool: web::Data<Pool>,
 ) -> Result<impl Responder> {
     let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+    let defender_exists = web::block(move || util::defender_exists(defender_id.0, &conn))
+        .await
+        .map_err(|err| error::handle_error(err.into()))?;
+    if !defender_exists {
+        return Err(ErrorNotFound("Player not found"));
+    }
+
+    let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let map = web::block(move || util::fetch_map_layout(&conn, &defender_id.0))
         .await
         .map_err(|err| error::handle_error(err.into()))?;
@@ -54,10 +62,12 @@ async fn get_valid_base_details(
         return Err(ErrorBadRequest("Invalid Base"));
     }
 
-    let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-    let response = web::block(move || util::get_details_from_map_layout(&conn, map))
-        .await
-        .map_err(|err| error::handle_error(err.into()))?;
+    let response = web::block(move || {
+        let conn = pool.get()?;
+        util::get_details_from_map_layout(&conn, map)
+    })
+    .await
+    .map_err(|err| error::handle_error(err.into()))?;
 
     Ok(Json(response))
 }
@@ -69,8 +79,8 @@ async fn set_base_details(
 ) -> Result<impl Responder> {
     let defender_id = session::get_current_user(&session)?;
 
-    if api::util::is_attack_allowed_now() {
-        return Err(ErrorForbidden("Cannot edit base during attack time"));
+    if !util::is_defense_allowed_now() {
+        return Err(ErrorForbidden("Cannot edit base now"));
     }
 
     let map_spaces = map_spaces.into_inner();
@@ -105,8 +115,8 @@ async fn confirm_base_details(
 ) -> Result<impl Responder> {
     let defender_id = session::get_current_user(&session)?;
 
-    if api::util::is_attack_allowed_now() {
-        return Err(ErrorForbidden("Cannot edit base during attack time"));
+    if !util::is_defense_allowed_now() {
+        return Err(ErrorForbidden("Cannot edit base now"));
     }
 
     let map_spaces = map_spaces.into_inner();

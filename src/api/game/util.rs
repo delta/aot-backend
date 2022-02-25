@@ -7,7 +7,7 @@ use anyhow::Result;
 use diesel::prelude::*;
 use diesel::{PgConnection, QueryDsl};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Deserialize)]
 pub struct LeaderboardQuery {
@@ -28,7 +28,12 @@ pub struct LeaderboardEntry {
     pub can_be_attacked: bool,
 }
 
-pub fn get_leaderboard(page: i64, limit: i64, conn: &PgConnection) -> Result<LeaderboardResponse> {
+pub fn get_leaderboard(
+    page: i64,
+    limit: i64,
+    user_id: i32,
+    conn: &PgConnection,
+) -> Result<LeaderboardResponse> {
     use crate::schema::{game, map_layout, user};
 
     let level_id: i32 = get_current_levels_fixture(conn)?.id;
@@ -43,13 +48,27 @@ pub fn get_leaderboard(page: i64, limit: i64, conn: &PgConnection) -> Result<Lea
             error: err,
         })?
         .into_iter()
-        .fold(HashMap::new(), |mut hashmap, user_id| {
-            *hashmap.entry(user_id).or_insert(0) += 1;
+        .fold(HashMap::new(), |mut hashmap, defender_id| {
+            *hashmap.entry(defender_id).or_insert(0) += 1;
             hashmap
         });
-    let can_be_attacked = |user_id: i32, map_valid: Option<bool>| {
-        *no_of_times_attacked.get(&user_id).unwrap_or(&0) < TOTAL_ATTACKS_ON_A_BASE
+    let already_attacked: HashSet<i32> = game::table
+        .inner_join(map_layout::table)
+        .select(game::defend_id)
+        .filter(map_layout::level_id.eq(level_id))
+        .filter(game::attack_id.eq(user_id))
+        .load::<i32>(conn)
+        .map_err(|err| DieselError {
+            table: "game_join_map_layout",
+            function: function!(),
+            error: err,
+        })?
+        .into_iter()
+        .collect();
+    let can_be_attacked = |defender_id: i32, map_valid: Option<bool>| {
+        *no_of_times_attacked.get(&defender_id).unwrap_or(&0) < TOTAL_ATTACKS_ON_A_BASE
             && map_valid.unwrap_or(false)
+            && !already_attacked.contains(&defender_id)
     };
 
     let total_entries: i64 = user::table
@@ -87,10 +106,10 @@ pub fn get_leaderboard(page: i64, limit: i64, conn: &PgConnection) -> Result<Lea
         })?
         .into_iter()
         .map(
-            |(user_id, username, overall_rating, map_valid)| LeaderboardEntry {
+            |(defender_id, username, overall_rating, map_valid)| LeaderboardEntry {
                 username,
                 overall_rating,
-                can_be_attacked: can_be_attacked(user_id, map_valid),
+                can_be_attacked: can_be_attacked(defender_id, map_valid),
             },
         )
         .collect();

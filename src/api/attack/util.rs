@@ -6,7 +6,7 @@ use crate::simulation::RenderRobot;
 use crate::simulation::{RenderAttacker, Simulator};
 use crate::util::function;
 use anyhow::{Context, Result};
-use chrono::Local;
+use chrono::{Local, NaiveTime};
 use diesel::dsl::exists;
 use diesel::prelude::*;
 use diesel::select;
@@ -19,6 +19,14 @@ use std::io::Write;
 pub struct NewAttack {
     pub defender_id: i32,
     pub attacker_path: Vec<NewAttackerPath>,
+}
+
+/// checks if the attack is allowed at current time
+pub fn is_attack_allowed_now() -> bool {
+    let start_time = NaiveTime::parse_from_str(ATTACK_START_TIME, "%H:%M:%S").unwrap();
+    let end_time = NaiveTime::parse_from_str(ATTACK_END_TIME, "%H:%M:%S").unwrap();
+    let current_time = Local::now().naive_local().time();
+    current_time >= start_time && current_time <= end_time
 }
 
 pub fn get_valid_emp_ids(conn: &PgConnection) -> Result<HashSet<i32>> {

@@ -31,13 +31,12 @@ async fn create_attack(
     let attacker_id = session::get_current_user(&session)?;
     let attacker_path = new_attack.attacker_path.clone();
 
-    if !api::util::is_attack_allowed_now() {
+    if !util::is_attack_allowed_now() {
         return Err(ErrorBadRequest("Attack not allowed"));
     }
 
     let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let defender_id = new_attack.defender_id;
-    let map_id;
     let (level, map) = web::block(move || {
         let level = api::util::get_current_levels_fixture(&conn)?;
         let map = util::get_map_id(&defender_id, &level.id, &conn)?;
@@ -46,11 +45,11 @@ async fn create_attack(
     .await
     .map_err(|err| error::handle_error(err.into()))?;
 
-    if let Some(map) = map {
-        map_id = map;
+    let map_id = if let Some(map) = map {
+        map
     } else {
         return Err(ErrorBadRequest("Invalid base"));
-    }
+    };
 
     let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let (valid_road_paths, valid_emp_ids, is_attack_allowed) = web::block(move || {

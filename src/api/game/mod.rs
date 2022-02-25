@@ -17,9 +17,12 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
 }
 
 async fn list_leaderboard(
+    session: Session,
     query: web::Query<LeaderboardQuery>,
     pool: web::Data<DbPool>,
 ) -> Result<impl Responder> {
+    let user_id = session::get_current_user(&session)?;
+
     let page = query.page.unwrap_or(1);
     let limit = query.limit.unwrap_or(20);
     if page <= 0 || limit <= 0 {
@@ -27,7 +30,7 @@ async fn list_leaderboard(
     }
     let response = web::block(move || {
         let conn = pool.get()?;
-        util::get_leaderboard(page, limit, &conn)
+        util::get_leaderboard(page, limit, user_id, &conn)
     })
     .await
     .map_err(|err| error::handle_error(err.into()))?;
