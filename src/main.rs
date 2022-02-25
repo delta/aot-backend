@@ -1,8 +1,10 @@
+use crate::api::{attack, auth, defense, game, user};
+use crate::constants::{ATTACK_END_TIME, ATTACK_START_TIME};
+use actix_cors::Cors;
 use actix_session::CookieSession;
 use actix_web::{middleware, web, App, HttpResponse, HttpServer};
+use chrono::NaiveTime;
 use flexi_logger::{Cleanup, Criterion, Duplicate, FileSpec, Naming};
-
-use crate::api::{attack, auth, defense, game, user};
 
 mod api;
 mod constants;
@@ -30,7 +32,12 @@ async fn main() -> std::io::Result<()> {
         .start()
         .unwrap();
 
+    assert!(NaiveTime::parse_from_str(ATTACK_START_TIME, "%H:%M:%S").is_ok());
+    assert!(NaiveTime::parse_from_str(ATTACK_END_TIME, "%H:%M:%S").is_ok());
+
     let pool = util::get_connection_pool();
+    let cookie_key = std::env::var("COOKIE_KEY").expect("COOKIE_KEY must be set");
+    let frontend_url = std::env::var("FRONTEND_URL").expect("FRONTEND_URL must be set");
 
     HttpServer::new(move || {
         App::new()
@@ -38,14 +45,18 @@ async fn main() -> std::io::Result<()> {
                 "%{r}a %r %s %b %{Referer}i %{User-Agent}i %t",
             ))
             .wrap(
-                CookieSession::signed(
-                    std::env::var("COOKIE_KEY")
-                        .expect("COOKIE_KEY must be set")
-                        .as_ref(),
-                )
-                .name("session")
-                .secure(false)
-                .expires_in(30 * 24 * 60 * 60),
+                CookieSession::signed(cookie_key.as_ref())
+                    .name("session")
+                    .secure(false)
+                    .expires_in(30 * 24 * 60 * 60),
+            )
+            .wrap(
+                Cors::default()
+                    .allowed_origin(&frontend_url)
+                    .allow_any_header()
+                    .allow_any_method()
+                    .supports_credentials()
+                    .max_age(3600),
             )
             .data(pool.clone())
             .route(

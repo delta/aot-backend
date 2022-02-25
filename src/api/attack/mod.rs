@@ -1,5 +1,6 @@
 use super::auth::session;
 use super::error;
+use crate::api;
 use crate::models::LevelsFixture;
 use actix_session::Session;
 use actix_web::error::ErrorBadRequest;
@@ -36,24 +37,30 @@ async fn create_attack(
 
     let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let defender_id = new_attack.defender_id;
-    let (level, map_id, valid_road_paths, valid_emp_ids, is_attack_allowed) =
-        web::block(move || {
-            let level = util::get_current_levels_fixture(&conn)?;
-            let map_id = util::get_map_id(&defender_id, &level.id, &conn)?;
-            let is_attack_allowed = util::is_attack_allowed(attacker_id, defender_id, &conn)?;
-            let valid_emp_ids: HashSet<i32> = util::get_valid_emp_ids(&conn)?;
-            let valid_road_paths = util::get_valid_road_paths(map_id, &conn)?;
-            Ok((
-                level,
-                map_id,
-                valid_road_paths,
-                valid_emp_ids,
-                is_attack_allowed,
-            ))
-                as anyhow::Result<(LevelsFixture, i32, HashSet<(i32, i32)>, HashSet<i32>, bool)>
-        })
-        .await
-        .map_err(|err| error::handle_error(err.into()))?;
+    let (level, map) = web::block(move || {
+        let level = api::util::get_current_levels_fixture(&conn)?;
+        let map = util::get_map_id(&defender_id, &level.id, &conn)?;
+        Ok((level, map)) as anyhow::Result<(LevelsFixture, Option<i32>)>
+    })
+    .await
+    .map_err(|err| error::handle_error(err.into()))?;
+
+    let map_id = if let Some(map) = map {
+        map
+    } else {
+        return Err(ErrorBadRequest("Invalid base"));
+    };
+
+    let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+    let (valid_road_paths, valid_emp_ids, is_attack_allowed) = web::block(move || {
+        let is_attack_allowed = util::is_attack_allowed(attacker_id, defender_id, &conn)?;
+        let valid_emp_ids: HashSet<i32> = util::get_valid_emp_ids(&conn)?;
+        let valid_road_paths = util::get_valid_road_paths(map_id, &conn)?;
+        Ok((valid_road_paths, valid_emp_ids, is_attack_allowed))
+            as anyhow::Result<(HashSet<(i32, i32)>, HashSet<i32>, bool)>
+    })
+    .await
+    .map_err(|err| error::handle_error(err.into()))?;
 
     if !is_attack_allowed {
         return Err(ErrorBadRequest("Attack not allowed"));
@@ -67,13 +74,10 @@ async fn create_attack(
     ) {
         return Err(ErrorBadRequest("Invalid attack path"));
     }
-    let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-    let game_id = web::block(move || util::add_game(attacker_id, &new_attack, map_id, &conn))
-        .await
-        .map_err(|err| error::handle_error(err.into()))?;
 
     let file_content = web::block(move || {
         let conn = pool.get()?;
+        let game_id = util::add_game(attacker_id, &new_attack, map_id, &conn)?;
         util::run_simulation(game_id, attacker_path, &conn)
             .with_context(|| format!("Failed to run simulation for game {}", game_id))
     })

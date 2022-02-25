@@ -23,8 +23,8 @@ pub struct NewAttack {
 
 /// checks if the attack is allowed at current time
 pub fn is_attack_allowed_now() -> bool {
-    let start_time = NaiveTime::from_hms(START_HOUR as u32, 0, 0);
-    let end_time = NaiveTime::from_hms(END_HOUR, 0, 0);
+    let start_time = NaiveTime::parse_from_str(ATTACK_START_TIME, "%H:%M:%S").unwrap();
+    let end_time = NaiveTime::parse_from_str(ATTACK_END_TIME, "%H:%M:%S").unwrap();
     let current_time = Local::now().naive_local().time();
     current_time >= start_time && current_time <= end_time
 }
@@ -35,28 +35,15 @@ pub fn get_valid_emp_ids(conn: &PgConnection) -> Result<HashSet<i32>> {
     Ok(valid_emp_ids)
 }
 
-pub fn get_current_levels_fixture(conn: &PgConnection) -> Result<LevelsFixture> {
-    use crate::schema::levels_fixture;
-    let current_date = Local::now().naive_local().date();
-    let level: LevelsFixture = levels_fixture::table
-        .filter(levels_fixture::start_date.le(current_date))
-        .filter(levels_fixture::end_date.gt(current_date))
-        .first(conn)
-        .map_err(|err| DieselError {
-            table: "levels_fixture",
-            function: function!(),
-            error: err,
-        })?;
-    Ok(level)
-}
-
-pub fn get_map_id(defender_id: &i32, level_id: &i32, conn: &PgConnection) -> Result<i32> {
+pub fn get_map_id(defender_id: &i32, level_id: &i32, conn: &PgConnection) -> Result<Option<i32>> {
     use crate::schema::map_layout;
-    let map_id: i32 = map_layout::table
+    let map_id = map_layout::table
         .filter(map_layout::player.eq(defender_id))
         .filter(map_layout::level_id.eq(level_id))
+        .filter(map_layout::is_valid.eq(true))
         .select(map_layout::id)
-        .first(conn)
+        .first::<i32>(conn)
+        .optional()
         .map_err(|err| DieselError {
             table: "map_layout",
             function: function!(),

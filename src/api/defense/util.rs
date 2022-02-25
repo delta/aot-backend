@@ -1,10 +1,13 @@
-use crate::api::util::{can_show_replay, GameHistoryEntry};
 /// CRUD functions
+use crate::api::util::{can_show_replay, get_current_levels_fixture, GameHistoryEntry};
+use crate::constants::{DEFENSE_END_TIME, DEFENSE_START_TIME};
 use crate::models::*;
 use crate::util::function;
 use crate::{api::util::GameHistoryResponse, error::DieselError};
 use anyhow::Result;
-use diesel::prelude::*;
+use chrono::{Local, NaiveTime};
+use diesel::dsl::exists;
+use diesel::{prelude::*, select};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -20,22 +23,29 @@ pub struct DefenceHistoryResponse {
     pub games: Vec<Game>,
 }
 
-pub fn fetch_map_layout(conn: &PgConnection, player: &i32) -> Result<MapLayout> {
-    use crate::schema::{levels_fixture, map_layout};
-    use diesel::dsl::{date, now};
+pub fn is_defense_allowed_now() -> bool {
+    let start_time = NaiveTime::parse_from_str(DEFENSE_START_TIME, "%H:%M:%S").unwrap();
+    let end_time = NaiveTime::parse_from_str(DEFENSE_END_TIME, "%H:%M:%S").unwrap();
+    let current_time = Local::now().naive_local().time();
+    current_time >= start_time && current_time <= end_time
+}
 
-    let today = date(now.at_time_zone("Asia/Calcutta"));
-    let level_id = &levels_fixture::table
-        .select(levels_fixture::id)
-        .filter(levels_fixture::start_date.le(today))
-        .filter(levels_fixture::end_date.gt(today))
-        .first::<i32>(conn)
+pub fn defender_exists(defender: i32, conn: &PgConnection) -> Result<bool> {
+    use crate::schema::user;
+
+    Ok(select(exists(user::table.filter(user::id.eq(defender))))
+        .get_result(conn)
         .map_err(|err| DieselError {
-            table: "levels_fixture",
+            table: "user",
             function: function!(),
             error: err,
-        })?;
+        })?)
+}
 
+pub fn fetch_map_layout(conn: &PgConnection, player: &i32) -> Result<MapLayout> {
+    use crate::schema::map_layout;
+
+    let level_id = &get_current_levels_fixture(conn)?.id;
     let layout = map_layout::table
         .filter(map_layout::player.eq(player))
         .filter(map_layout::level_id.eq(level_id))
