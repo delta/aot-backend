@@ -3,6 +3,7 @@ use aot_backend::models::*;
 use aot_backend::schema::{block_type, map_spaces, shortest_path};
 use aot_backend::util;
 use array2d::Array2D;
+use diesel::dsl::all;
 use diesel::prelude::*;
 use diesel::RunQueryDsl;
 use diesel::{PgConnection, QueryDsl};
@@ -214,6 +215,11 @@ fn main() {
         .select(map_layout::id)
         .load::<i32>(conn)
         .expect("Couldn't get map_ids for given level");
+
+    println!("Deleting old shortest_path entries\n");
+    diesel::delete(shortest_path::table.filter(shortest_path::base_id.ne(all(&map_ids))))
+        .execute(conn)
+        .expect("Couldn't delete entries from shortest_path table");
 
     println!("Calculating shortest paths for level {}\n", level_id);
     map_ids.par_iter().enumerate().for_each(|(pos, map_id)| {

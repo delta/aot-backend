@@ -1,4 +1,5 @@
 /// Functions to check if a base layout is valid
+use super::MapSpacesEntry;
 use crate::{constants::*, models::*};
 use petgraph::{self, prelude::*, Graph};
 use std::collections::{HashMap, HashSet};
@@ -20,7 +21,7 @@ fn get_absolute_coordinates(
     }
 }
 
-fn get_absolute_entrance(map_space: &NewMapSpaces, block_type: &BlockType) -> (i32, i32) {
+fn get_absolute_entrance(map_space: &MapSpacesEntry, block_type: &BlockType) -> (i32, i32) {
     match map_space.rotation {
         0 => (
             map_space.x_coordinate + block_type.entrance_x,
@@ -43,11 +44,7 @@ fn get_absolute_entrance(map_space: &NewMapSpaces, block_type: &BlockType) -> (i
 }
 
 //checks overlaps of blocks and also within map size
-pub fn is_valid_update_layout(
-    map_spaces: &[NewMapSpaces],
-    map: &MapLayout,
-    blocks: &[BlockType],
-) -> bool {
+pub fn is_valid_update_layout(map_spaces: &[MapSpacesEntry], blocks: &[BlockType]) -> bool {
     let mut occupied_positions: HashSet<(i32, i32)> = HashSet::new();
     let blocks: HashMap<i32, BlockType> = blocks
         .iter()
@@ -59,9 +56,7 @@ pub fn is_valid_update_layout(
         if !blocks.contains_key(blk_type) {
             return false;
         }
-        if map_space.map_id != map.id {
-            return false;
-        }
+
         let block: &BlockType = blocks.get(blk_type).unwrap();
         let (x, y, width, height) = get_absolute_coordinates(
             map_space.rotation,
@@ -93,7 +88,7 @@ pub fn is_valid_update_layout(
 
 // checks if no of buildings are within level constraints and if the city is connected
 pub fn is_valid_save_layout(
-    map_spaces: &[NewMapSpaces],
+    map_spaces: &[MapSpacesEntry],
     road_id: i32,
     level_constraints: &mut HashMap<i32, i32>,
     blocks: &[BlockType],
@@ -107,7 +102,7 @@ pub fn is_valid_save_layout(
         .collect();
 
     for map_space in map_spaces {
-        let NewMapSpaces {
+        let MapSpacesEntry {
             blk_type,
             x_coordinate,
             y_coordinate,

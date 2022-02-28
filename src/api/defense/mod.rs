@@ -8,6 +8,7 @@ use actix_web::web::{self, Data, Json};
 use actix_web::{Responder, Result};
 use diesel::pg::PgConnection;
 use diesel::r2d2::ConnectionManager;
+use serde::Deserialize;
 use std::collections::HashMap;
 
 mod util;
@@ -19,16 +20,25 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::resource("")
             .route(web::put().to(set_base_details))
-            .route(web::get().to(get_base_details)),
+            .route(web::get().to(get_user_base_details)),
     )
     .service(web::resource("/top").route(web::get().to(get_top_defenses)))
     .service(web::resource("/save").route(web::put().to(confirm_base_details)))
-    .service(web::resource("/{defender_id}").route(web::get().to(get_valid_base_details)))
+    .service(web::resource("/game/{id}").route(web::get().to(get_game_base_details)))
+    .service(web::resource("/{defender_id}").route(web::get().to(get_other_base_details)))
     .service(web::resource("/{defender_id}/history").route(web::get().to(defense_history)))
     .data(web::JsonConfig::default().limit(1024 * 1024));
 }
 
-async fn get_base_details(pool: Data<Pool>, session: Session) -> Result<impl Responder> {
+#[derive(Deserialize)]
+pub struct MapSpacesEntry {
+    pub blk_type: i32,
+    pub x_coordinate: i32,
+    pub y_coordinate: i32,
+    pub rotation: i32,
+}
+
+async fn get_user_base_details(pool: Data<Pool>, session: Session) -> Result<impl Responder> {
     let defender_id = session::get_current_user(&session)?;
     let response = web::block(move || {
         let conn = pool.get()?;
@@ -41,7 +51,7 @@ async fn get_base_details(pool: Data<Pool>, session: Session) -> Result<impl Res
     Ok(Json(response))
 }
 
-async fn get_valid_base_details(
+async fn get_other_base_details(
     defender_id: web::Path<i32>,
     pool: web::Data<Pool>,
 ) -> Result<impl Responder> {
@@ -72,8 +82,31 @@ async fn get_valid_base_details(
     Ok(Json(response))
 }
 
+async fn get_game_base_details(
+    game_id: web::Path<i32>,
+    pool: web::Data<Pool>,
+) -> Result<impl Responder> {
+    let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+    let map = web::block(move || util::fetch_map_layout_from_game(&conn, game_id.0))
+        .await
+        .map_err(|err| error::handle_error(err.into()))?;
+
+    if map.is_none() {
+        return Err(ErrorNotFound("Game not found"));
+    }
+
+    let response = web::block(move || {
+        let conn = pool.get()?;
+        util::get_details_from_map_layout(&conn, map.unwrap())
+    })
+    .await
+    .map_err(|err| error::handle_error(err.into()))?;
+
+    Ok(Json(response))
+}
+
 async fn set_base_details(
-    map_spaces: Json<Vec<NewMapSpaces>>,
+    map_spaces: Json<Vec<MapSpacesEntry>>,
     pool: Data<Pool>,
     session: Session,
 ) -> Result<impl Responder> {
@@ -94,7 +127,7 @@ async fn set_base_details(
     .await
     .map_err(|err| error::handle_error(err.into()))?;
 
-    if validate::is_valid_update_layout(&map_spaces, &map, &blocks) {
+    if validate::is_valid_update_layout(&map_spaces, &blocks) {
         web::block(move || {
             let conn = pool.get()?;
             util::set_map_invalid(&conn, map.id)?;
@@ -109,7 +142,7 @@ async fn set_base_details(
 }
 
 async fn confirm_base_details(
-    map_spaces: Json<Vec<NewMapSpaces>>,
+    map_spaces: Json<Vec<MapSpacesEntry>>,
     pool: Data<Pool>,
     session: Session,
 ) -> Result<impl Responder> {
@@ -132,7 +165,7 @@ async fn confirm_base_details(
     .await
     .map_err(|err| error::handle_error(err.into()))?;
 
-    if validate::is_valid_update_layout(&map_spaces, &map, &blocks)
+    if validate::is_valid_update_layout(&map_spaces, &blocks)
         && validate::is_valid_save_layout(&map_spaces, ROAD_ID, &mut level_constraints, &blocks)
     {
         web::block(move || {

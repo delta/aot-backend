@@ -110,9 +110,11 @@ pub fn is_attack_allowed(attacker_id: i32, defender_id: i32, conn: &PgConnection
         function: function!(),
         error: err,
     })?;
+    let is_self_attack = attacker_id == defender_id;
     Ok(total_attacks_this_level < TOTAL_ATTACKS_PER_LEVEL
         && total_attacks_on_a_base < TOTAL_ATTACKS_ON_A_BASE
-        && !is_duplicate_attack)
+        && !is_duplicate_attack
+        && !is_self_attack)
 }
 
 pub fn add_game(

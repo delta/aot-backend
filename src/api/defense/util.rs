@@ -1,4 +1,5 @@
 /// CRUD functions
+use super::MapSpacesEntry;
 use crate::api::util::{can_show_replay, get_current_levels_fixture, GameHistoryEntry};
 use crate::constants::{DEFENSE_END_TIME, DEFENSE_START_TIME};
 use crate::models::*;
@@ -72,6 +73,35 @@ pub fn fetch_map_layout(conn: &PgConnection, player: &i32) -> Result<MapLayout> 
     }
 }
 
+pub fn fetch_map_layout_from_game(conn: &PgConnection, game_id: i32) -> Result<Option<MapLayout>> {
+    use crate::schema::{game, map_layout};
+
+    let map_layout_id = game::table
+        .select(game::map_layout_id)
+        .find(game_id)
+        .first::<i32>(conn)
+        .optional()
+        .map_err(|err| DieselError {
+            table: "game",
+            function: function!(),
+            error: err,
+        })?;
+
+    if let Some(map_layout_id) = map_layout_id {
+        let map_layout = map_layout::table
+            .find(map_layout_id)
+            .first::<MapLayout>(conn)
+            .map_err(|err| DieselError {
+                table: "map_layout",
+                function: function!(),
+                error: err,
+            })?;
+        Ok(Some(map_layout))
+    } else {
+        Ok(None)
+    }
+}
+
 pub fn get_details_from_map_layout(conn: &PgConnection, map: MapLayout) -> Result<DefenseResponse> {
     use crate::schema::{levels_fixture, map_spaces};
 
@@ -112,7 +142,11 @@ pub fn fetch_blocks(conn: &PgConnection) -> Result<Vec<BlockType>> {
         })?)
 }
 
-pub fn put_base_details(maps: &[NewMapSpaces], map: &MapLayout, conn: &PgConnection) -> Result<()> {
+pub fn put_base_details(
+    maps: &[MapSpacesEntry],
+    map: &MapLayout,
+    conn: &PgConnection,
+) -> Result<()> {
     use crate::schema::map_spaces::dsl::*;
 
     diesel::delete(map_spaces)
@@ -126,7 +160,7 @@ pub fn put_base_details(maps: &[NewMapSpaces], map: &MapLayout, conn: &PgConnect
     let m: Vec<NewMapSpaces> = maps
         .iter()
         .map(|e| NewMapSpaces {
-            map_id: e.map_id,
+            map_id: map.id,
             blk_type: e.blk_type,
             x_coordinate: e.x_coordinate,
             y_coordinate: e.y_coordinate,
