@@ -36,7 +36,7 @@ pub fn get_user_by_username(conn: &PgConnection, username: &str) -> Result<Optio
     Ok(user)
 }
 
-pub fn get_pragyan_user(conn: &PgConnection, email: &str, name: &str) -> Result<i32> {
+pub fn get_pragyan_user(conn: &PgConnection, email: &str, name: &str) -> Result<(i32, String)> {
     // Already logged in before
     if let Some(user) = user::table
         .filter(user::email.eq(&email))
@@ -48,7 +48,7 @@ pub fn get_pragyan_user(conn: &PgConnection, email: &str, name: &str) -> Result<
             error: err,
         })?
     {
-        Ok(user.id)
+        Ok((user.id, user.username))
     } else {
         // First login
         let random_string: String = rand::thread_rng()
@@ -76,7 +76,7 @@ pub fn get_pragyan_user(conn: &PgConnection, email: &str, name: &str) -> Result<
                 function: function!(),
                 error: err,
             })?;
-        Ok(user.id)
+        Ok((user.id, user.username))
     }
 }
 

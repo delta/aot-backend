@@ -8,7 +8,7 @@ use actix_web::web::{self, Data, Json};
 use actix_web::Responder;
 use actix_web::{HttpResponse, Result};
 use pwhash::bcrypt;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 mod otp;
 mod pragyan;
@@ -28,6 +28,13 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
 struct LoginRequest {
     username: String,
     password: String,
+}
+
+#[derive(Serialize)]
+struct LoginResponse {
+    user_id: i32,
+    username: String,
+    name: String,
 }
 
 #[derive(Deserialize)]
@@ -70,7 +77,11 @@ async fn login(
             session::set(&session, user.id, user.is_verified)
                 .map_err(|err| error::handle_error(err))?;
             if user.is_verified {
-                return Ok("Successfully Logged In");
+                return Ok(Json(LoginResponse {
+                    user_id: user.id,
+                    username: user.username,
+                    name: user.name,
+                }));
             }
             // Account not verified
             return Err(ErrorUnauthorized("App account not verified"));
@@ -86,16 +97,20 @@ async fn login(
     match pragyan_auth.status_code {
         200 => {
             if let PragyanMessage::Success(pragyan_user) = pragyan_auth.message {
-                let user_id = web::block(move || {
+                let name = pragyan_user.user_fullname.clone();
+                let (user_id, username) = web::block(move || {
                     let conn = pool.get()?;
                     let email = username.clone();
-                    let name = pragyan_user.user_fullname;
                     util::get_pragyan_user(&conn, &email, &name)
                 })
                 .await
                 .map_err(|err| error::handle_error(err.into()))?;
                 session::set(&session, user_id, true).map_err(|err| error::handle_error(err))?;
-                Ok("Successfully Logged In")
+                Ok(Json(LoginResponse {
+                    user_id,
+                    username,
+                    name: pragyan_user.user_fullname,
+                }))
             } else {
                 Err(anyhow::anyhow!(
                     "Unexpected error in Pragyan auth: {:?}",
