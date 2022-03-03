@@ -1,20 +1,16 @@
-use super::auth::session;
+use super::auth::session::AuthUser;
+use super::PgPool;
 use crate::api::error;
 use crate::constants::ROAD_ID;
 use crate::models::*;
-use actix_session::Session;
 use actix_web::error::{ErrorBadRequest, ErrorForbidden, ErrorNotFound};
 use actix_web::web::{self, Data, Json};
 use actix_web::{Responder, Result};
-use diesel::pg::PgConnection;
-use diesel::r2d2::ConnectionManager;
 use serde::Deserialize;
 use std::collections::HashMap;
 
 mod util;
 mod validate;
-
-type Pool = diesel::r2d2::Pool<ConnectionManager<PgConnection>>;
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
@@ -38,8 +34,8 @@ pub struct MapSpacesEntry {
     pub rotation: i32,
 }
 
-async fn get_user_base_details(pool: Data<Pool>, session: Session) -> Result<impl Responder> {
-    let defender_id = session::get_current_user(&session)?;
+async fn get_user_base_details(pool: Data<PgPool>, user: AuthUser) -> Result<impl Responder> {
+    let defender_id = user.0;
     let response = web::block(move || {
         let conn = pool.get()?;
         let map = util::fetch_map_layout(&conn, &defender_id)?;
@@ -53,7 +49,7 @@ async fn get_user_base_details(pool: Data<Pool>, session: Session) -> Result<imp
 
 async fn get_other_base_details(
     defender_id: web::Path<i32>,
-    pool: web::Data<Pool>,
+    pool: web::Data<PgPool>,
 ) -> Result<impl Responder> {
     let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let defender_exists = web::block(move || util::defender_exists(defender_id.0, &conn))
@@ -84,7 +80,7 @@ async fn get_other_base_details(
 
 async fn get_game_base_details(
     game_id: web::Path<i32>,
-    pool: web::Data<Pool>,
+    pool: web::Data<PgPool>,
 ) -> Result<impl Responder> {
     let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let map = web::block(move || util::fetch_map_layout_from_game(&conn, game_id.0))
@@ -107,10 +103,10 @@ async fn get_game_base_details(
 
 async fn set_base_details(
     map_spaces: Json<Vec<MapSpacesEntry>>,
-    pool: Data<Pool>,
-    session: Session,
+    pool: Data<PgPool>,
+    user: AuthUser,
 ) -> Result<impl Responder> {
-    let defender_id = session::get_current_user(&session)?;
+    let defender_id = user.0;
 
     if !util::is_defense_allowed_now() {
         return Err(ErrorForbidden("Cannot edit base now"));
@@ -143,10 +139,10 @@ async fn set_base_details(
 
 async fn confirm_base_details(
     map_spaces: Json<Vec<MapSpacesEntry>>,
-    pool: Data<Pool>,
-    session: Session,
+    pool: Data<PgPool>,
+    user: AuthUser,
 ) -> Result<impl Responder> {
-    let defender_id = session::get_current_user(&session)?;
+    let defender_id = user.0;
 
     if !util::is_defense_allowed_now() {
         return Err(ErrorForbidden("Cannot edit base now"));
@@ -183,10 +179,10 @@ async fn confirm_base_details(
 
 async fn defense_history(
     defender_id: web::Path<i32>,
-    pool: web::Data<Pool>,
-    session: Session,
+    pool: web::Data<PgPool>,
+    user: AuthUser,
 ) -> Result<impl Responder> {
-    let user_id = session::get_current_user(&session)?;
+    let user_id = user.0;
     let defender_id = defender_id.0;
     let response = web::block(move || {
         let conn = pool.get()?;
@@ -197,8 +193,8 @@ async fn defense_history(
     Ok(web::Json(response))
 }
 
-async fn get_top_defenses(pool: web::Data<Pool>, session: Session) -> Result<impl Responder> {
-    let user_id = session::get_current_user(&session)?;
+async fn get_top_defenses(pool: web::Data<PgPool>, user: AuthUser) -> Result<impl Responder> {
+    let user_id = user.0;
     let response = web::block(move || {
         let conn = pool.get()?;
         util::fetch_top_defenses(user_id, &conn)

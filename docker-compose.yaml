@@ -30,6 +30,13 @@ services:
     volumes:
       - aot_pgadmin:/var/lib/pgadmin
 
+  redis:
+    image: redis
+    restart: unless-stopped
+    volumes:
+      - aot_redis:/data
+
 volumes:
-  aot_db: null
-  aot_pgadmin: null
+  aot_db:
+  aot_pgadmin:
+  aot_redis:

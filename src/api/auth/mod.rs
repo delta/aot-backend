@@ -1,12 +1,12 @@
 use self::pragyan::PragyanMessage;
+use self::session::UnverifiedUser;
+use super::{PgPool, RedisPool};
 use crate::api::error;
 use actix_session::Session;
 use actix_web::error::{ErrorBadRequest, ErrorUnauthorized};
 use actix_web::web::{self, Data, Json};
 use actix_web::Responder;
 use actix_web::{HttpResponse, Result};
-use diesel::r2d2::ConnectionManager;
-use diesel::PgConnection;
 use pwhash::bcrypt;
 use serde::Deserialize;
 
@@ -55,16 +55,11 @@ struct ResetPwVerifyRequest {
     recaptcha: String,
 }
 
-type Pool = diesel::r2d2::Pool<ConnectionManager<PgConnection>>;
-
 async fn login(
     request: web::Json<LoginRequest>,
     session: Session,
-    pool: Data<Pool>,
+    pool: Data<PgPool>,
 ) -> Result<impl Responder> {
-    if session::is_signed_in(&session) {
-        return Ok("Already signed in");
-    }
     let username = request.username.clone();
     let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let user = web::block(move || util::get_user_by_username(&conn, &username))
@@ -72,13 +67,9 @@ async fn login(
         .map_err(|err| error::handle_error(err.into()))?;
     if let Some(user) = user {
         if !user.is_pragyan && bcrypt::verify(&request.password, &user.password) {
-            session
-                .set("user", user.id)
-                .map_err(|err| error::handle_error(err.into()))?;
+            session::set(&session, user.id, user.is_verified)
+                .map_err(|err| error::handle_error(err))?;
             if user.is_verified {
-                session
-                    .set("is_verified", true)
-                    .map_err(|err| error::handle_error(err.into()))?;
                 return Ok("Successfully Logged In");
             }
             // Account not verified
@@ -103,12 +94,7 @@ async fn login(
                 })
                 .await
                 .map_err(|err| error::handle_error(err.into()))?;
-                session
-                    .set("user", user_id)
-                    .map_err(|err| error::handle_error(err.into()))?;
-                session
-                    .set("is_verified", true)
-                    .map_err(|err| error::handle_error(err.into()))?;
+                session::set(&session, user_id, true).map_err(|err| error::handle_error(err))?;
                 Ok("Successfully Logged In")
             } else {
                 Err(anyhow::anyhow!(
@@ -131,12 +117,12 @@ async fn logout(session: Session) -> impl Responder {
 }
 
 async fn sendotp(
-    pool: Data<Pool>,
+    pool: Data<PgPool>,
     request: Json<OtpRequest>,
-    session: Session,
+    user: UnverifiedUser,
 ) -> Result<impl Responder> {
+    let user_id = user.0;
     let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-    let user_id = session::get_unverified_user(&session)?;
     let user = web::block(move || util::get_user(&conn, user_id))
         .await
         .map_err(|err| error::handle_error(err.into()))?;
@@ -147,9 +133,10 @@ async fn sendotp(
     } else {
         return Err(ErrorBadRequest("User not found"));
     }
+    let user = user.unwrap();
 
     let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-    let phone_number = user.clone().unwrap().phone;
+    let phone_number = user.clone().phone;
     let duplicate_user = web::block(move || util::get_user_with_phone(&conn, &phone_number))
         .await
         .map_err(|err| error::handle_error(err.into()))?;
@@ -165,7 +152,7 @@ async fn sendotp(
         return Err(ErrorUnauthorized("Invalid reCAPTCHA"));
     }
 
-    let phone_number = user.unwrap().phone;
+    let phone_number = user.phone;
     let template_name = std::env::var("TWOFACTOR_VERIFY_TEMPLATE")
         .map_err(|err| error::handle_error(err.into()))?;
     let two_factor_response = otp::send_otp(&phone_number, &template_name)
@@ -174,7 +161,7 @@ async fn sendotp(
     if two_factor_response.status == "Success" {
         web::block(move || {
             let conn = pool.get()?;
-            util::set_otp_session_id(&conn, user_id, &two_factor_response.details)
+            util::set_otp_session_id(&conn, user.id, &two_factor_response.details)
         })
         .await
         .map_err(|err| error::handle_error(err.into()))?;
@@ -185,15 +172,16 @@ async fn sendotp(
 }
 
 async fn verify(
-    pool: Data<Pool>,
+    pool: Data<PgPool>,
     request: Json<OtpVerifyRequest>,
+    user: UnverifiedUser,
     session: Session,
 ) -> Result<impl Responder> {
+    let user_id = user.0;
     let OtpVerifyRequest { otp, recaptcha } = request.into_inner();
     if otp.len() < 4 || otp.len() > 6 {
         return Err(ErrorBadRequest("Invalid OTP"));
     }
-    let user_id = session::get_unverified_user(&session)?;
     let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let user = web::block(move || util::get_user(&conn, user_id))
         .await
@@ -236,7 +224,7 @@ async fn verify(
 }
 
 async fn send_resetpw_otp(
-    pool: Data<Pool>,
+    pool: Data<PgPool>,
     request: Json<ResetPwRequest>,
 ) -> Result<impl Responder> {
     let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
@@ -277,7 +265,11 @@ async fn send_resetpw_otp(
     }
 }
 
-async fn reset_pw(pool: Data<Pool>, request: Json<ResetPwVerifyRequest>) -> Result<impl Responder> {
+async fn reset_pw(
+    pg_pool: Data<PgPool>,
+    request: Json<ResetPwVerifyRequest>,
+    redis_pool: Data<RedisPool>,
+) -> Result<impl Responder> {
     let ResetPwVerifyRequest {
         phone_number,
         otp,
@@ -287,7 +279,9 @@ async fn reset_pw(pool: Data<Pool>, request: Json<ResetPwVerifyRequest>) -> Resu
     if otp.len() < 4 || otp.len() > 6 {
         return Err(ErrorBadRequest("Invalid OTP"));
     }
-    let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+    let conn = pg_pool
+        .get()
+        .map_err(|err| error::handle_error(err.into()))?;
     let phone = phone_number.clone();
     let user = web::block(move || util::get_user_with_phone(&conn, &phone))
         .await
@@ -303,7 +297,9 @@ async fn reset_pw(pool: Data<Pool>, request: Json<ResetPwVerifyRequest>) -> Resu
         return Err(ErrorUnauthorized("Invalid reCAPTCHA"));
     }
 
-    let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+    let conn = pg_pool
+        .get()
+        .map_err(|err| error::handle_error(err.into()))?;
     let user_id = user.unwrap().id;
     let session_id = web::block(move || util::get_otp_session_id(&conn, user_id))
         .await
@@ -314,8 +310,9 @@ async fn reset_pw(pool: Data<Pool>, request: Json<ResetPwVerifyRequest>) -> Resu
     match two_factor_response.details.as_str() {
         "OTP Matched" => {
             web::block(move || {
-                let conn = pool.get()?;
-                util::reset_password(&conn, &phone_number, &password)
+                let conn = pg_pool.get()?;
+                let redis_conn = redis_pool.get()?;
+                util::reset_password(&conn, redis_conn, user_id, &password)
             })
             .await
             .map_err(|err| error::handle_error(err.into()))?;

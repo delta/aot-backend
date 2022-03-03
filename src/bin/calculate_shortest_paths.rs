@@ -204,7 +204,7 @@ fn main() {
     }
     let level_id: i32 = args[1].parse().expect("Enter a valid level_id");
 
-    let pool = util::get_connection_pool();
+    let pool = util::get_pg_conn_pool();
     let conn = &*pool.get().unwrap();
 
     use aot_backend::schema::map_layout;

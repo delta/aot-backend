@@ -1,4 +1,4 @@
-FROM rust:slim as base
+FROM rust:1.59.0-slim as base
 WORKDIR /usr/src/aot-backend
 RUN apt-get update -y && apt-get install -y libpq-dev netcat
 RUN cargo install diesel_cli --no-default-features --features postgres

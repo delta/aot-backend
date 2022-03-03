@@ -1,4 +1,5 @@
 use super::InputUser;
+use crate::api::RedisConn;
 use crate::constants::INITIAL_RATING;
 use crate::error::DieselError;
 use crate::models::NewUser;
@@ -7,6 +8,7 @@ use crate::util::function;
 use anyhow::Result;
 use diesel::prelude::*;
 use pwhash::bcrypt;
+use redis::Commands;
 use serde::Serialize;
 
 #[derive(Serialize)]
@@ -50,7 +52,11 @@ pub fn fetch_all_user(conn: &PgConnection) -> Result<Vec<User>> {
         })?)
 }
 
-pub fn add_user(conn: &PgConnection, user: &InputUser) -> anyhow::Result<()> {
+pub fn add_user(
+    pg_conn: &PgConnection,
+    mut redis_conn: RedisConn,
+    user: &InputUser,
+) -> anyhow::Result<()> {
     use crate::schema::user;
 
     let hashed_password = bcrypt::hash(&user.password)?;
@@ -65,14 +71,16 @@ pub fn add_user(conn: &PgConnection, user: &InputUser) -> anyhow::Result<()> {
         is_verified: &false,
         highest_rating: &INITIAL_RATING,
     };
-    diesel::insert_into(user::table)
+    let user: User = diesel::insert_into(user::table)
         .values(&new_user)
-        .execute(conn)
+        .get_result(pg_conn)
         .map_err(|err| DieselError {
             table: "user",
             function: function!(),
             error: err,
         })?;
+    // Set last reset password time as 0 for new user
+    redis_conn.set(user.id, 0)?;
     Ok(())
 }
 

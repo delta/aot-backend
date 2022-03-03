@@ -6,7 +6,7 @@ use diesel::QueryDsl;
 use diesel::{prelude::*, update};
 
 fn main() {
-    let pool = util::get_connection_pool();
+    let pool = util::get_pg_conn_pool();
     let conn = &*pool.get().expect("Could not retrieve connection from pool");
 
     let level_id = api::util::get_current_levels_fixture(conn)

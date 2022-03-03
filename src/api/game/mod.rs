@@ -1,15 +1,8 @@
-use super::{auth::session, error};
-use actix_session::Session;
+use super::{auth::session::AuthUser, error, PgPool};
 use actix_web::{error::ErrorBadRequest, web, Responder, Result};
-use diesel::{
-    r2d2::{ConnectionManager, Pool},
-    PgConnection,
-};
 use util::LeaderboardQuery;
 
 mod util;
-
-type DbPool = Pool<ConnectionManager<PgConnection>>;
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
     cfg.service(web::resource("/leaderboard").route(web::get().to(list_leaderboard)))
@@ -17,11 +10,11 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
 }
 
 async fn list_leaderboard(
-    session: Session,
+    user: AuthUser,
     query: web::Query<LeaderboardQuery>,
-    pool: web::Data<DbPool>,
+    pool: web::Data<PgPool>,
 ) -> Result<impl Responder> {
-    let user_id = session::get_current_user(&session)?;
+    let user_id = user.0;
 
     let page = query.page.unwrap_or(1);
     let limit = query.limit.unwrap_or(20);
@@ -39,10 +32,10 @@ async fn list_leaderboard(
 
 async fn get_replay(
     game_id: web::Path<i32>,
-    pool: web::Data<DbPool>,
-    session: Session,
+    pool: web::Data<PgPool>,
+    user: AuthUser,
 ) -> Result<impl Responder> {
-    let user_id = session::get_current_user(&session)?;
+    let user_id = user.0;
     let game_id = game_id.0;
 
     let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
