@@ -1,7 +1,6 @@
 use super::auth::session::AuthUser;
 use super::PgPool;
 use crate::api::error;
-use crate::constants::ROAD_ID;
 use crate::models::*;
 use actix_web::error::{ErrorBadRequest, ErrorForbidden, ErrorNotFound};
 use actix_web::web::{self, Data, Json};
@@ -162,7 +161,7 @@ async fn confirm_base_details(
     .map_err(|err| error::handle_error(err.into()))?;
 
     if validate::is_valid_update_layout(&map_spaces, &blocks)
-        && validate::is_valid_save_layout(&map_spaces, ROAD_ID, &mut level_constraints, &blocks)
+        && validate::is_valid_save_layout(&map_spaces, &mut level_constraints, &blocks)
     {
         web::block(move || {
             let conn = pool.get()?;

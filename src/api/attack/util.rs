@@ -209,7 +209,10 @@ pub fn run_simulation(
             writeln!(
                 content,
                 "{},{},{},{}",
-                id, path.y_coord, path.x_coord, path.is_emp
+                id + 1,
+                path.y_coord,
+                path.x_coord,
+                path.is_emp
             )
         })?;
 
@@ -227,7 +230,7 @@ pub fn run_simulation(
                 writeln!(
                     content,
                     "{},{},{}",
-                    id,
+                    id + 1,
                     path.emp_time.unwrap(),
                     path.emp_type.unwrap()
                 )

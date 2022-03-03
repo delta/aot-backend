@@ -52,18 +52,18 @@ pub fn is_valid_update_layout(map_spaces: &[MapSpacesEntry], blocks: &[BlockType
         .collect();
 
     for map_space in map_spaces {
-        let blk_type = &map_space.blk_type;
-        if !blocks.contains_key(blk_type) {
+        let blk_type = map_space.blk_type;
+        if !blocks.contains_key(&blk_type) {
             return false;
         }
 
-        let block: &BlockType = blocks.get(blk_type).unwrap();
+        let block: &BlockType = blocks.get(&blk_type).unwrap();
         let (x, y, width, height) = get_absolute_coordinates(
             map_space.rotation,
             (map_space.x_coordinate, map_space.y_coordinate),
             (block.width, block.height),
         );
-        if x == -1 {
+        if x == -1 && blk_type != ROAD_ID {
             return false;
         }
 
@@ -89,7 +89,6 @@ pub fn is_valid_update_layout(map_spaces: &[MapSpacesEntry], blocks: &[BlockType
 // checks if no of buildings are within level constraints and if the city is connected
 pub fn is_valid_save_layout(
     map_spaces: &[MapSpacesEntry],
-    road_id: i32,
     level_constraints: &mut HashMap<i32, i32>,
     blocks: &[BlockType],
 ) -> bool {
@@ -119,7 +118,7 @@ pub fn is_valid_save_layout(
         }
 
         // add roads and entrances to graph
-        if blk_type == road_id {
+        if blk_type == ROAD_ID {
             map_grid.insert((x_coordinate, y_coordinate), graph.add_node(()));
         } else {
             let block = blocks.get(&blk_type).unwrap();

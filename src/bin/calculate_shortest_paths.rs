@@ -22,11 +22,10 @@ fn get_absolute_coordinates(
     entrance_y: i32,
 ) -> (i32, i32) {
     match rotation {
-        0 => (x_coordinate + entrance_x, y_coordinate + entrance_y),
         90 => (x_coordinate - entrance_y, y_coordinate + entrance_x),
         180 => (x_coordinate - entrance_x, y_coordinate - entrance_y),
         270 => (x_coordinate + entrance_y, y_coordinate - entrance_x),
-        _ => panic!("Invalid Map Space Rotation"),
+        _ => (x_coordinate + entrance_x, y_coordinate + entrance_y),
     }
 }
 
