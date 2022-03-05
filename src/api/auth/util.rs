@@ -1,3 +1,4 @@
+use crate::api::RedisConn;
 use crate::models::*;
 use crate::schema::user;
 use crate::util::function;
@@ -6,6 +7,8 @@ use anyhow::Result;
 use diesel::prelude::*;
 use pwhash::bcrypt;
 use rand::{distributions::Alphanumeric, Rng};
+use redis::Commands;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 pub fn get_user(conn: &PgConnection, id: i32) -> Result<Option<User>> {
     let user = user::table
@@ -33,7 +36,7 @@ pub fn get_user_by_username(conn: &PgConnection, username: &str) -> Result<Optio
     Ok(user)
 }
 
-pub fn get_pragyan_user(conn: &PgConnection, email: &str, name: &str) -> Result<i32> {
+pub fn get_pragyan_user(conn: &PgConnection, email: &str, name: &str) -> Result<(i32, String)> {
     // Already logged in before
     if let Some(user) = user::table
         .filter(user::email.eq(&email))
@@ -45,7 +48,7 @@ pub fn get_pragyan_user(conn: &PgConnection, email: &str, name: &str) -> Result<
             error: err,
         })?
     {
-        Ok(user.id)
+        Ok((user.id, user.username))
     } else {
         // First login
         let random_string: String = rand::thread_rng()
@@ -73,7 +76,7 @@ pub fn get_pragyan_user(conn: &PgConnection, email: &str, name: &str) -> Result<
                 function: function!(),
                 error: err,
             })?;
-        Ok(user.id)
+        Ok((user.id, user.username))
     }
 }
 
@@ -138,17 +141,23 @@ pub fn get_user_with_phone(conn: &PgConnection, phone: &str) -> Result<Option<Us
     Ok(user)
 }
 
-pub fn reset_password(conn: &PgConnection, phone: &str, password: &str) -> Result<()> {
+pub fn reset_password(
+    pg_conn: &PgConnection,
+    mut redis_conn: RedisConn,
+    user_id: i32,
+    password: &str,
+) -> Result<()> {
     let hashed_password = bcrypt::hash(&password)?;
-    diesel::update(user::table)
-        .filter(user::phone.eq(&phone))
-        .filter(user::is_verified.eq(true))
+    diesel::update(user::table.find(user_id))
         .set(user::password.eq(&hashed_password))
-        .execute(conn)
+        .execute(pg_conn)
         .map_err(|err| DieselError {
             table: "user",
             function: function!(),
             error: err,
         })?;
+    // Set reset password time in redis to invalidate sessions before this time
+    let created_at = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
+    redis_conn.set(user_id, created_at)?;
     Ok(())
 }

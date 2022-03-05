@@ -110,9 +110,11 @@ pub fn is_attack_allowed(attacker_id: i32, defender_id: i32, conn: &PgConnection
         function: function!(),
         error: err,
     })?;
+    let is_self_attack = attacker_id == defender_id;
     Ok(total_attacks_this_level < TOTAL_ATTACKS_PER_LEVEL
         && total_attacks_on_a_base < TOTAL_ATTACKS_ON_A_BASE
-        && !is_duplicate_attack)
+        && !is_duplicate_attack
+        && !is_self_attack)
 }
 
 pub fn add_game(
@@ -207,7 +209,10 @@ pub fn run_simulation(
             writeln!(
                 content,
                 "{},{},{},{}",
-                id, path.y_coord, path.x_coord, path.is_emp
+                id + 1,
+                path.y_coord,
+                path.x_coord,
+                path.is_emp
             )
         })?;
 
@@ -225,7 +230,7 @@ pub fn run_simulation(
                 writeln!(
                     content,
                     "{},{},{}",
-                    id,
+                    id + 1,
                     path.emp_time.unwrap(),
                     path.emp_type.unwrap()
                 )

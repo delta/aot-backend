@@ -32,7 +32,7 @@ COPY public.attack_type (id, att_type, attack_radius, attack_damage) FROM stdin;
 --
 
 COPY public.levels_fixture (id, start_date, end_date, no_of_bombs) FROM stdin;
-1	2022-01-01	2022-03-01	10
+1	2022-01-01	2022-03-10	10
 \.
 
 

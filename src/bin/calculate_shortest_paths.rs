@@ -3,6 +3,7 @@ use aot_backend::models::*;
 use aot_backend::schema::{block_type, map_spaces, shortest_path};
 use aot_backend::util;
 use array2d::Array2D;
+use diesel::dsl::all;
 use diesel::prelude::*;
 use diesel::RunQueryDsl;
 use diesel::{PgConnection, QueryDsl};
@@ -21,11 +22,10 @@ fn get_absolute_coordinates(
     entrance_y: i32,
 ) -> (i32, i32) {
     match rotation {
-        0 => (x_coordinate + entrance_x, y_coordinate + entrance_y),
         90 => (x_coordinate - entrance_y, y_coordinate + entrance_x),
         180 => (x_coordinate - entrance_x, y_coordinate - entrance_y),
         270 => (x_coordinate + entrance_y, y_coordinate - entrance_x),
-        _ => panic!("Invalid Map Space Rotation"),
+        _ => (x_coordinate + entrance_x, y_coordinate + entrance_y),
     }
 }
 
@@ -203,7 +203,7 @@ fn main() {
     }
     let level_id: i32 = args[1].parse().expect("Enter a valid level_id");
 
-    let pool = util::get_connection_pool();
+    let pool = util::get_pg_conn_pool();
     let conn = &*pool.get().unwrap();
 
     use aot_backend::schema::map_layout;
@@ -214,6 +214,11 @@ fn main() {
         .select(map_layout::id)
         .load::<i32>(conn)
         .expect("Couldn't get map_ids for given level");
+
+    println!("Deleting old shortest_path entries\n");
+    diesel::delete(shortest_path::table.filter(shortest_path::base_id.ne(all(&map_ids))))
+        .execute(conn)
+        .expect("Couldn't delete entries from shortest_path table");
 
     println!("Calculating shortest paths for level {}\n", level_id);
     map_ids.par_iter().enumerate().for_each(|(pos, map_id)| {

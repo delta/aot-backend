@@ -1,15 +1,12 @@
-use super::auth::session;
-use super::error;
+use self::util::NewAttack;
+use super::auth::session::AuthUser;
+use super::{error, PgPool};
 use crate::api;
 use crate::models::LevelsFixture;
-use actix_session::Session;
 use actix_web::error::ErrorBadRequest;
 use actix_web::{web, HttpResponse, Responder, Result};
 use anyhow::Context;
-use diesel::r2d2::{ConnectionManager, Pool};
-use diesel::PgConnection;
 use std::collections::HashSet;
-use util::NewAttack;
 
 mod rating;
 mod util;
@@ -21,14 +18,12 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
         .service(web::resource("/top").route(web::get().to(get_top_attacks)));
 }
 
-type DbPool = Pool<ConnectionManager<PgConnection>>;
-
 async fn create_attack(
     new_attack: web::Json<NewAttack>,
-    pool: web::Data<DbPool>,
-    session: Session,
+    pool: web::Data<PgPool>,
+    user: AuthUser,
 ) -> Result<impl Responder> {
-    let attacker_id = session::get_current_user(&session)?;
+    let attacker_id = user.0;
     let attacker_path = new_attack.attacker_path.clone();
 
     if !util::is_attack_allowed_now() {
@@ -89,10 +84,10 @@ async fn create_attack(
 
 async fn attack_history(
     attacker_id: web::Path<i32>,
-    pool: web::Data<DbPool>,
-    session: Session,
+    pool: web::Data<PgPool>,
+    user: AuthUser,
 ) -> Result<impl Responder> {
-    let user_id = session::get_current_user(&session)?;
+    let user_id = user.0;
     let attacker_id = attacker_id.0;
     let response = web::block(move || {
         let conn = pool.get()?;
@@ -103,8 +98,8 @@ async fn attack_history(
     Ok(web::Json(response))
 }
 
-async fn get_top_attacks(pool: web::Data<DbPool>, session: Session) -> Result<impl Responder> {
-    let user_id = session::get_current_user(&session)?;
+async fn get_top_attacks(pool: web::Data<PgPool>, user: AuthUser) -> Result<impl Responder> {
+    let user_id = user.0;
     let response = web::block(move || {
         let conn = pool.get()?;
         util::fetch_top_attacks(user_id, &conn)

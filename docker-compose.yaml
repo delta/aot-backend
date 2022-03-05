@@ -3,15 +3,14 @@ version: '3.9'
 services:
   server:
     entrypoint: ./entrypoint.sh
-    build:
-      context: .
+    build: .
     restart: unless-stopped
+    environment:
+      TZ: "Asia/Calcutta"
     depends_on:
       - db
     ports:
-      - 8000:8000
-    volumes:
-      - ./:/usr/src/aot-backend
+      - ${SERVER_PORT}:8000
 
   db:
     image: postgres
@@ -29,10 +28,17 @@ services:
       PGADMIN_DEFAULT_EMAIL: aot@aot.com
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
     ports:
-      - 8080:80
+      - ${PGADMIN_PORT}:80
     volumes:
       - aot_pgadmin:/var/lib/pgadmin
 
+  redis:
+    image: redis
+    restart: unless-stopped
+    volumes:
+      - aot_redis:/data
+
 volumes:
-  aot_db: null
-  aot_pgadmin: null
+  aot_db:
+  aot_pgadmin:
+  aot_redis:

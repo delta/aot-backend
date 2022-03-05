@@ -1,17 +1,13 @@
-use super::auth::session;
+use super::auth::session::AuthUser;
+use super::{PgPool, RedisPool};
 use crate::api::error;
 use crate::models::UpdateUser;
-use actix_session::Session;
 use actix_web::error::{ErrorConflict, ErrorNotFound};
 use actix_web::web::{self, Data, Json, Path};
 use actix_web::{Responder, Result};
-use diesel::pg::PgConnection;
-use diesel::r2d2::ConnectionManager;
 use serde::Deserialize;
 
 mod util;
-
-type Pool = diesel::r2d2::Pool<ConnectionManager<PgConnection>>;
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
     cfg.service(web::resource("").route(web::patch().to(update_user)))
@@ -27,8 +23,14 @@ pub struct InputUser {
     password: String,
 }
 
-async fn register(pool: Data<Pool>, input_user: Json<InputUser>) -> Result<impl Responder> {
-    let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+async fn register(
+    pg_pool: Data<PgPool>,
+    redis_pool: Data<RedisPool>,
+    input_user: Json<InputUser>,
+) -> Result<impl Responder> {
+    let conn = pg_pool
+        .get()
+        .map_err(|err| error::handle_error(err.into()))?;
     let user = input_user.clone();
     let duplicates = web::block(move || util::get_duplicate_users(&conn, &user))
         .await
@@ -41,8 +43,9 @@ async fn register(pool: Data<Pool>, input_user: Json<InputUser>) -> Result<impl 
         }
     }
     web::block(move || {
-        let conn = pool.get()?;
-        util::add_user(&conn, &input_user)
+        let conn = pg_pool.get()?;
+        let redis_conn = redis_pool.get()?;
+        util::add_user(&conn, redis_conn, &input_user)
     })
     .await
     .map_err(|err| error::handle_error(err.into()))?;
@@ -50,12 +53,12 @@ async fn register(pool: Data<Pool>, input_user: Json<InputUser>) -> Result<impl 
 }
 
 async fn update_user(
-    user: Json<UpdateUser>,
-    pool: Data<Pool>,
-    session: Session,
+    user_details: Json<UpdateUser>,
+    pool: Data<PgPool>,
+    user: AuthUser,
 ) -> Result<impl Responder> {
-    let user_id = session::get_current_user(&session)?;
-    let username = user.username.clone();
+    let user_id = user.0;
+    let username = user_details.username.clone();
     if let Some(username) = username {
         let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
         let duplicate = web::block(move || util::get_duplicate_username(&conn, &username))
@@ -67,7 +70,7 @@ async fn update_user(
     }
     web::block(move || {
         let conn = pool.get()?;
-        util::update_user(&conn, user_id, &user)
+        util::update_user(&conn, user_id, &user_details)
     })
     .await
     .map_err(|err| error::handle_error(err.into()))?;
@@ -75,7 +78,7 @@ async fn update_user(
     Ok("User updated successfully")
 }
 
-async fn get_user_stats(user_id: Path<i32>, pool: Data<Pool>) -> Result<impl Responder> {
+async fn get_user_stats(user_id: Path<i32>, pool: Data<PgPool>) -> Result<impl Responder> {
     let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let user = web::block(move || util::fetch_user(&conn, user_id.0))
         .await
