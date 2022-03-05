@@ -108,7 +108,6 @@ table! {
         password -> Varchar,
         is_verified -> Bool,
         highest_rating -> Float4,
-        otp_session_id -> Varchar,
     }
 }
 

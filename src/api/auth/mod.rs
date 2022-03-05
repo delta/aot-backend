@@ -133,9 +133,13 @@ async fn logout(session: Session) -> impl Responder {
 
 async fn sendotp(
     pool: Data<PgPool>,
+    redis_pool: Data<RedisPool>,
     request: Json<OtpRequest>,
     user: UnverifiedUser,
 ) -> Result<impl Responder> {
+    let redis_conn = redis_pool
+        .get()
+        .map_err(|err| error::handle_error(err.into()))?;
     let user_id = user.0;
     let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let user = web::block(move || util::get_user(&conn, user_id))
@@ -168,18 +172,10 @@ async fn sendotp(
     }
 
     let phone_number = user.phone;
-    let template_name = std::env::var("TWOFACTOR_VERIFY_TEMPLATE")
-        .map_err(|err| error::handle_error(err.into()))?;
-    let two_factor_response = otp::send_otp(&phone_number, &template_name)
+    let two_factor_response = otp::send_otp(&phone_number, redis_conn, user_id)
         .await
         .map_err(|err| error::handle_error(err))?;
     if two_factor_response.status == "Success" {
-        web::block(move || {
-            let conn = pool.get()?;
-            util::set_otp_session_id(&conn, user.id, &two_factor_response.details)
-        })
-        .await
-        .map_err(|err| error::handle_error(err.into()))?;
         Ok("OTP sent successfully")
     } else {
         Err(ErrorBadRequest("Invalid phone number"))
@@ -191,7 +187,11 @@ async fn verify(
     request: Json<OtpVerifyRequest>,
     user: UnverifiedUser,
     session: Session,
+    redis_pool: Data<RedisPool>,
 ) -> Result<impl Responder> {
+    let redis_conn = redis_pool
+        .get()
+        .map_err(|err| error::handle_error(err.into()))?;
     let user_id = user.0;
     let OtpVerifyRequest { otp, recaptcha } = request.into_inner();
     if otp.len() < 4 || otp.len() > 6 {
@@ -212,14 +212,11 @@ async fn verify(
         return Err(ErrorUnauthorized("Invalid reCAPTCHA"));
     }
 
-    let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let user_id = user.unwrap().id;
-    let session_id = web::block(move || util::get_otp_session_id(&conn, user_id))
-        .await
-        .map_err(|err| error::handle_error(err.into()))?;
-    let two_factor_response = otp::verify_otp(&session_id, &otp)
+    let two_factor_response = otp::verify_otp(&otp, redis_conn, user_id)
         .await
         .map_err(|err| error::handle_error(err))?;
+
     match two_factor_response.details.as_str() {
         "OTP Matched" => {
             web::block(move || {
@@ -241,8 +238,12 @@ async fn verify(
 async fn send_resetpw_otp(
     pool: Data<PgPool>,
     request: Json<ResetPwRequest>,
+    redis_pool: Data<RedisPool>,
 ) -> Result<impl Responder> {
     let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+    let redis_conn = redis_pool
+        .get()
+        .map_err(|err| error::handle_error(err.into()))?;
     let phone_number = request.phone_number.clone();
     let user = web::block(move || util::get_user_with_phone(&conn, &phone_number))
         .await
@@ -260,20 +261,11 @@ async fn send_resetpw_otp(
         return Err(ErrorUnauthorized("Invalid reCAPTCHA"));
     }
 
-    let template_name = std::env::var("TWOFACTOR_RESETPW_TEMPLATE")
-        .map_err(|err| error::handle_error(err.into()))?;
     let phone_number = request.phone_number;
-    let two_factor_response = otp::send_otp(&phone_number, &template_name)
+    let two_factor_response = otp::send_otp(&phone_number, redis_conn, user.as_ref().unwrap().id)
         .await
         .map_err(|err| error::handle_error(err))?;
     if two_factor_response.status == "Success" {
-        web::block(move || {
-            let conn = pool.get()?;
-            let user_id = user.unwrap().id;
-            util::set_otp_session_id(&conn, user_id, &two_factor_response.details)
-        })
-        .await
-        .map_err(|err| error::handle_error(err.into()))?;
         Ok("OTP sent successfully")
     } else {
         Err(ErrorBadRequest("Invalid phone number"))
@@ -297,6 +289,9 @@ async fn reset_pw(
     let conn = pg_pool
         .get()
         .map_err(|err| error::handle_error(err.into()))?;
+    let redis_conn = redis_pool
+        .get()
+        .map_err(|err| error::handle_error(err.into()))?;
     let phone = phone_number.clone();
     let user = web::block(move || util::get_user_with_phone(&conn, &phone))
         .await
@@ -311,15 +306,8 @@ async fn reset_pw(
     if !is_valid_recatpcha {
         return Err(ErrorUnauthorized("Invalid reCAPTCHA"));
     }
-
-    let conn = pg_pool
-        .get()
-        .map_err(|err| error::handle_error(err.into()))?;
     let user_id = user.unwrap().id;
-    let session_id = web::block(move || util::get_otp_session_id(&conn, user_id))
-        .await
-        .map_err(|err| error::handle_error(err.into()))?;
-    let two_factor_response = otp::verify_otp(&session_id, &otp)
+    let two_factor_response = otp::verify_otp(&otp, redis_conn, user_id)
         .await
         .map_err(|err| error::handle_error(err))?;
     match two_factor_response.details.as_str() {
