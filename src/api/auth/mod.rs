@@ -172,14 +172,10 @@ async fn sendotp(
     }
 
     let phone_number = user.phone;
-    let two_factor_response = otp::send_otp(&phone_number, redis_conn, user_id)
+    otp::send_otp(&phone_number, redis_conn, user_id, true)
         .await
         .map_err(|err| error::handle_error(err))?;
-    if two_factor_response.status == "Success" {
-        Ok("OTP sent successfully")
-    } else {
-        Err(ErrorBadRequest("Invalid phone number"))
-    }
+    Ok("OTP sent successfully")
 }
 
 async fn verify(
@@ -194,7 +190,7 @@ async fn verify(
         .map_err(|err| error::handle_error(err.into()))?;
     let user_id = user.0;
     let OtpVerifyRequest { otp, recaptcha } = request.into_inner();
-    if otp.len() < 4 || otp.len() > 6 {
+    if otp.len() != 5 {
         return Err(ErrorBadRequest("Invalid OTP"));
     }
     let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
@@ -213,11 +209,11 @@ async fn verify(
     }
 
     let user_id = user.unwrap().id;
-    let two_factor_response = otp::verify_otp(&otp, redis_conn, user_id)
+    let otp_response = otp::verify_otp(&otp, redis_conn, user_id)
         .await
         .map_err(|err| error::handle_error(err))?;
 
-    match two_factor_response.details.as_str() {
+    match otp_response {
         "OTP Matched" => {
             web::block(move || {
                 let conn = pool.get()?;
@@ -262,14 +258,10 @@ async fn send_resetpw_otp(
     }
 
     let phone_number = request.phone_number;
-    let two_factor_response = otp::send_otp(&phone_number, redis_conn, user.as_ref().unwrap().id)
+    otp::send_otp(&phone_number, redis_conn, user.as_ref().unwrap().id, false)
         .await
         .map_err(|err| error::handle_error(err))?;
-    if two_factor_response.status == "Success" {
-        Ok("OTP sent successfully")
-    } else {
-        Err(ErrorBadRequest("Invalid phone number"))
-    }
+    Ok("OTP sent successfully")
 }
 
 async fn reset_pw(
@@ -283,7 +275,7 @@ async fn reset_pw(
         password,
         recaptcha,
     } = request.into_inner();
-    if otp.len() < 4 || otp.len() > 6 {
+    if otp.len() != 5 {
         return Err(ErrorBadRequest("Invalid OTP"));
     }
     let conn = pg_pool
@@ -307,10 +299,10 @@ async fn reset_pw(
         return Err(ErrorUnauthorized("Invalid reCAPTCHA"));
     }
     let user_id = user.unwrap().id;
-    let two_factor_response = otp::verify_otp(&otp, redis_conn, user_id)
+    let otp_response = otp::verify_otp(&otp, redis_conn, user_id)
         .await
         .map_err(|err| error::handle_error(err))?;
-    match two_factor_response.details.as_str() {
+    match otp_response {
         "OTP Matched" => {
             web::block(move || {
                 let conn = pg_pool.get()?;
