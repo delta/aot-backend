@@ -116,7 +116,7 @@ pub struct NewLevelFixture<'a> {
     pub no_of_bombs: &'a i32,
 }
 
-#[derive(Queryable)]
+#[derive(Queryable, Serialize)]
 pub struct LevelConstraints {
     pub level_id: i32,
     pub block_id: i32,

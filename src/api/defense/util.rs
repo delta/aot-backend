@@ -17,6 +17,7 @@ pub struct DefenseResponse {
     pub map_spaces: Vec<MapSpaces>,
     pub blocks: Vec<BlockType>,
     pub levels_fixture: LevelsFixture,
+    pub level_constraints: Vec<LevelConstraints>,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -103,7 +104,7 @@ pub fn fetch_map_layout_from_game(conn: &PgConnection, game_id: i32) -> Result<O
 }
 
 pub fn get_details_from_map_layout(conn: &PgConnection, map: MapLayout) -> Result<DefenseResponse> {
-    use crate::schema::{levels_fixture, map_spaces};
+    use crate::schema::{level_constraints, levels_fixture, map_spaces};
 
     let map_spaces = map_spaces::table
         .filter(map_spaces::map_id.eq(map.id))
@@ -113,20 +114,29 @@ pub fn get_details_from_map_layout(conn: &PgConnection, map: MapLayout) -> Resul
             function: function!(),
             error: err,
         })?;
+    let blocks: Vec<BlockType> = fetch_blocks(conn)?;
     let levels_fixture = levels_fixture::table
-        .filter(levels_fixture::id.eq(map.level_id))
+        .find(map.level_id)
         .first::<LevelsFixture>(conn)
         .map_err(|err| DieselError {
             table: "levels_fixture",
             function: function!(),
             error: err,
         })?;
-    let blocks: Vec<BlockType> = fetch_blocks(conn)?;
+    let level_constraints = level_constraints::table
+        .filter(level_constraints::level_id.eq(map.level_id))
+        .load::<LevelConstraints>(conn)
+        .map_err(|err| DieselError {
+            table: "level_constraints",
+            function: function!(),
+            error: err,
+        })?;
 
     Ok(DefenseResponse {
         map_spaces,
         blocks,
         levels_fixture,
+        level_constraints,
     })
 }
 

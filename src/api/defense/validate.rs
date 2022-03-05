@@ -1,6 +1,6 @@
 /// Functions to check if a base layout is valid
 use super::MapSpacesEntry;
-use crate::{constants::*, models::*};
+use crate::{api::error::BaseInvalidError, constants::*, models::*};
 use petgraph::{self, prelude::*, Graph};
 use std::collections::{HashMap, HashSet};
 
@@ -44,7 +44,10 @@ fn get_absolute_entrance(map_space: &MapSpacesEntry, block_type: &BlockType) -> 
 }
 
 //checks overlaps of blocks and also within map size
-pub fn is_valid_update_layout(map_spaces: &[MapSpacesEntry], blocks: &[BlockType]) -> bool {
+pub fn is_valid_update_layout(
+    map_spaces: &[MapSpacesEntry],
+    blocks: &[BlockType],
+) -> Result<(), BaseInvalidError> {
     let mut occupied_positions: HashSet<(i32, i32)> = HashSet::new();
     let blocks: HashMap<i32, BlockType> = blocks
         .iter()
@@ -54,7 +57,7 @@ pub fn is_valid_update_layout(map_spaces: &[MapSpacesEntry], blocks: &[BlockType
     for map_space in map_spaces {
         let blk_type = map_space.blk_type;
         if !blocks.contains_key(&blk_type) {
-            return false;
+            return Err(BaseInvalidError::InvalidBlockType(blk_type));
         }
 
         let block: &BlockType = blocks.get(&blk_type).unwrap();
@@ -64,7 +67,10 @@ pub fn is_valid_update_layout(map_spaces: &[MapSpacesEntry], blocks: &[BlockType
             (block.width, block.height),
         );
         if x == -1 && blk_type != ROAD_ID {
-            return false;
+            return Err(BaseInvalidError::InvalidRotation(
+                blocks[&blk_type].name.clone(),
+                map_space.rotation,
+            ));
         }
 
         for i in 0..width {
@@ -73,17 +79,17 @@ pub fn is_valid_update_layout(map_spaces: &[MapSpacesEntry], blocks: &[BlockType
                     && (0..MAP_SIZE as i32).contains(&(y + j))
                 {
                     if occupied_positions.contains(&(x + i, y + j)) {
-                        return false;
+                        return Err(BaseInvalidError::OverlappingBlocks);
                     }
                     occupied_positions.insert((x + i, y + j));
                 } else {
-                    return false;
+                    return Err(BaseInvalidError::BlockOutsideMap);
                 }
             }
         }
     }
 
-    true
+    Ok(())
 }
 
 // checks if no of buildings are within level constraints and if the city is connected
@@ -91,7 +97,9 @@ pub fn is_valid_save_layout(
     map_spaces: &[MapSpacesEntry],
     level_constraints: &mut HashMap<i32, i32>,
     blocks: &[BlockType],
-) -> bool {
+) -> Result<(), BaseInvalidError> {
+    is_valid_update_layout(map_spaces, blocks)?;
+
     let mut graph: Graph<(), (), Undirected> = Graph::new_undirected();
     let mut map_grid: HashMap<(i32, i32), NodeIndex> = HashMap::new();
 
@@ -113,7 +121,9 @@ pub fn is_valid_save_layout(
             if *block_constraint > 0 {
                 *block_constraint -= 1;
             } else {
-                return false;
+                return Err(BaseInvalidError::BlockCountExceeded(
+                    blocks[&blk_type].name.clone(),
+                ));
             }
         }
 
@@ -130,7 +140,9 @@ pub fn is_valid_save_layout(
     //checks if all blocks are used
     for block_constraint in level_constraints {
         if *block_constraint.1 != 0 {
-            return false;
+            return Err(BaseInvalidError::BlocksUnused(
+                blocks[block_constraint.0].name.clone(),
+            ));
         }
     }
 
@@ -146,5 +158,9 @@ pub fn is_valid_save_layout(
         }
     }
 
-    petgraph::algo::connected_components(&graph) == 1
+    if petgraph::algo::connected_components(&graph) == 1 {
+        Ok(())
+    } else {
+        Err(BaseInvalidError::NotConnected)
+    }
 }

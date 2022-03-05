@@ -122,18 +122,17 @@ async fn set_base_details(
     .await
     .map_err(|err| error::handle_error(err.into()))?;
 
-    if validate::is_valid_update_layout(&map_spaces, &blocks) {
-        web::block(move || {
-            let conn = pool.get()?;
-            util::set_map_invalid(&conn, map.id)?;
-            util::put_base_details(&map_spaces, &map, &conn)
-        })
-        .await
-        .map_err(|err| error::handle_error(err.into()))?;
-        Ok("Updated successfully")
-    } else {
-        Err(ErrorBadRequest("Invalid map layout"))
-    }
+    validate::is_valid_update_layout(&map_spaces, &blocks)?;
+
+    web::block(move || {
+        let conn = pool.get()?;
+        util::set_map_invalid(&conn, map.id)?;
+        util::put_base_details(&map_spaces, &map, &conn)
+    })
+    .await
+    .map_err(|err| error::handle_error(err.into()))?;
+
+    Ok("Updated successfully")
 }
 
 async fn confirm_base_details(
@@ -160,20 +159,17 @@ async fn confirm_base_details(
     .await
     .map_err(|err| error::handle_error(err.into()))?;
 
-    if validate::is_valid_update_layout(&map_spaces, &blocks)
-        && validate::is_valid_save_layout(&map_spaces, &mut level_constraints, &blocks)
-    {
-        web::block(move || {
-            let conn = pool.get()?;
-            util::put_base_details(&map_spaces, &map, &conn)?;
-            util::set_map_valid(&conn, map.id)
-        })
-        .await
-        .map_err(|err| error::handle_error(err.into()))?;
-        Ok("Saved successfully")
-    } else {
-        Err(ErrorBadRequest("Invalid map layout"))
-    }
+    validate::is_valid_save_layout(&map_spaces, &mut level_constraints, &blocks)?;
+
+    web::block(move || {
+        let conn = pool.get()?;
+        util::put_base_details(&map_spaces, &map, &conn)?;
+        util::set_map_valid(&conn, map.id)
+    })
+    .await
+    .map_err(|err| error::handle_error(err.into()))?;
+
+    Ok("Saved successfully")
 }
 
 async fn defense_history(
