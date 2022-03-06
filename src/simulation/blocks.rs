@@ -278,7 +278,7 @@ impl BuildingsManager {
 
     fn get_adjusted_weight(distance: &usize, weight: &i32) -> f32 {
         let adjusted_weight = *weight as f32 / *distance as f32;
-        adjusted_weight.max(0.0)
+        adjusted_weight.max(1.0)
     }
 
     fn choose_weighted(choices: &[i32], weights: &[f32]) -> Result<i32> {
