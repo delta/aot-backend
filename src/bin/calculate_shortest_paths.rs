@@ -72,7 +72,7 @@ pub fn run_shortest_paths(conn: &PgConnection, input_map_layout_id: i32) {
             .set(
                 absolute_entrance_y as usize,
                 absolute_entrance_x as usize,
-                i.blk_type as usize,
+                1_usize,
             )
             .unwrap();
         node_to_index.insert(

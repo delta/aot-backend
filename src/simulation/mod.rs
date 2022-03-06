@@ -109,7 +109,7 @@ impl Simulator {
     }
 
     pub fn get_emps_used(&self) -> i32 {
-        self.attacker.path.iter().filter(|path| path.is_emp).count() as i32
+        self.attacker.emps_used as i32
     }
 
     pub fn get_is_attacker_alive(&self) -> bool {
