@@ -473,6 +473,7 @@ dependencies = [
  "actix-web",
  "anyhow",
  "array2d",
+ "base64 0.13.0",
  "chrono",
  "derive_more",
  "diesel",

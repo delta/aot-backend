@@ -80,31 +80,6 @@ pub fn get_pragyan_user(conn: &PgConnection, email: &str, name: &str) -> Result<
     }
 }
 
-pub fn set_otp_session_id(conn: &PgConnection, user_id: i32, session_id: &str) -> Result<()> {
-    diesel::update(user::table.find(user_id))
-        .set(user::otp_session_id.eq(&session_id))
-        .execute(conn)
-        .map_err(|err| DieselError {
-            table: "user",
-            function: function!(),
-            error: err,
-        })?;
-    Ok(())
-}
-
-pub fn get_otp_session_id(conn: &PgConnection, user_id: i32) -> Result<String> {
-    let session_id = user::table
-        .find(user_id)
-        .select(user::otp_session_id)
-        .first::<String>(conn)
-        .map_err(|err| DieselError {
-            table: "user",
-            function: function!(),
-            error: err,
-        })?;
-    Ok(session_id)
-}
-
 pub fn verify_user(conn: &PgConnection, id: i32) -> Result<()> {
     let user: User = diesel::update(user::table.find(id))
         .set(user::is_verified.eq(true))
@@ -160,4 +135,9 @@ pub fn reset_password(
     let created_at = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
     redis_conn.set(user_id, created_at)?;
     Ok(())
+}
+
+pub fn generate_otp() -> String {
+    let otp = rand::thread_rng().gen_range(0..100000);
+    format!("{:05}", otp)
 }

@@ -199,7 +199,6 @@ pub struct User {
     pub password: String,
     pub is_verified: bool,
     pub highest_rating: f32,
-    pub otp_session_id: String,
 }
 
 #[derive(Insertable, Debug)]
