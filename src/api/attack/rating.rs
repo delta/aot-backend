@@ -18,7 +18,7 @@ fn new_defender_rating(old_rating: f32, expected_score: f32, score_ratio: f32) -
 }
 
 impl Game {
-    pub fn update_rating(&self, conn: &PgConnection) -> Result<(), diesel::result::Error> {
+    pub fn update_rating(&self, conn: &PgConnection) -> Result<(f32, f32), diesel::result::Error> {
         use crate::schema::user;
 
         let score_ratio = self.attack_score as f32 / MAX_SCORE as f32;
@@ -57,6 +57,9 @@ impl Game {
                 .set(user::highest_rating.eq(new_defender_rating))
                 .execute(conn)?;
         }
-        Ok(())
+        Ok((
+            (new_attacker_rating - attacker_rating),
+            (new_defender_rating - defender_rating),
+        ))
     }
 }
