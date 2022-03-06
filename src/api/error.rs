@@ -62,9 +62,9 @@ impl ResponseError for BaseInvalidError {
                 format!("You have exceeded the maximum number of {} buildings", block_type)
             }
             BaseInvalidError::BlocksUnused(block_type) => {
-                format!("You have some unused {} buildings. Use all of them", block_type)
+                format!("You have some unused {} buildings. Use all of them.", block_type)
             }
-            BaseInvalidError::NotConnected => "City is not fully connected. Make sure all buildings are reachable from one another with entrances facing roads.".to_string(),
+            BaseInvalidError::NotConnected => "City is not fully connected. Make sure all buildings are reachable from one another.".to_string(),
         };
         ErrorBadRequest(response_body).into()
     }

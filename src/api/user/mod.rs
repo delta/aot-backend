@@ -82,15 +82,19 @@ async fn get_user_stats(user_id: Path<i32>, pool: Data<PgPool>) -> Result<impl R
     let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let user = web::block(move || util::fetch_user(&conn, user_id.0))
         .await
-        .map_err(|_| ErrorNotFound("USER NOT FOUND"))?;
-    let response = web::block(move || {
-        let conn = pool.get()?;
-        let attack_game = util::fetch_attack_game(&conn, user_id.0)?;
-        let defense_game = util::fetch_defense_game(&conn, user_id.0)?;
-        let users = util::fetch_all_user(&conn)?;
-        util::make_response(&user, &attack_game, &defense_game, &users)
-    })
-    .await
-    .map_err(|err| error::handle_error(err.into()))?;
-    Ok(Json(response))
+        .map_err(|err| error::handle_error(err.into()))?;
+    if let Some(user) = user {
+        let response = web::block(move || {
+            let conn = pool.get()?;
+            let attack_game = util::fetch_attack_game(&conn, user_id.0)?;
+            let defense_game = util::fetch_defense_game(&conn, user_id.0)?;
+            let users = util::fetch_all_user(&conn)?;
+            util::make_response(&user, &attack_game, &defense_game, &users)
+        })
+        .await
+        .map_err(|err| error::handle_error(err.into()))?;
+        Ok(Json(response))
+    } else {
+        Err(ErrorNotFound("User not found"))
+    }
 }

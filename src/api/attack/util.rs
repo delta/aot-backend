@@ -277,27 +277,41 @@ pub fn run_simulation(
         }
     }
     let (attack_score, defend_score) = simulator.get_scores();
-    diesel::update(game::table.find(game_id))
-        .set((
-            game::damage_done.eq(simulator.get_damage_done()),
-            game::robots_destroyed.eq(simulator.get_no_of_robots_destroyed()),
-            game::is_attacker_alive.eq(simulator.get_is_attacker_alive()),
-            game::emps_used.eq(simulator.get_emps_used()),
-            game::attack_score.eq(attack_score),
-            game::defend_score.eq(defend_score),
-        ))
-        .get_result::<Game>(conn)
-        .map_err(|err| DieselError {
-            table: "game",
-            function: function!(),
-            error: err,
-        })?
-        .update_rating(conn)
-        .map_err(|err| DieselError {
-            table: "user",
-            function: function!(),
-            error: err,
-        })?;
+    let (attacker_rating_change, defender_rating_change) =
+        diesel::update(game::table.find(game_id))
+            .set((
+                game::damage_done.eq(simulator.get_damage_done()),
+                game::robots_destroyed.eq(simulator.get_no_of_robots_destroyed()),
+                game::is_attacker_alive.eq(simulator.get_is_attacker_alive()),
+                game::emps_used.eq(simulator.get_emps_used()),
+                game::attack_score.eq(attack_score),
+                game::defend_score.eq(defend_score),
+            ))
+            .get_result::<Game>(conn)
+            .map_err(|err| DieselError {
+                table: "game",
+                function: function!(),
+                error: err,
+            })?
+            .update_rating(conn)
+            .map_err(|err| DieselError {
+                table: "user",
+                function: function!(),
+                error: err,
+            })?;
+    writeln!(content, "Result")?;
+    writeln!(content, "Attack score: {}", attack_score)?;
+    writeln!(content, "Defend score: {}", defend_score)?;
+    writeln!(
+        content,
+        "Attacker rating change: {}",
+        attacker_rating_change
+    )?;
+    writeln!(
+        content,
+        "Defender rating change: {}",
+        defender_rating_change
+    )?;
 
     insert_simulation_log(game_id, &content, conn)?;
 
