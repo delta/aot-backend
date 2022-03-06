@@ -1,9 +1,10 @@
 use self::pragyan::PragyanMessage;
 use self::session::UnverifiedUser;
 use super::{PgPool, RedisPool};
+use crate::api::auth::otp::OtpVerificationResponse;
 use crate::api::error;
 use actix_session::Session;
-use actix_web::error::{ErrorBadRequest, ErrorInternalServerError, ErrorUnauthorized};
+use actix_web::error::{ErrorBadRequest, ErrorUnauthorized};
 use actix_web::web::{self, Data, Json};
 use actix_web::Responder;
 use actix_web::{HttpResponse, Result};
@@ -209,9 +210,11 @@ async fn verify(
     }
 
     let user_id = user.unwrap().id;
-    let otp_response = otp::verify_otp(&otp, redis_conn, user_id).await;
+    let otp_response = otp::verify_otp(&otp, redis_conn, user_id)
+        .await
+        .map_err(|err| error::handle_error(err))?;
     match otp_response {
-        "OTP Matched" => {
+        OtpVerificationResponse::Match => {
             web::block(move || {
                 let conn = pool.get()?;
                 util::verify_user(&conn, user_id)
@@ -223,9 +226,8 @@ async fn verify(
                 .map_err(|err| error::handle_error(err.into()))?;
             Ok("Account successfully verified")
         }
-        "OTP Expired" => Err(ErrorUnauthorized("OTP Expired")),
-        "OTP MisMatch" => Err(ErrorUnauthorized("OTP Mismatch")),
-        _ => Err(ErrorInternalServerError("Internal Server Error")),
+        OtpVerificationResponse::Expired => Err(ErrorUnauthorized("OTP Expired")),
+        OtpVerificationResponse::MisMatch => Err(ErrorUnauthorized("OTP Mismatch")),
     }
 }
 
@@ -256,7 +258,7 @@ async fn send_resetpw_otp(
     }
 
     let phone_number = request.phone_number;
-    otp::send_otp(&phone_number, redis_conn, user.as_ref().unwrap().id, false)
+    otp::send_otp(&phone_number, redis_conn, user.unwrap().id, false)
         .await
         .map_err(|err| error::handle_error(err))?;
     Ok("OTP sent successfully")
@@ -297,9 +299,11 @@ async fn reset_pw(
         return Err(ErrorUnauthorized("Invalid reCAPTCHA"));
     }
     let user_id = user.unwrap().id;
-    let otp_response = otp::verify_otp(&otp, redis_conn, user_id).await;
+    let otp_response = otp::verify_otp(&otp, redis_conn, user_id)
+        .await
+        .map_err(|err| error::handle_error(err))?;
     match otp_response {
-        "OTP Matched" => {
+        OtpVerificationResponse::Match => {
             web::block(move || {
                 let conn = pg_pool.get()?;
                 let redis_conn = redis_pool.get()?;
@@ -309,8 +313,7 @@ async fn reset_pw(
             .map_err(|err| error::handle_error(err.into()))?;
             Ok("Password reset successfully")
         }
-        "OTP Expired" => Err(ErrorUnauthorized("OTP Expired")),
-        "OTP MisMatch" => Err(ErrorUnauthorized("OTP Mismatch")),
-        _ => Err(ErrorInternalServerError("Internal Server Error")),
+        OtpVerificationResponse::Expired => Err(ErrorUnauthorized("OTP Expired")),
+        OtpVerificationResponse::MisMatch => Err(ErrorUnauthorized("OTP Mismatch")),
     }
 }

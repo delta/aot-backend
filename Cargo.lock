@@ -489,7 +489,6 @@ dependencies = [
  "rayon",
  "redis",
  "serde",
- "serde_json",
  "thiserror",
 ]
 

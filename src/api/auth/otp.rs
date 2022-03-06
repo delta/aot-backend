@@ -16,12 +16,18 @@ struct ReCaptchaResponse {
 }
 
 #[derive(Debug, Serialize)]
-pub struct OtpRequest {
-    pub dst: String,
-    pub text: String,
+pub struct OtpRequest<'a> {
+    pub dst: &'a str,
+    pub text: &'a str,
     #[serde(rename = "type")]
-    pub message_type: String,
-    pub src: String,
+    pub message_type: &'a str,
+    pub src: &'a str,
+}
+
+pub enum OtpVerificationResponse {
+    MisMatch,
+    Match,
+    Expired,
 }
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
@@ -63,17 +69,15 @@ pub async fn send_otp(
         .post(&url)
         .header("authorization", header)
         .header("content-type", "application/json")
-        .send_json(&serde_json::json!(OtpRequest {
-            dst: input_phone.to_owned(),
-            text: otp_msg,
-            src: sender_id,
-            message_type: "sms".to_string(),
-        }))
+        .send_json(&OtpRequest {
+            dst: input_phone,
+            text: &otp_msg,
+            src: &sender_id,
+            message_type: "sms",
+        })
         .await?;
-    log::info!("{:?}", response);
     if response.status().is_success() {
-        let mut key = user_id.to_string();
-        key.push_str("-otp");
+        let key = format!("{}-otp", user_id);
         redis_conn.set(&key, otp)?;
         redis_conn.expire(&key, 120)?;
         return Ok(());
@@ -81,26 +85,29 @@ pub async fn send_otp(
     return Err(anyhow::anyhow!("Error in sending OTP").into());
 }
 
-pub async fn verify_otp(otp: &str, mut redis_conn: RedisConn, user_id: i32) -> &str {
-    let mut key = user_id.to_string();
-    key.push_str("-otp");
-    match redis_conn.exists::<String, bool>(key.clone()) {
+pub async fn verify_otp(
+    otp: &str,
+    mut redis_conn: RedisConn,
+    user_id: i32,
+) -> Result<OtpVerificationResponse> {
+    let key = format!("{}-otp", user_id);
+    match redis_conn.exists::<&str, bool>(&key) {
         Ok(res) => {
             if res {
-                match redis_conn.get::<String, String>(key.clone()) {
+                match redis_conn.get::<&str, String>(&key) {
                     Ok(res) => {
                         if res == otp {
-                            "OTP Matched"
+                            Ok(OtpVerificationResponse::Match)
                         } else {
-                            "OTP MisMatch"
+                            Ok(OtpVerificationResponse::MisMatch)
                         }
                     }
-                    Err(_) => "Error",
+                    Err(err) => Err(err.into()),
                 }
             } else {
-                "OTP Expired"
+                Ok(OtpVerificationResponse::Expired)
             }
         }
-        Err(_) => "Error",
+        Err(err) => Err(err.into()),
     }
 }

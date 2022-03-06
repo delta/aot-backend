@@ -22,7 +22,6 @@ thiserror = "1.0.30"
 array2d = "0.2.1"
 petgraph = "0.5.0"
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
 pwhash = "1"
 actix-cors = "0.5.4"
 diesel_migrations = "1.4.0"
