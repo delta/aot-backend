@@ -45,6 +45,7 @@ pub struct BlockType {
     pub height: i32,
     pub entrance_x: i32,
     pub entrance_y: i32,
+    pub capacity: i32,
 }
 
 #[derive(Insertable)]
@@ -55,6 +56,7 @@ pub struct NewBlockType<'a> {
     pub height: &'a i32,
     pub entrance_x: &'a i32,
     pub entrance_y: &'a i32,
+    pub capacity: &'a i32,
 }
 
 #[derive(Queryable)]
@@ -106,6 +108,7 @@ pub struct LevelsFixture {
     pub start_date: NaiveDate,
     pub end_date: NaiveDate,
     pub no_of_bombs: i32,
+    pub no_of_robots: i32,
 }
 
 #[derive(Insertable)]
@@ -114,6 +117,7 @@ pub struct NewLevelFixture<'a> {
     pub start_date: &'a NaiveDate,
     pub end_date: &'a NaiveDate,
     pub no_of_bombs: &'a i32,
+    pub no_of_robots: &'a i32,
 }
 
 #[derive(Queryable, Serialize)]

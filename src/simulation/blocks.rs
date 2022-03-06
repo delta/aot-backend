@@ -14,6 +14,7 @@ use std::collections::{HashMap, HashSet};
 #[derive(Debug)]
 struct BuildingType {
     block_type: BlockType,
+    capacity: i32,
     weights: HashMap<i32, i32>,
 }
 
@@ -23,6 +24,7 @@ pub struct Building {
     pub absolute_entrance_x: i32,
     pub absolute_entrance_y: i32,
     pub weight: i32,
+    pub population: i32,
 }
 
 #[derive(Debug, Eq, Hash, PartialEq)]
@@ -93,6 +95,7 @@ impl BuildingsManager {
                     x.id,
                     BuildingType {
                         block_type: x.clone(),
+                        capacity: x.capacity,
                         weights,
                     },
                 )),
@@ -261,6 +264,7 @@ impl BuildingsManager {
                     absolute_entrance_x,
                     absolute_entrance_y,
                     weight,
+                    population: 0,
                 },
             );
         }
@@ -276,9 +280,13 @@ impl BuildingsManager {
         })
     }
 
-    fn get_adjusted_weight(distance: &usize, weight: &i32) -> f32 {
-        let adjusted_weight = *weight as f32 / *distance as f32;
-        adjusted_weight.max(1.0)
+    fn get_adjusted_weight(
+        distance: &usize,
+        weight: &i32,
+        capacity: &i32,
+        population: &i32,
+    ) -> f32 {
+        (*weight as f32 / *distance as f32) * (*capacity as f32 / (1_f32 + *population as f32))
     }
 
     fn choose_weighted(choices: &[i32], weights: &[f32]) -> Result<i32> {
@@ -335,7 +343,16 @@ impl BuildingsManager {
                 absolute_entrance_x,
                 absolute_entrance_y,
                 weight,
+                population,
             } = building;
+            let capacity = self
+                .building_types
+                .get(&map_space.blk_type)
+                .ok_or(KeyError {
+                    key: map_space.blk_type,
+                    hashmap: "building_types".to_string(),
+                })?
+                .capacity;
             if *absolute_entrance_x == x && *absolute_entrance_y == y {
                 continue;
             }
@@ -352,7 +369,8 @@ impl BuildingsManager {
                 Some(v) => v.len(),
                 None => return Err(ShortestPathNotFoundError(source_dest).into()),
             };
-            let adjusted_weight = Self::get_adjusted_weight(&shortest_path_length, weight);
+            let adjusted_weight =
+                Self::get_adjusted_weight(&shortest_path_length, weight, &capacity, population);
             choices.push(map_space.id);
             weights.push(adjusted_weight);
         }
@@ -393,16 +411,10 @@ impl BuildingsManager {
                     hashmap: "building_types".to_string(),
                 })?
                 .weights;
-            let weight = weights.get(&(hour - 1)).ok_or(KeyError {
+            building.weight = *weights.get(&(hour - 1)).ok_or(KeyError {
                 key: hour - 1,
                 hashmap: format!("building_types[{}].weights", building.map_space.blk_type),
             })?;
-            let change = weight - building.weight;
-            building.weight = *weights.get(&hour).ok_or(KeyError {
-                key: hour,
-                hashmap: format!("building_types[{}].weights", building.map_space.blk_type),
-            })?;
-            building.weight += change;
         }
         Ok(())
     }

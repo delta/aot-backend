@@ -45,6 +45,7 @@ pub struct Simulator {
     attacker: Attacker,
     emps: Emps,
     frames_passed: i32,
+    no_of_robots: i32,
 }
 
 impl Simulator {
@@ -53,7 +54,7 @@ impl Simulator {
         attacker_path: &[NewAttackerPath],
         conn: &PgConnection,
     ) -> Result<Self> {
-        use crate::schema::game;
+        use crate::schema::{game, levels_fixture, map_layout};
 
         let map_id = game::table
             .filter(game::id.eq(game_id))
@@ -64,9 +65,19 @@ impl Simulator {
                 function: function!(),
                 error: err,
             })?;
+        let no_of_robots = map_layout::table
+            .inner_join(levels_fixture::table)
+            .select(levels_fixture::no_of_robots)
+            .filter(map_layout::id.eq(map_id))
+            .first::<i32>(conn)
+            .map_err(|err| DieselError {
+                table: "map_layout levels_fixture",
+                function: function!(),
+                error: err,
+            })?;
 
         let buildings_manager = BuildingsManager::new(conn, map_id)?;
-        let robots_manager = RobotsManager::new(&buildings_manager)?;
+        let robots_manager = RobotsManager::new(&buildings_manager, no_of_robots)?;
         let mut attacker_path: Vec<AttackerPath> = attacker_path
             .iter()
             .enumerate()
@@ -89,6 +100,7 @@ impl Simulator {
             attacker,
             emps,
             frames_passed: 0,
+            no_of_robots,
         })
     }
 
@@ -131,7 +143,7 @@ impl Simulator {
         for r in self.robots_manager.robots.iter() {
             sum_health += r.1.health;
         }
-        HEALTH * NO_OF_ROBOTS - sum_health
+        HEALTH * self.no_of_robots - sum_health
     }
 
     pub fn get_scores(&self) -> (i32, i32) {

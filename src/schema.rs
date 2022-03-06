@@ -15,6 +15,7 @@ table! {
         height -> Int4,
         entrance_x -> Int4,
         entrance_y -> Int4,
+        capacity -> Int4,
     }
 }
 
@@ -55,6 +56,7 @@ table! {
         start_date -> Date,
         end_date -> Date,
         no_of_bombs -> Int4,
+        no_of_robots -> Int4,
     }
 }
 

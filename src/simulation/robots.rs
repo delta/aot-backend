@@ -20,6 +20,7 @@ pub struct RobotsManager {
     pub robots: HashMap<i32, Robot>,
     pub robots_grid: Vec<Vec<HashSet<i32>>>,
     pub robots_destination: HashMap<i32, HashSet<i32>>,
+    pub no_of_robots: i32,
 }
 
 impl Robot {
@@ -40,7 +41,8 @@ impl Robot {
                 key: self.destination,
                 hashmap: "buildings".to_string(),
             })?;
-        building.weight -= 1;
+        // add population
+        building.population += 1;
         Ok(())
     }
 
@@ -52,7 +54,8 @@ impl Robot {
                 key: self.destination,
                 hashmap: "buildings".to_string(),
             })?;
-        building.weight += 1;
+        // remove population
+        building.population -= 1;
         Ok(())
     }
 
@@ -133,9 +136,10 @@ impl RobotsManager {
     fn initiate_robots(
         buildings_manager: &BuildingsManager,
         robots_destination: &mut HashMap<i32, HashSet<i32>>,
+        no_of_robots: i32,
     ) -> Result<HashMap<i32, Robot>> {
         let mut robots = HashMap::new();
-        for id in 1..=1000 {
+        for id in 1..=no_of_robots {
             robots.insert(
                 id,
                 Robot {
@@ -166,14 +170,17 @@ impl RobotsManager {
         grid
     }
 
-    pub fn new(buildings_manager: &BuildingsManager) -> Result<Self> {
+    pub fn new(buildings_manager: &BuildingsManager, no_of_robots: i32) -> Result<Self> {
         let mut robots_destination = HashMap::new();
-        let robots = Self::initiate_robots(buildings_manager, &mut robots_destination)?;
+        let robots =
+            Self::initiate_robots(buildings_manager, &mut robots_destination, no_of_robots)?;
         let robots_grid = Self::get_robots_grid(&robots);
+        // TODO: is property needed?
         Ok(RobotsManager {
             robots,
             robots_grid,
             robots_destination,
+            no_of_robots,
         })
     }
 
