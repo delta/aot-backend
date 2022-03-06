@@ -3,7 +3,7 @@ use self::session::UnverifiedUser;
 use super::{PgPool, RedisPool};
 use crate::api::error;
 use actix_session::Session;
-use actix_web::error::{ErrorBadRequest, ErrorUnauthorized};
+use actix_web::error::{ErrorBadRequest, ErrorInternalServerError, ErrorUnauthorized};
 use actix_web::web::{self, Data, Json};
 use actix_web::Responder;
 use actix_web::{HttpResponse, Result};
@@ -209,10 +209,7 @@ async fn verify(
     }
 
     let user_id = user.unwrap().id;
-    let otp_response = otp::verify_otp(&otp, redis_conn, user_id)
-        .await
-        .map_err(|err| error::handle_error(err))?;
-
+    let otp_response = otp::verify_otp(&otp, redis_conn, user_id).await;
     match otp_response {
         "OTP Matched" => {
             web::block(move || {
@@ -227,7 +224,8 @@ async fn verify(
             Ok("Account successfully verified")
         }
         "OTP Expired" => Err(ErrorUnauthorized("OTP Expired")),
-        _ => Err(ErrorUnauthorized("OTP Mismatch")),
+        "OTP MisMatch" => Err(ErrorUnauthorized("OTP Mismatch")),
+        _ => Err(ErrorInternalServerError("Internal Server Error")),
     }
 }
 
@@ -299,9 +297,7 @@ async fn reset_pw(
         return Err(ErrorUnauthorized("Invalid reCAPTCHA"));
     }
     let user_id = user.unwrap().id;
-    let otp_response = otp::verify_otp(&otp, redis_conn, user_id)
-        .await
-        .map_err(|err| error::handle_error(err))?;
+    let otp_response = otp::verify_otp(&otp, redis_conn, user_id).await;
     match otp_response {
         "OTP Matched" => {
             web::block(move || {
@@ -314,6 +310,7 @@ async fn reset_pw(
             Ok("Password reset successfully")
         }
         "OTP Expired" => Err(ErrorUnauthorized("OTP Expired")),
-        _ => Err(ErrorUnauthorized("OTP Mismatch")),
+        "OTP MisMatch" => Err(ErrorUnauthorized("OTP Mismatch")),
+        _ => Err(ErrorInternalServerError("Internal Server Error")),
     }
 }

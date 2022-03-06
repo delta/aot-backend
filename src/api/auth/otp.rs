@@ -81,17 +81,26 @@ pub async fn send_otp(
     return Err(anyhow::anyhow!("Error in sending OTP").into());
 }
 
-pub async fn verify_otp(otp: &str, mut redis_conn: RedisConn, user_id: i32) -> Result<&str> {
+pub async fn verify_otp(otp: &str, mut redis_conn: RedisConn, user_id: i32) -> &str {
     let mut key = user_id.to_string();
     key.push_str("-otp");
-    match redis_conn.get::<String, String>(key) {
+    match redis_conn.exists::<String, bool>(key.clone()) {
         Ok(res) => {
-            if res == *otp {
-                Ok("OTP Matched")
+            if res {
+                match redis_conn.get::<String, String>(key.clone()) {
+                    Ok(res) => {
+                        if res == otp {
+                            "OTP Matched"
+                        } else {
+                            "OTP MisMatch"
+                        }
+                    }
+                    Err(_) => "Error",
+                }
             } else {
-                Ok("OTP MisMatch")
+                "OTP Expired"
             }
         }
-        Err(_) => Ok("OTP Expired"),
+        Err(_) => "Error",
     }
 }
