@@ -43,6 +43,7 @@ pub struct BuildingsManager {
     impacted_buildings: HashMap<i32, HashSet<i32>>,
     is_impacted: HashSet<i32>,
     pub buildings_grid: [[i32; MAP_SIZE]; MAP_SIZE],
+    road_map_spaces: Vec<MapSpaces>,
 }
 
 // Associated functions
@@ -54,6 +55,20 @@ impl BuildingsManager {
         Ok(map_spaces::table
             .filter(map_spaces::map_id.eq(map_id))
             .filter(map_spaces::blk_type.ne(ROAD_ID))
+            .load::<MapSpaces>(conn)
+            .map_err(|err| DieselError {
+                table: "map_spaces",
+                function: function!(),
+                error: err,
+            })?)
+    }
+
+    fn get_road_map_spaces(conn: &PgConnection, map_id: i32) -> Result<Vec<MapSpaces>> {
+        use crate::schema::map_spaces;
+
+        Ok(map_spaces::table
+            .filter(map_spaces::map_id.eq(map_id))
+            .filter(map_spaces::blk_type.eq(ROAD_ID))
             .load::<MapSpaces>(conn)
             .map_err(|err| DieselError {
                 table: "map_spaces",
@@ -239,6 +254,7 @@ impl BuildingsManager {
         let impacted_buildings: HashMap<i32, HashSet<i32>> = HashMap::new();
         let is_impacted: HashSet<i32> = HashSet::new();
         let buildings_grid: [[i32; MAP_SIZE]; MAP_SIZE] = Self::get_building_grid(conn, map_id)?;
+        let road_map_spaces: Vec<MapSpaces> = Self::get_road_map_spaces(conn, map_id)?;
 
         for map_space in map_spaces {
             let (absolute_entrance_x, absolute_entrance_y) = Self::get_absolute_entrance(
@@ -277,6 +293,7 @@ impl BuildingsManager {
             impacted_buildings,
             is_impacted,
             buildings_grid,
+            road_map_spaces,
         })
     }
 
@@ -286,7 +303,7 @@ impl BuildingsManager {
         capacity: &i32,
         population: &i32,
     ) -> f32 {
-        (*weight as f32 / *distance as f32) * (*capacity as f32 / (1_f32 + *population as f32))
+        (*weight as f32 / *distance as f32) * (1_f32 - (*population as f32 / *capacity as f32))
     }
 
     fn choose_weighted(choices: &[i32], weights: &[f32]) -> Result<i32> {
@@ -380,23 +397,17 @@ impl BuildingsManager {
     pub fn assign_initial_buildings(&self, robots: &mut HashMap<i32, Robot>) -> Result<()> {
         let mut weights = vec![];
         let mut choices = vec![];
-        for building in self.buildings.values() {
-            weights.push(building.weight);
-            choices.push(building.map_space.id);
+        for road_map_space in self.road_map_spaces.iter() {
+            weights.push(1);
+            choices.push(road_map_space);
         }
         let dist =
             WeightedIndex::new(&weights).with_context(|| format!("Weights: {:?}", weights))?;
         let mut rng = thread_rng();
         for robot in robots.values_mut() {
-            robot.destination = choices[dist.sample(&mut rng)];
-            let initial_building_id = choices[dist.sample(&mut rng)];
-            let Building {
-                absolute_entrance_x,
-                absolute_entrance_y,
-                ..
-            } = self.buildings.get(&initial_building_id).unwrap();
-            robot.x_position = *absolute_entrance_x;
-            robot.y_position = *absolute_entrance_y;
+            let initial_road_block = choices[dist.sample(&mut rng)];
+            robot.x_position = initial_road_block.x_coordinate;
+            robot.y_position = initial_road_block.y_coordinate;
         }
         Ok(())
     }
