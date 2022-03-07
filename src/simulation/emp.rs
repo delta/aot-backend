@@ -116,6 +116,26 @@ impl Emps {
                             buildings_manager,
                         )?;
                     }
+
+                    let RobotsManager {
+                        robots,
+                        robots_destination,
+                        shortest_path_grid,
+                        ..
+                    } = robots_manager;
+
+                    let robots_on_path = shortest_path_grid[x as usize][y as usize].clone();
+                    for robot_id in robots_on_path.iter() {
+                        let robot = robots.get_mut(robot_id).ok_or(KeyError {
+                            key: *robot_id,
+                            hashmap: "robots".to_string(),
+                        })?;
+                        robot.assign_destination(
+                            buildings_manager,
+                            robots_destination,
+                            shortest_path_grid,
+                        )?;
+                    }
                 }
             }
 
@@ -132,6 +152,7 @@ impl Emps {
                 let RobotsManager {
                     robots,
                     robots_destination,
+                    shortest_path_grid,
                     ..
                 } = robots_manager;
                 let robots_going_to_building = robots_destination
@@ -146,7 +167,11 @@ impl Emps {
                         key: robot_id,
                         hashmap: "robots".to_string(),
                     })?;
-                    robot.assign_destination(buildings_manager, robots_destination)?;
+                    robot.assign_destination(
+                        buildings_manager,
+                        robots_destination,
+                        shortest_path_grid,
+                    )?;
                 }
             }
         }

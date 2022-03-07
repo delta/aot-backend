@@ -21,6 +21,7 @@ pub struct RobotsManager {
     pub robots_grid: Vec<Vec<HashSet<i32>>>,
     pub robots_destination: HashMap<i32, HashSet<i32>>,
     pub no_of_robots: i32,
+    pub shortest_path_grid: Vec<Vec<HashSet<i32>>>,
 }
 
 impl Robot {
@@ -63,6 +64,7 @@ impl Robot {
         &mut self,
         buildings_manager: &BuildingsManager,
         robots_destination: &mut HashMap<i32, HashSet<i32>>,
+        shortest_path_grid: &mut Vec<Vec<HashSet<i32>>>,
     ) -> Result<()> {
         let destination_id =
             buildings_manager.get_weighted_random_building(self.x_position, self.y_position)?;
@@ -87,11 +89,17 @@ impl Robot {
             dest_x: destination.absolute_entrance_x,
             dest_y: destination.absolute_entrance_y,
         };
+        self.current_path.iter().for_each(|(x, y)| {
+            shortest_path_grid[*x as usize][*y as usize].remove(&self.id);
+        });
         self.current_path = buildings_manager
             .shortest_paths
             .get(&source_dest)
             .ok_or(ShortestPathNotFoundError(source_dest))?
             .clone();
+        self.current_path.iter().for_each(|(x, y)| {
+            shortest_path_grid[*x as usize][*y as usize].insert(self.id);
+        });
         self.current_path.reverse();
         Ok(())
     }
@@ -101,6 +109,7 @@ impl Robot {
         buildings_manager: &mut BuildingsManager,
         robots_grid: &mut Vec<Vec<HashSet<i32>>>,
         robots_destination: &mut HashMap<i32, HashSet<i32>>,
+        shortest_path_grid: &mut Vec<Vec<HashSet<i32>>>,
     ) -> Result<()> {
         let Robot {
             x_position,
@@ -125,7 +134,7 @@ impl Robot {
             *stay_in_time -= 1;
             if *stay_in_time == 0 {
                 self.exit_building(buildings_manager)?;
-                self.assign_destination(buildings_manager, robots_destination)?;
+                self.assign_destination(buildings_manager, robots_destination, shortest_path_grid)?;
             }
         }
         Ok(())
@@ -136,6 +145,7 @@ impl RobotsManager {
     fn initiate_robots(
         buildings_manager: &BuildingsManager,
         robots_destination: &mut HashMap<i32, HashSet<i32>>,
+        shortest_path_grid: &mut Vec<Vec<HashSet<i32>>>,
         no_of_robots: i32,
     ) -> Result<HashMap<i32, Robot>> {
         let mut robots = HashMap::new();
@@ -155,7 +165,7 @@ impl RobotsManager {
         }
         buildings_manager.assign_initial_buildings(&mut robots)?;
         for robot in robots.values_mut() {
-            robot.assign_destination(buildings_manager, robots_destination)?;
+            robot.assign_destination(buildings_manager, robots_destination, shortest_path_grid)?;
         }
         Ok(robots)
     }
@@ -172,8 +182,13 @@ impl RobotsManager {
 
     pub fn new(buildings_manager: &BuildingsManager, no_of_robots: i32) -> Result<Self> {
         let mut robots_destination = HashMap::new();
-        let robots =
-            Self::initiate_robots(buildings_manager, &mut robots_destination, no_of_robots)?;
+        let mut shortest_path_grid = vec![vec![HashSet::new(); MAP_SIZE]; MAP_SIZE];
+        let robots = Self::initiate_robots(
+            buildings_manager,
+            &mut robots_destination,
+            &mut shortest_path_grid,
+            no_of_robots,
+        )?;
         let robots_grid = Self::get_robots_grid(&robots);
         // TODO: is property needed?
         Ok(RobotsManager {
@@ -181,6 +196,7 @@ impl RobotsManager {
             robots_grid,
             robots_destination,
             no_of_robots,
+            shortest_path_grid,
         })
     }
 
@@ -199,7 +215,11 @@ impl RobotsManager {
                 hashmap: "robots".to_string(),
             })?;
             robot.take_damage(damage);
-            robot.assign_destination(buildings_manager, &mut self.robots_destination)?;
+            robot.assign_destination(
+                buildings_manager,
+                &mut self.robots_destination,
+                &mut self.shortest_path_grid,
+            )?;
         }
         Ok(())
     }
@@ -210,6 +230,7 @@ impl RobotsManager {
                 buildings_manager,
                 &mut self.robots_grid,
                 &mut self.robots_destination,
+                &mut self.shortest_path_grid,
             )?;
         }
         Ok(())
