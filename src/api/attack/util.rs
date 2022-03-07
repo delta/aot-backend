@@ -293,7 +293,7 @@ pub fn run_simulation(
                 function: function!(),
                 error: err,
             })?
-            .update_rating(conn)
+            .update_rating(simulator.no_of_robots, conn)
             .map_err(|err| DieselError {
                 table: "user",
                 function: function!(),

@@ -45,7 +45,7 @@ pub struct Simulator {
     attacker: Attacker,
     emps: Emps,
     frames_passed: i32,
-    no_of_robots: i32,
+    pub no_of_robots: i32,
 }
 
 impl Simulator {
@@ -150,8 +150,9 @@ impl Simulator {
         let damage_done = self.get_damage_done();
         let no_of_robots_destroyed = self.get_no_of_robots_destroyed();
         let emps_used = self.get_emps_used();
+        let max_score = 2 * HEALTH * self.no_of_robots - EMP_PENALTY;
         let attack_score = damage_done + HEALTH * no_of_robots_destroyed - EMP_PENALTY * emps_used;
-        let defend_score = MAX_SCORE - attack_score;
+        let defend_score = max_score - attack_score;
         (attack_score, defend_score)
     }
 

@@ -1,6 +1,5 @@
 pub const EMP_TIMEOUT: i32 = 20;
 pub const HEALTH: i32 = 20;
-pub const NO_OF_ROBOTS: i32 = 1000;
 pub const GAME_TIME_MINUTES: i32 = 420;
 pub const GAME_MINUTES_PER_FRAME: i32 = 2;
 pub const ATTACKER_RESTRICTED_FRAMES: i32 = 30;
@@ -18,4 +17,3 @@ pub const ROAD_ID: i32 = 4;
 pub const INITIAL_RATING: f32 = 1000.0;
 pub const K_FACTOR: f32 = 200.0;
 pub const EMP_PENALTY: i32 = 200;
-pub const MAX_SCORE: i32 = 2 * HEALTH * NO_OF_ROBOTS - EMP_PENALTY;
