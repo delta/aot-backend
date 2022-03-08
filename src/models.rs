@@ -2,7 +2,7 @@ use super::schema::*;
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
-#[derive(Queryable)]
+#[derive(Queryable, Serialize)]
 pub struct AttackType {
     pub id: i32,
     pub att_type: String,

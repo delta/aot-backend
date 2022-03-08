@@ -1,5 +1,5 @@
 use crate::{
-    constants::{EMP_PENALTY, HEALTH, K_FACTOR},
+    constants::{HEALTH, K_FACTOR},
     models::Game,
 };
 use diesel::prelude::*;
@@ -21,7 +21,7 @@ impl Game {
     ) -> Result<(f32, f32), diesel::result::Error> {
         use crate::schema::user;
 
-        let max_score = 2 * HEALTH * no_of_robots - EMP_PENALTY;
+        let max_score = 2 * HEALTH * no_of_robots;
         let attack_score = self.attack_score as f32 / max_score as f32;
 
         let Game {

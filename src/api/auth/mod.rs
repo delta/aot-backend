@@ -66,11 +66,14 @@ struct ResetPwVerifyRequest {
 async fn login(
     request: web::Json<LoginRequest>,
     session: Session,
-    pool: Data<PgPool>,
+    pg_pool: Data<PgPool>,
+    redis_pool: Data<RedisPool>,
 ) -> Result<impl Responder> {
     let username = request.username.clone();
-    let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-    let user = web::block(move || util::get_user_by_username(&conn, &username))
+    let pg_conn = pg_pool
+        .get()
+        .map_err(|err| error::handle_error(err.into()))?;
+    let user = web::block(move || util::get_user_by_username(&pg_conn, &username))
         .await
         .map_err(|err| error::handle_error(err.into()))?;
     if let Some(user) = user {
@@ -100,9 +103,10 @@ async fn login(
             if let PragyanMessage::Success(pragyan_user) = pragyan_auth.message {
                 let name = pragyan_user.user_fullname.clone();
                 let (user_id, username) = web::block(move || {
-                    let conn = pool.get()?;
+                    let conn = pg_pool.get()?;
+                    let mut redis_conn = redis_pool.get()?;
                     let email = username.clone();
-                    util::get_pragyan_user(&conn, &email, &name)
+                    util::get_pragyan_user(&conn, &mut redis_conn, &email, &name)
                 })
                 .await
                 .map_err(|err| error::handle_error(err.into()))?;
@@ -278,14 +282,14 @@ async fn reset_pw(
     if otp.len() != 5 {
         return Err(ErrorBadRequest("Invalid OTP"));
     }
-    let conn = pg_pool
+    let pg_conn = pg_pool
         .get()
         .map_err(|err| error::handle_error(err.into()))?;
     let redis_conn = redis_pool
         .get()
         .map_err(|err| error::handle_error(err.into()))?;
     let phone = phone_number.clone();
-    let user = web::block(move || util::get_user_with_phone(&conn, &phone))
+    let user = web::block(move || util::get_user_with_phone(&pg_conn, &phone))
         .await
         .map_err(|err| error::handle_error(err.into()))?;
     if user.is_none() {

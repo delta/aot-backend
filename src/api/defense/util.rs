@@ -18,6 +18,7 @@ pub struct DefenseResponse {
     pub blocks: Vec<BlockType>,
     pub levels_fixture: LevelsFixture,
     pub level_constraints: Vec<LevelConstraints>,
+    pub attack_type: Vec<AttackType>,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -104,7 +105,7 @@ pub fn fetch_map_layout_from_game(conn: &PgConnection, game_id: i32) -> Result<O
 }
 
 pub fn get_details_from_map_layout(conn: &PgConnection, map: MapLayout) -> Result<DefenseResponse> {
-    use crate::schema::{level_constraints, levels_fixture, map_spaces};
+    use crate::schema::{attack_type, level_constraints, levels_fixture, map_spaces};
 
     let map_spaces = map_spaces::table
         .filter(map_spaces::map_id.eq(map.id))
@@ -131,12 +132,19 @@ pub fn get_details_from_map_layout(conn: &PgConnection, map: MapLayout) -> Resul
             function: function!(),
             error: err,
         })?;
-
+    let attack_type = attack_type::table
+        .load::<AttackType>(conn)
+        .map_err(|err| DieselError {
+            table: "attack_type",
+            function: function!(),
+            error: err,
+        })?;
     Ok(DefenseResponse {
         map_spaces,
         blocks,
         levels_fixture,
         level_constraints,
+        attack_type,
     })
 }
 
