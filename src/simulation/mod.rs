@@ -173,7 +173,6 @@ impl Simulator {
 
         let minute = Self::get_minute(frames_passed);
         emps.simulate(minute, robots_manager, buildings_manager, attacker)?;
-        buildings_manager.revive_buildings(minute);
 
         if Self::attacker_allowed(frames_passed) {
             attacker.update_position();

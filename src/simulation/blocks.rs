@@ -9,7 +9,7 @@ use diesel::prelude::*;
 use diesel::{PgConnection, QueryDsl};
 use rand::distributions::WeightedIndex;
 use rand::prelude::*;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 #[derive(Debug)]
 struct BuildingType {
@@ -40,8 +40,6 @@ pub struct BuildingsManager {
     pub buildings: HashMap<i32, Building>,
     building_types: HashMap<i32, BuildingType>,
     pub shortest_paths: HashMap<SourceDest, Vec<(i32, i32)>>,
-    impacted_buildings: HashMap<i32, HashSet<i32>>,
-    is_impacted: HashSet<i32>,
     pub buildings_grid: [[i32; MAP_SIZE]; MAP_SIZE],
     road_map_spaces: Vec<MapSpaces>,
 }
@@ -251,8 +249,6 @@ impl BuildingsManager {
         let map_spaces = Self::get_building_map_spaces(conn, map_id)?;
         let building_types = Self::get_building_types(conn)?;
         let mut buildings: HashMap<i32, Building> = HashMap::new();
-        let impacted_buildings: HashMap<i32, HashSet<i32>> = HashMap::new();
-        let is_impacted: HashSet<i32> = HashSet::new();
         let buildings_grid: [[i32; MAP_SIZE]; MAP_SIZE] = Self::get_building_grid(conn, map_id)?;
         let road_map_spaces: Vec<MapSpaces> = Self::get_road_map_spaces(conn, map_id)?;
 
@@ -290,8 +286,6 @@ impl BuildingsManager {
             buildings,
             building_types,
             shortest_paths,
-            impacted_buildings,
-            is_impacted,
             buildings_grid,
             road_map_spaces,
         })
@@ -318,39 +312,6 @@ impl BuildingsManager {
 
 // Methods
 impl BuildingsManager {
-    pub fn damage_building(&mut self, time: i32, building_id: i32) {
-        let BuildingsManager {
-            impacted_buildings,
-            is_impacted,
-            ..
-        } = self;
-
-        impacted_buildings
-            .entry(time)
-            .or_insert_with(HashSet::<i32>::new);
-        impacted_buildings
-            .get_mut(&time)
-            .unwrap()
-            .insert(building_id);
-        is_impacted.insert(building_id);
-    }
-
-    pub fn revive_buildings(&mut self, time: i32) {
-        let time = time - EMP_TIMEOUT;
-        let BuildingsManager {
-            impacted_buildings,
-            is_impacted,
-            ..
-        } = self;
-
-        if impacted_buildings.contains_key(&time) {
-            for building in impacted_buildings.get(&time).unwrap() {
-                is_impacted.remove(building);
-            }
-        }
-        impacted_buildings.remove(&time);
-    }
-
     // get id of building using weighted random given starting co-ordinate
     pub fn get_weighted_random_building(&self, x: i32, y: i32) -> Result<i32> {
         let mut choices = vec![];
@@ -373,9 +334,6 @@ impl BuildingsManager {
                 })?
                 .capacity;
             if *absolute_entrance_x == x && *absolute_entrance_y == y {
-                continue;
-            }
-            if self.is_impacted.contains(&map_space.id) {
                 continue;
             }
             let source_dest = SourceDest {
