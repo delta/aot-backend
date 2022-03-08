@@ -16,13 +16,14 @@ fn new_rating(old_rating: f32, expected_score: f32, actual_score: f32) -> f32 {
 impl Game {
     pub fn update_rating(
         &self,
+        rating_factor: f32,
         no_of_robots: i32,
         conn: &PgConnection,
     ) -> Result<(f32, f32), diesel::result::Error> {
         use crate::schema::user;
 
         let max_score = 2 * HEALTH * no_of_robots;
-        let attack_score = (self.attack_score.max(0) as f32 / max_score as f32).powf(0.6);
+        let attack_score = (self.attack_score.max(0) as f32 / max_score as f32).powf(rating_factor);
 
         let Game {
             attack_id,

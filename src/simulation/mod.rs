@@ -46,6 +46,7 @@ pub struct Simulator {
     emps: Emps,
     frames_passed: i32,
     pub no_of_robots: i32,
+    pub rating_factor: f32,
 }
 
 impl Simulator {
@@ -65,11 +66,11 @@ impl Simulator {
                 function: function!(),
                 error: err,
             })?;
-        let no_of_robots = map_layout::table
+        let (no_of_robots, rating_factor) = map_layout::table
             .inner_join(levels_fixture::table)
-            .select(levels_fixture::no_of_robots)
+            .select((levels_fixture::no_of_robots, levels_fixture::rating_factor))
             .filter(map_layout::id.eq(map_id))
-            .first::<i32>(conn)
+            .first::<(i32, f32)>(conn)
             .map_err(|err| DieselError {
                 table: "map_layout levels_fixture",
                 function: function!(),
@@ -101,6 +102,7 @@ impl Simulator {
             emps,
             frames_passed: 0,
             no_of_robots,
+            rating_factor,
         })
     }
 

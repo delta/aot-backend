@@ -109,6 +109,7 @@ pub struct LevelsFixture {
     pub end_date: NaiveDate,
     pub no_of_bombs: i32,
     pub no_of_robots: i32,
+    pub rating_factor: f32,
 }
 
 #[derive(Insertable)]

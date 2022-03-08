@@ -57,6 +57,7 @@ table! {
         end_date -> Date,
         no_of_bombs -> Int4,
         no_of_robots -> Int4,
+        rating_factor -> Float4,
     }
 }
 
