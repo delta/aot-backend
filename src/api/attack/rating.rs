@@ -22,8 +22,7 @@ impl Game {
         use crate::schema::user;
 
         let max_score = 2 * HEALTH * no_of_robots;
-        let attack_score =
-            (1_f32 + self.attack_score as f32).ln() / (1_f32 + max_score as f32).ln();
+        let attack_score = (self.attack_score.max(0) as f32 / max_score as f32).powf(0.6);
 
         let Game {
             attack_id,
