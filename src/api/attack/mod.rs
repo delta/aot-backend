@@ -9,7 +9,7 @@ use anyhow::Context;
 use std::collections::HashSet;
 
 mod rating;
-mod util;
+pub mod util;
 mod validate;
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
