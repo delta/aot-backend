@@ -110,11 +110,26 @@ pub fn is_attack_allowed(attacker_id: i32, defender_id: i32, conn: &PgConnection
         function: function!(),
         error: err,
     })?;
+    let map_layout_join_levels_fixture = map_layout::table.inner_join(levels_fixture::table);
+    let attacker: Option<i32> = map_layout_join_levels_fixture
+        .filter(map_layout::player.eq(attacker_id))
+        .filter(levels_fixture::start_date.le(current_date))
+        .filter(levels_fixture::end_date.gt(current_date))
+        .filter(map_layout::is_valid.eq(true))
+        .select(map_layout::player)
+        .first(conn)
+        .optional()
+        .map_err(|err| DieselError {
+            table: "map_layout",
+            function: function!(),
+            error: err,
+        })?;
     let is_self_attack = attacker_id == defender_id;
     Ok(total_attacks_this_level < TOTAL_ATTACKS_PER_LEVEL
         && total_attacks_on_a_base < TOTAL_ATTACKS_ON_A_BASE
         && !is_duplicate_attack
-        && !is_self_attack)
+        && !is_self_attack
+        && attacker.is_some())
 }
 
 pub fn add_game(

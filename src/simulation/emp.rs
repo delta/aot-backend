@@ -140,13 +140,35 @@ impl Emps {
             }
 
             for building_id in &affected_buildings {
+                let building =
+                    buildings_manager
+                        .buildings
+                        .get_mut(building_id)
+                        .ok_or(KeyError {
+                            key: *building_id,
+                            hashmap: "buildings".to_string(),
+                        })?;
                 let Building {
                     absolute_entrance_x: x,
                     absolute_entrance_y: y,
                     ..
-                } = buildings_manager.buildings[building_id];
+                } = building;
                 // robots in affected building
-                robots_manager.damage_and_reassign_robots(emp.damage, x, y, buildings_manager)?;
+                let destroyed_robots = robots_manager.damage_and_reassign_robots(
+                    emp.damage,
+                    *x,
+                    *y,
+                    buildings_manager,
+                )?;
+                let building =
+                    buildings_manager
+                        .buildings
+                        .get_mut(building_id)
+                        .ok_or(KeyError {
+                            key: *building_id,
+                            hashmap: "buildings".to_string(),
+                        })?;
+                building.population -= destroyed_robots;
                 // robots going to affected building
                 let RobotsManager {
                     robots,

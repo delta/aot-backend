@@ -207,21 +207,25 @@ impl RobotsManager {
         x: i32,
         y: i32,
         buildings_manager: &BuildingsManager,
-    ) -> Result<()> {
+    ) -> Result<i32> {
         let robot_ids = &self.robots_grid[x as usize][y as usize];
+        let mut destroyed_robots = 0;
         for robot_id in robot_ids {
             let robot = self.robots.get_mut(robot_id).ok_or(KeyError {
                 key: *robot_id,
                 hashmap: "robots".to_string(),
             })?;
             robot.take_damage(damage);
+            if robot.health <= 0 {
+                destroyed_robots += 1;
+            }
             robot.assign_destination(
                 buildings_manager,
                 &mut self.robots_destination,
                 &mut self.shortest_path_grid,
             )?;
         }
-        Ok(())
+        Ok(destroyed_robots)
     }
 
     pub fn move_robots(&mut self, buildings_manager: &mut BuildingsManager) -> Result<()> {
