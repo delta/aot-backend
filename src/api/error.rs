@@ -44,7 +44,7 @@ pub enum BaseInvalidError {
     BlockOutsideMap,
     BlockCountExceeded(String),
     BlocksUnused(String),
-    NotConnected,
+    NotConnected(String),
 }
 
 impl ResponseError for BaseInvalidError {
@@ -54,17 +54,30 @@ impl ResponseError for BaseInvalidError {
                 format!("Invalid block type: {}", block_type)
             }
             BaseInvalidError::InvalidRotation(block_type, rotation) => {
-                format!("Invalid rotation {} for a block of type {}", rotation, block_type)
+                format!(
+                    "Invalid rotation {} for a block of type {}",
+                    rotation, block_type
+                )
             }
-            BaseInvalidError::OverlappingBlocks => "City has overlapping roads or buildings".to_string(),
-            BaseInvalidError::BlockOutsideMap => "A road or building is placed outside of city".to_string(),
+            BaseInvalidError::OverlappingBlocks => {
+                "City has overlapping roads or buildings".to_string()
+            }
+            BaseInvalidError::BlockOutsideMap => {
+                "A road or building is placed outside of city".to_string()
+            }
             BaseInvalidError::BlockCountExceeded(block_type) => {
-                format!("You have exceeded the maximum number of {} buildings", block_type)
+                format!(
+                    "You have exceeded the maximum number of {} buildings",
+                    block_type
+                )
             }
             BaseInvalidError::BlocksUnused(block_type) => {
-                format!("You have some unused {} buildings. Use all of them.", block_type)
+                format!(
+                    "You have some unused {} buildings. Use all of them.",
+                    block_type
+                )
             }
-            BaseInvalidError::NotConnected => "City is not fully connected. Make sure all buildings are reachable from one another.".to_string(),
+            BaseInvalidError::NotConnected(no_path_info) => no_path_info.to_string(),
         };
         ErrorBadRequest(response_body).into()
     }

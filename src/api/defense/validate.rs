@@ -1,7 +1,7 @@
 /// Functions to check if a base layout is valid
 use super::MapSpacesEntry;
 use crate::{api::error::BaseInvalidError, constants::*, models::*};
-use petgraph::{self, prelude::*, Graph};
+use petgraph::{self, algo::tarjan_scc, prelude::*, Graph};
 use std::collections::{HashMap, HashSet};
 
 //returns equivalent left and right coordinates of current position
@@ -100,8 +100,9 @@ pub fn is_valid_save_layout(
 ) -> Result<(), BaseInvalidError> {
     is_valid_update_layout(map_spaces, blocks)?;
 
-    let mut graph: Graph<(), (), Undirected> = Graph::new_undirected();
+    let mut graph: Graph<(), (), Directed> = Graph::new();
     let mut map_grid: HashMap<(i32, i32), NodeIndex> = HashMap::new();
+    let mut node_to_coords: HashMap<NodeIndex, (i32, i32)> = HashMap::new();
 
     let blocks: HashMap<i32, BlockType> = blocks
         .iter()
@@ -128,12 +129,15 @@ pub fn is_valid_save_layout(
         }
 
         // add roads and entrances to graph
+        let new_node = graph.add_node(());
         if blk_type == ROAD_ID {
-            map_grid.insert((x_coordinate, y_coordinate), graph.add_node(()));
+            map_grid.insert((x_coordinate, y_coordinate), new_node);
+            node_to_coords.insert(new_node, (x_coordinate, y_coordinate));
         } else {
             let block = blocks.get(&blk_type).unwrap();
             let entrance = get_absolute_entrance(map_space, block);
-            map_grid.insert(entrance, graph.add_node(()));
+            node_to_coords.insert(new_node, entrance);
+            map_grid.insert(entrance, new_node);
         }
     }
 
@@ -151,16 +155,27 @@ pub fn is_valid_save_layout(
         if map_grid.contains_key(&(x + 1, y)) {
             let node_index_right = map_grid.get(&(x + 1, y)).unwrap();
             graph.add_edge(*node_index, *node_index_right, ());
+            graph.add_edge(*node_index_right, *node_index, ());
         }
         if map_grid.contains_key(&(x, y + 1)) {
             let node_index_down = map_grid.get(&(x, y + 1)).unwrap();
             graph.add_edge(*node_index, *node_index_down, ());
+            graph.add_edge(*node_index_down, *node_index, ());
         }
     }
 
-    if petgraph::algo::connected_components(&graph) == 1 {
+    let connected_components = tarjan_scc(&graph);
+
+    if connected_components.len() == 1 {
         Ok(())
     } else {
-        Err(BaseInvalidError::NotConnected)
+        let first_component_node = connected_components[0][0];
+        let second_component_node = connected_components[1][0];
+        let first_node_coords = node_to_coords[&first_component_node];
+        let second_node_coords = node_to_coords[&second_component_node];
+        Err(BaseInvalidError::NotConnected(format!(
+            "no path from ({}, {}) to ({}, {})",
+            first_node_coords.0, first_node_coords.1, second_node_coords.0, second_node_coords.1
+        )))
     }
 }
