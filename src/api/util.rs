@@ -23,8 +23,8 @@ pub struct GameHistoryEntry {
 
 pub fn can_show_replay(requested_user: i32, game: &Game, levels_fixture: &LevelsFixture) -> bool {
     let end_time = NaiveTime::parse_from_str(ATTACK_END_TIME, "%H:%M:%S").unwrap();
-    let current_date = Local::now().naive_local().date();
-    let current_time = Local::now().naive_local().time();
+    let current_date = Local::now().naive_local();
+    let current_time = current_date.time();
     let is_current_round_over = current_time > end_time;
     is_current_round_over // current round is over
         || requested_user == game.attack_id // user requesting history if an attacker or defender
@@ -34,7 +34,7 @@ pub fn can_show_replay(requested_user: i32, game: &Game, levels_fixture: &Levels
 
 pub fn get_current_levels_fixture(conn: &PgConnection) -> Result<LevelsFixture> {
     use crate::schema::levels_fixture;
-    let current_date = Local::now().naive_local().date();
+    let current_date = Local::now().naive_local();
     let level: LevelsFixture = levels_fixture::table
         .filter(levels_fixture::start_date.le(current_date))
         .filter(levels_fixture::end_date.gt(current_date))

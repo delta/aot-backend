@@ -53,8 +53,8 @@ table! {
 table! {
     levels_fixture (id) {
         id -> Int4,
-        start_date -> Date,
-        end_date -> Date,
+        start_date -> Timestamp,
+        end_date -> Timestamp,
         no_of_bombs -> Int4,
         no_of_robots -> Int4,
         rating_factor -> Float4,

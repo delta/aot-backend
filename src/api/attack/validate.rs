@@ -11,7 +11,7 @@ pub fn is_attack_valid(
 ) -> bool {
     let attacker_path = &new_attack.attacker_path;
     let mut attack_bomb_count = 0;
-    if attacker_path.len() == 0 {
+    if attacker_path.is_empty() {
         return false;
     }
     for i in 0..attacker_path.len() {

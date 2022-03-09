@@ -72,7 +72,7 @@ pub fn get_valid_road_paths(map_id: i32, conn: &PgConnection) -> Result<HashSet<
 
 /// checks if the number of attacks per day is less than allowed for the given attacker
 pub fn is_attack_allowed(attacker_id: i32, defender_id: i32, conn: &PgConnection) -> Result<bool> {
-    let current_date = Local::now().naive_local().date();
+    let current_date = Local::now().naive_local();
     use crate::schema::{game, levels_fixture, map_layout};
     let joined_table = game::table.inner_join(map_layout::table.inner_join(levels_fixture::table));
     let total_attacks_this_level: i64 = joined_table
