@@ -18,7 +18,7 @@ pub struct GameHistoryResponse {
 #[derive(Deserialize, Serialize)]
 pub struct GameHistoryEntry {
     pub game: Game,
-    pub opponent_name: String,
+    pub player_name: String,
     pub is_replay_available: bool,
 }
 

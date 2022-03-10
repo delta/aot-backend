@@ -181,10 +181,10 @@ pub fn fetch_attack_history(
         .into_iter()
         .map(|(game, (_, levels_fixture))| {
             let is_replay_available = api::util::can_show_replay(user_id, &game, &levels_fixture);
-            let opponent_name = api::util::get_username(game.defend_id, conn)?;
+            let player_name = api::util::get_username(game.defend_id, conn)?;
             Ok(GameHistoryEntry {
                 game,
-                opponent_name,
+                player_name,
                 is_replay_available,
             })
         })
@@ -204,10 +204,10 @@ pub fn fetch_top_attacks(user_id: i32, conn: &PgConnection) -> Result<GameHistor
         .into_iter()
         .map(|(game, (_, levels_fixture))| {
             let is_replay_available = api::util::can_show_replay(user_id, &game, &levels_fixture);
-            let opponent_name = api::util::get_username(game.defend_id, conn)?;
+            let player_name = api::util::get_username(game.attack_id, conn)?;
             Ok(GameHistoryEntry {
                 game,
-                opponent_name,
+                player_name,
                 is_replay_available,
             })
         })
