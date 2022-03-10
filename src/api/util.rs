@@ -18,6 +18,7 @@ pub struct GameHistoryResponse {
 #[derive(Deserialize, Serialize)]
 pub struct GameHistoryEntry {
     pub game: Game,
+    pub opponent_name: String,
     pub is_replay_available: bool,
 }
 
@@ -45,4 +46,18 @@ pub fn get_current_levels_fixture(conn: &PgConnection) -> Result<LevelsFixture> 
             error: err,
         })?;
     Ok(level)
+}
+
+pub fn get_username(user_id: i32, conn: &PgConnection) -> Result<String> {
+    use crate::schema::user;
+    let username: String = user::table
+        .find(user_id)
+        .select(user::username)
+        .first(conn)
+        .map_err(|err| DieselError {
+            table: "user",
+            function: function!(),
+            error: err,
+        })?;
+    Ok(username)
 }

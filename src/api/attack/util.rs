@@ -1,4 +1,5 @@
-use crate::api::util::{can_show_replay, GameHistoryEntry, GameHistoryResponse};
+use crate::api;
+use crate::api::util::{GameHistoryEntry, GameHistoryResponse};
 use crate::constants::*;
 use crate::error::DieselError;
 use crate::models::{Game, LevelsFixture, MapLayout, NewAttackerPath, NewGame, NewSimulationLog};
@@ -174,18 +175,21 @@ pub fn fetch_attack_history(
     use crate::schema::{game, levels_fixture, map_layout};
 
     let joined_table = game::table.inner_join(map_layout::table.inner_join(levels_fixture::table));
-    let games = joined_table
+    let games_result: Result<Vec<GameHistoryEntry>> = joined_table
         .filter(game::attack_id.eq(attacker_id))
         .load::<(Game, (MapLayout, LevelsFixture))>(conn)?
         .into_iter()
         .map(|(game, (_, levels_fixture))| {
-            let is_replay_available = can_show_replay(user_id, &game, &levels_fixture);
-            GameHistoryEntry {
+            let is_replay_available = api::util::can_show_replay(user_id, &game, &levels_fixture);
+            let opponent_name = api::util::get_username(game.defend_id, conn)?;
+            Ok(GameHistoryEntry {
                 game,
+                opponent_name,
                 is_replay_available,
-            }
+            })
         })
         .collect();
+    let games = games_result?;
     Ok(GameHistoryResponse { games })
 }
 
@@ -193,19 +197,22 @@ pub fn fetch_top_attacks(user_id: i32, conn: &PgConnection) -> Result<GameHistor
     use crate::schema::{game, levels_fixture, map_layout};
 
     let joined_table = game::table.inner_join(map_layout::table.inner_join(levels_fixture::table));
-    let games = joined_table
+    let games_result: Result<Vec<GameHistoryEntry>> = joined_table
         .order_by(game::attack_score.desc())
         .limit(10)
         .load::<(Game, (MapLayout, LevelsFixture))>(conn)?
         .into_iter()
         .map(|(game, (_, levels_fixture))| {
-            let is_replay_available = can_show_replay(user_id, &game, &levels_fixture);
-            GameHistoryEntry {
+            let is_replay_available = api::util::can_show_replay(user_id, &game, &levels_fixture);
+            let opponent_name = api::util::get_username(game.defend_id, conn)?;
+            Ok(GameHistoryEntry {
                 game,
+                opponent_name,
                 is_replay_available,
-            }
+            })
         })
         .collect();
+    let games = games_result?;
     Ok(GameHistoryResponse { games })
 }
 
