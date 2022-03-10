@@ -209,6 +209,19 @@ pub fn fetch_top_attacks(user_id: i32, conn: &PgConnection) -> Result<GameHistor
     Ok(GameHistoryResponse { games })
 }
 
+pub fn remove_game(game_id: i32, conn: &PgConnection) -> Result<()> {
+    use crate::schema::game;
+
+    diesel::delete(game::table.filter(game::id.eq(game_id)))
+        .execute(conn)
+        .map_err(|err| DieselError {
+            table: "game",
+            function: function!(),
+            error: err,
+        })?;
+    Ok(())
+}
+
 pub fn run_simulation(
     game_id: i32,
     attacker_path: Vec<NewAttackerPath>,

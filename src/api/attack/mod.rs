@@ -1,11 +1,10 @@
-use self::util::NewAttack;
+use self::util::{remove_game, NewAttack};
 use super::auth::session::AuthUser;
 use super::{error, PgPool};
 use crate::api;
 use crate::models::LevelsFixture;
 use actix_web::error::ErrorBadRequest;
 use actix_web::{web, HttpResponse, Responder, Result};
-use anyhow::Context;
 use std::collections::HashSet;
 
 mod rating;
@@ -73,8 +72,17 @@ async fn create_attack(
     let file_content = web::block(move || {
         let conn = pool.get()?;
         let game_id = util::add_game(attacker_id, &new_attack, map_id, &conn)?;
-        util::run_simulation(game_id, attacker_path, &conn)
-            .with_context(|| format!("Failed to run simulation for game {}", game_id))
+        let sim_result = util::run_simulation(game_id, attacker_path, &conn);
+        match sim_result {
+            Ok(file_content) => Ok(file_content),
+            Err(_) => {
+                remove_game(game_id, &conn)?;
+                Err(anyhow::anyhow!(
+                    "Failed to run simulation for game {}",
+                    game_id
+                ))
+            }
+        }
     })
     .await
     .map_err(|err| error::handle_error(err.into()))?;

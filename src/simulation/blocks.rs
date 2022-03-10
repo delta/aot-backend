@@ -297,9 +297,11 @@ impl BuildingsManager {
         capacity: &i32,
         population: &i32,
     ) -> f32 {
-        let adjusted_weight =
-            (*weight as f32 / *distance as f32) * (1_f32 - (*population as f32 / *capacity as f32));
-        adjusted_weight.max(0.0)
+        if *population > *capacity {
+            0.0
+        } else {
+            (*weight as f32 / *distance as f32) * (1_f32 - (*population as f32 / *capacity as f32))
+        }
     }
 
     fn choose_weighted(choices: &[i32], weights: &[f32]) -> Result<i32> {
