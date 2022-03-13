@@ -26,7 +26,7 @@ fn main() {
 
     update(user::table)
         .filter(user::id.eq_any(invalid_users))
-        .set(user::overall_rating.eq(user::overall_rating - 2.0 * K_FACTOR))
+        .set(user::overall_rating.eq(user::overall_rating - 4.0 * K_FACTOR))
         .execute(conn)
         .expect("Could not update user ratings");
 

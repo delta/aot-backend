@@ -94,7 +94,7 @@ async fn login(
 
     let LoginRequest { username, password } = request.into_inner();
     // Pragyan users need to login with email
-    let email = username.clone();
+    let email = username.to_lowercase().clone();
     let pragyan_auth = pragyan::auth(email, password)
         .await
         .map_err(|err| error::handle_error(err))?;
