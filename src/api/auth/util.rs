@@ -36,11 +36,16 @@ pub fn get_user_by_username(conn: &PgConnection, username: &str) -> Result<Optio
     Ok(user)
 }
 
-pub fn get_pragyan_user(conn: &PgConnection, email: &str, name: &str) -> Result<(i32, String)> {
+pub fn get_pragyan_user(
+    pg_conn: &PgConnection,
+    redis_conn: &mut RedisConn,
+    email: &str,
+    name: &str,
+) -> Result<(i32, String)> {
     // Already logged in before
     if let Some(user) = user::table
         .filter(user::email.eq(&email))
-        .first::<User>(conn)
+        .first::<User>(pg_conn)
         .optional()
         .map_err(|err| DieselError {
             table: "user",
@@ -70,12 +75,13 @@ pub fn get_pragyan_user(conn: &PgConnection, email: &str, name: &str) -> Result<
         };
         let user: User = diesel::insert_into(user::table)
             .values(&new_user)
-            .get_result(conn)
+            .get_result(pg_conn)
             .map_err(|err| DieselError {
                 table: "user",
                 function: function!(),
                 error: err,
             })?;
+        redis_conn.set(user.id, 0)?;
         Ok((user.id, user.username))
     }
 }

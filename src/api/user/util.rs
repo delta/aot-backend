@@ -28,11 +28,12 @@ pub struct StatsResponse {
     pub no_of_defenses: i32,
 }
 
-pub fn fetch_user(conn: &PgConnection, player_id: i32) -> Result<User> {
+pub fn fetch_user(conn: &PgConnection, player_id: i32) -> Result<Option<User>> {
     use crate::schema::user;
     Ok(user::table
         .filter(user::id.eq(player_id))
         .first::<User>(conn)
+        .optional()
         .map_err(|err| DieselError {
             table: "user",
             function: function!(),

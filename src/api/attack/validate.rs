@@ -11,7 +11,9 @@ pub fn is_attack_valid(
 ) -> bool {
     let attacker_path = &new_attack.attacker_path;
     let mut attack_bomb_count = 0;
-
+    if attacker_path.is_empty() {
+        return false;
+    }
     for i in 0..attacker_path.len() {
         let current_path = &attacker_path[i];
         if current_path.is_emp {
@@ -24,7 +26,7 @@ pub fn is_attack_valid(
                 }
                 // check if emp_time is valid
                 let game_minutes = GAME_MINUTES_PER_FRAME * (i as i32 + ATTACKER_RESTRICTED_FRAMES);
-                if emp_time <= game_minutes {
+                if emp_time < game_minutes {
                     return false;
                 }
             } else {

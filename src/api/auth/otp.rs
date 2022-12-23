@@ -13,6 +13,7 @@ struct ReCaptchaRequest {
 #[derive(Debug, Deserialize)]
 struct ReCaptchaResponse {
     success: bool,
+    score: f32,
 }
 
 #[derive(Debug, Serialize)]
@@ -40,7 +41,7 @@ pub async fn verify_recaptcha(response: String) -> Result<bool> {
         .await?
         .json()
         .await?;
-    Ok(recaptcha_response.success)
+    Ok(recaptcha_response.success && recaptcha_response.score > 0.5)
 }
 
 pub async fn send_otp(

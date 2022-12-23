@@ -5,6 +5,7 @@ use anyhow::Result;
 pub struct Attacker {
     pub is_alive: bool,
     pub path: Vec<AttackerPath>,
+    pub emps_used: usize,
 }
 
 impl Attacker {
@@ -33,9 +34,11 @@ impl Attacker {
     }
 
     pub fn new(path: Vec<AttackerPath>) -> Self {
+        let emps_used = path.iter().filter(|p| p.is_emp).count();
         Self {
             is_alive: true,
             path,
+            emps_used,
         }
     }
 }

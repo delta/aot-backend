@@ -45,6 +45,8 @@ pub struct Simulator {
     attacker: Attacker,
     emps: Emps,
     frames_passed: i32,
+    pub no_of_robots: i32,
+    pub rating_factor: f32,
 }
 
 impl Simulator {
@@ -53,7 +55,7 @@ impl Simulator {
         attacker_path: &[NewAttackerPath],
         conn: &PgConnection,
     ) -> Result<Self> {
-        use crate::schema::game;
+        use crate::schema::{game, levels_fixture, map_layout};
 
         let map_id = game::table
             .filter(game::id.eq(game_id))
@@ -64,9 +66,19 @@ impl Simulator {
                 function: function!(),
                 error: err,
             })?;
+        let (no_of_robots, rating_factor) = map_layout::table
+            .inner_join(levels_fixture::table)
+            .select((levels_fixture::no_of_robots, levels_fixture::rating_factor))
+            .filter(map_layout::id.eq(map_id))
+            .first::<(i32, f32)>(conn)
+            .map_err(|err| DieselError {
+                table: "map_layout levels_fixture",
+                function: function!(),
+                error: err,
+            })?;
 
         let buildings_manager = BuildingsManager::new(conn, map_id)?;
-        let robots_manager = RobotsManager::new(&buildings_manager)?;
+        let robots_manager = RobotsManager::new(&buildings_manager, no_of_robots)?;
         let mut attacker_path: Vec<AttackerPath> = attacker_path
             .iter()
             .enumerate()
@@ -89,6 +101,8 @@ impl Simulator {
             attacker,
             emps,
             frames_passed: 0,
+            no_of_robots,
+            rating_factor,
         })
     }
 
@@ -109,7 +123,7 @@ impl Simulator {
     }
 
     pub fn get_emps_used(&self) -> i32 {
-        self.attacker.path.iter().filter(|path| path.is_emp).count() as i32
+        self.attacker.emps_used as i32
     }
 
     pub fn get_is_attacker_alive(&self) -> bool {
@@ -131,15 +145,15 @@ impl Simulator {
         for r in self.robots_manager.robots.iter() {
             sum_health += r.1.health;
         }
-        HEALTH * NO_OF_ROBOTS - sum_health
+        HEALTH * self.no_of_robots - sum_health
     }
 
     pub fn get_scores(&self) -> (i32, i32) {
         let damage_done = self.get_damage_done();
         let no_of_robots_destroyed = self.get_no_of_robots_destroyed();
-        let emps_used = self.get_emps_used();
-        let attack_score = damage_done + HEALTH * no_of_robots_destroyed - EMP_PENALTY * emps_used;
-        let defend_score = MAX_SCORE - attack_score;
+        let max_score = 2 * HEALTH * self.no_of_robots;
+        let attack_score = damage_done + HEALTH * no_of_robots_destroyed;
+        let defend_score = max_score - attack_score;
         (attack_score, defend_score)
     }
 
@@ -160,7 +174,6 @@ impl Simulator {
 
         let minute = Self::get_minute(frames_passed);
         emps.simulate(minute, robots_manager, buildings_manager, attacker)?;
-        buildings_manager.revive_buildings(minute);
 
         if Self::attacker_allowed(frames_passed) {
             attacker.update_position();

@@ -1,8 +1,8 @@
 use super::schema::*;
-use chrono::NaiveDate;
+use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 
-#[derive(Queryable)]
+#[derive(Queryable, Serialize)]
 pub struct AttackType {
     pub id: i32,
     pub att_type: String,
@@ -45,6 +45,7 @@ pub struct BlockType {
     pub height: i32,
     pub entrance_x: i32,
     pub entrance_y: i32,
+    pub capacity: i32,
 }
 
 #[derive(Insertable)]
@@ -55,6 +56,7 @@ pub struct NewBlockType<'a> {
     pub height: &'a i32,
     pub entrance_x: &'a i32,
     pub entrance_y: &'a i32,
+    pub capacity: &'a i32,
 }
 
 #[derive(Queryable)]
@@ -103,17 +105,20 @@ pub struct NewGame<'a> {
 #[derive(Queryable, Serialize)]
 pub struct LevelsFixture {
     pub id: i32,
-    pub start_date: NaiveDate,
-    pub end_date: NaiveDate,
+    pub start_date: NaiveDateTime,
+    pub end_date: NaiveDateTime,
     pub no_of_bombs: i32,
+    pub no_of_robots: i32,
+    pub rating_factor: f32,
 }
 
 #[derive(Insertable)]
 #[table_name = "levels_fixture"]
 pub struct NewLevelFixture<'a> {
-    pub start_date: &'a NaiveDate,
-    pub end_date: &'a NaiveDate,
+    pub start_date: &'a NaiveDateTime,
+    pub end_date: &'a NaiveDateTime,
     pub no_of_bombs: &'a i32,
+    pub no_of_robots: &'a i32,
 }
 
 #[derive(Queryable, Serialize)]

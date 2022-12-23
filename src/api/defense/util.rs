@@ -1,6 +1,7 @@
 /// CRUD functions
 use super::MapSpacesEntry;
-use crate::api::util::{can_show_replay, get_current_levels_fixture, GameHistoryEntry};
+use crate::api;
+use crate::api::util::GameHistoryEntry;
 use crate::constants::{DEFENSE_END_TIME, DEFENSE_START_TIME};
 use crate::models::*;
 use crate::util::function;
@@ -18,6 +19,7 @@ pub struct DefenseResponse {
     pub blocks: Vec<BlockType>,
     pub levels_fixture: LevelsFixture,
     pub level_constraints: Vec<LevelConstraints>,
+    pub attack_type: Vec<AttackType>,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -29,7 +31,7 @@ pub fn is_defense_allowed_now() -> bool {
     let start_time = NaiveTime::parse_from_str(DEFENSE_START_TIME, "%H:%M:%S").unwrap();
     let end_time = NaiveTime::parse_from_str(DEFENSE_END_TIME, "%H:%M:%S").unwrap();
     let current_time = Local::now().naive_local().time();
-    current_time >= start_time && current_time <= end_time
+    current_time >= start_time || current_time <= end_time
 }
 
 pub fn defender_exists(defender: i32, conn: &PgConnection) -> Result<bool> {
@@ -47,7 +49,7 @@ pub fn defender_exists(defender: i32, conn: &PgConnection) -> Result<bool> {
 pub fn fetch_map_layout(conn: &PgConnection, player: &i32) -> Result<MapLayout> {
     use crate::schema::map_layout;
 
-    let level_id = &get_current_levels_fixture(conn)?.id;
+    let level_id = &api::util::get_current_levels_fixture(conn)?.id;
     let layout = map_layout::table
         .filter(map_layout::player.eq(player))
         .filter(map_layout::level_id.eq(level_id))
@@ -104,7 +106,7 @@ pub fn fetch_map_layout_from_game(conn: &PgConnection, game_id: i32) -> Result<O
 }
 
 pub fn get_details_from_map_layout(conn: &PgConnection, map: MapLayout) -> Result<DefenseResponse> {
-    use crate::schema::{level_constraints, levels_fixture, map_spaces};
+    use crate::schema::{attack_type, level_constraints, levels_fixture, map_spaces};
 
     let map_spaces = map_spaces::table
         .filter(map_spaces::map_id.eq(map.id))
@@ -131,12 +133,19 @@ pub fn get_details_from_map_layout(conn: &PgConnection, map: MapLayout) -> Resul
             function: function!(),
             error: err,
         })?;
-
+    let attack_type = attack_type::table
+        .load::<AttackType>(conn)
+        .map_err(|err| DieselError {
+            table: "attack_type",
+            function: function!(),
+            error: err,
+        })?;
     Ok(DefenseResponse {
         map_spaces,
         blocks,
         levels_fixture,
         level_constraints,
+        attack_type,
     })
 }
 
@@ -244,18 +253,21 @@ pub fn fetch_defense_history(
     use crate::schema::{game, levels_fixture, map_layout};
 
     let joined_table = game::table.inner_join(map_layout::table.inner_join(levels_fixture::table));
-    let games = joined_table
+    let games_result: Result<Vec<GameHistoryEntry>> = joined_table
         .filter(game::defend_id.eq(defender_id))
         .load::<(Game, (MapLayout, LevelsFixture))>(conn)?
         .into_iter()
         .map(|(game, (_, levels_fixture))| {
-            let is_replay_available = can_show_replay(user_id, &game, &levels_fixture);
-            GameHistoryEntry {
+            let is_replay_available = api::util::can_show_replay(user_id, &game, &levels_fixture);
+            let player_name = api::util::get_username(game.attack_id, conn)?;
+            Ok(GameHistoryEntry {
                 game,
+                player_name,
                 is_replay_available,
-            }
+            })
         })
         .collect();
+    let games = games_result?;
     Ok(GameHistoryResponse { games })
 }
 
@@ -263,18 +275,21 @@ pub fn fetch_top_defenses(user_id: i32, conn: &PgConnection) -> Result<GameHisto
     use crate::schema::{game, levels_fixture, map_layout};
 
     let joined_table = game::table.inner_join(map_layout::table.inner_join(levels_fixture::table));
-    let games = joined_table
+    let games_result: Result<Vec<GameHistoryEntry>> = joined_table
         .order_by(game::defend_score.desc())
         .limit(10)
         .load::<(Game, (MapLayout, LevelsFixture))>(conn)?
         .into_iter()
         .map(|(game, (_, levels_fixture))| {
-            let is_replay_available = can_show_replay(user_id, &game, &levels_fixture);
-            GameHistoryEntry {
+            let is_replay_available = api::util::can_show_replay(user_id, &game, &levels_fixture);
+            let player_name = api::util::get_username(game.defend_id, conn)?;
+            Ok(GameHistoryEntry {
                 game,
+                player_name,
                 is_replay_available,
-            }
+            })
         })
         .collect();
+    let games = games_result?;
     Ok(GameHistoryResponse { games })
 }

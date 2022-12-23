@@ -33,7 +33,9 @@ pub async fn auth(user_email: String, user_pass: String) -> Result<PragyanRespon
     let pragyan_login_url = std::env::var("PRAGYAN_LOGIN_URL")?;
     let event_id = std::env::var("PRAGYAN_EVENT_ID")?;
     let event_secret = std::env::var("PRAGYAN_EVENT_SECRET")?;
-    let pragyan_response: PragyanResponse = Client::default()
+    let pragyan_response: PragyanResponse = Client::builder()
+        .disable_timeout()
+        .finish()
         .post(&pragyan_login_url)
         .send_form(&PragyanRequest {
             user_email,

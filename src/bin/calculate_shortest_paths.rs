@@ -3,7 +3,6 @@ use aot_backend::models::*;
 use aot_backend::schema::{block_type, map_spaces, shortest_path};
 use aot_backend::util;
 use array2d::Array2D;
-use diesel::dsl::all;
 use diesel::prelude::*;
 use diesel::RunQueryDsl;
 use diesel::{PgConnection, QueryDsl};
@@ -12,6 +11,8 @@ use petgraph::Graph;
 use rayon::prelude::*;
 use std::collections::HashMap;
 use std::env;
+
+const NO_BLOCK: i32 = -1;
 
 // function to get absolute coordinates
 fn get_absolute_coordinates(
@@ -55,7 +56,7 @@ pub fn run_shortest_paths(conn: &PgConnection, input_map_layout_id: i32) {
     }
 
     // initialising 2d array and petgraph Graph
-    let mut graph_2d = Array2D::filled_with(0, MAP_SIZE, MAP_SIZE);
+    let mut graph_2d = Array2D::filled_with(NO_BLOCK, MAP_SIZE, MAP_SIZE);
     let mut graph = Graph::<usize, usize>::new();
 
     // Initialising nodes, filling 2d array and the node_to_index and index_to_node maps
@@ -72,7 +73,7 @@ pub fn run_shortest_paths(conn: &PgConnection, input_map_layout_id: i32) {
             .set(
                 absolute_entrance_y as usize,
                 absolute_entrance_x as usize,
-                i.blk_type as usize,
+                i.blk_type,
             )
             .unwrap();
         node_to_index.insert(
@@ -88,9 +89,9 @@ pub fn run_shortest_paths(conn: &PgConnection, input_map_layout_id: i32) {
     // adding edges to graph from 2d array (2 nearby nodes)
     for i in 0..MAP_SIZE {
         for j in 0..MAP_SIZE {
-            if graph_2d[(i, j)] != 0 {
+            if graph_2d[(i, j)] != NO_BLOCK {
                 // i,j->i+1,j
-                if i + 1 < MAP_SIZE && graph_2d[(i + 1, j)] != 0 {
+                if i + 1 < MAP_SIZE && graph_2d[(i + 1, j)] != NO_BLOCK {
                     graph.extend_with_edges(&[(
                         index_to_node[&(i * MAP_SIZE + j)],
                         index_to_node[&((i + 1) * MAP_SIZE + j)],
@@ -103,7 +104,7 @@ pub fn run_shortest_paths(conn: &PgConnection, input_map_layout_id: i32) {
                     )]);
                 }
                 //i,j->i,j+1
-                if j + 1 < MAP_SIZE && graph_2d[(i, j + 1)] != 0 {
+                if j + 1 < MAP_SIZE && graph_2d[(i, j + 1)] != NO_BLOCK {
                     graph.extend_with_edges(&[(
                         index_to_node[&(i * MAP_SIZE + j)],
                         index_to_node[&(i * MAP_SIZE + (j + 1))],
@@ -216,7 +217,7 @@ fn main() {
         .expect("Couldn't get map_ids for given level");
 
     println!("Deleting old shortest_path entries\n");
-    diesel::delete(shortest_path::table.filter(shortest_path::base_id.ne(all(&map_ids))))
+    diesel::delete(shortest_path::table)
         .execute(conn)
         .expect("Couldn't delete entries from shortest_path table");
 

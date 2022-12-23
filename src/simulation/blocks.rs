@@ -9,11 +9,12 @@ use diesel::prelude::*;
 use diesel::{PgConnection, QueryDsl};
 use rand::distributions::WeightedIndex;
 use rand::prelude::*;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 #[derive(Debug)]
 struct BuildingType {
     block_type: BlockType,
+    capacity: i32,
     weights: HashMap<i32, i32>,
 }
 
@@ -23,6 +24,7 @@ pub struct Building {
     pub absolute_entrance_x: i32,
     pub absolute_entrance_y: i32,
     pub weight: i32,
+    pub population: i32,
 }
 
 #[derive(Debug, Eq, Hash, PartialEq)]
@@ -38,9 +40,8 @@ pub struct BuildingsManager {
     pub buildings: HashMap<i32, Building>,
     building_types: HashMap<i32, BuildingType>,
     pub shortest_paths: HashMap<SourceDest, Vec<(i32, i32)>>,
-    impacted_buildings: HashMap<i32, HashSet<i32>>,
-    is_impacted: HashSet<i32>,
     pub buildings_grid: [[i32; MAP_SIZE]; MAP_SIZE],
+    road_map_spaces: Vec<MapSpaces>,
 }
 
 // Associated functions
@@ -52,6 +53,20 @@ impl BuildingsManager {
         Ok(map_spaces::table
             .filter(map_spaces::map_id.eq(map_id))
             .filter(map_spaces::blk_type.ne(ROAD_ID))
+            .load::<MapSpaces>(conn)
+            .map_err(|err| DieselError {
+                table: "map_spaces",
+                function: function!(),
+                error: err,
+            })?)
+    }
+
+    fn get_road_map_spaces(conn: &PgConnection, map_id: i32) -> Result<Vec<MapSpaces>> {
+        use crate::schema::map_spaces;
+
+        Ok(map_spaces::table
+            .filter(map_spaces::map_id.eq(map_id))
+            .filter(map_spaces::blk_type.eq(ROAD_ID))
             .load::<MapSpaces>(conn)
             .map_err(|err| DieselError {
                 table: "map_spaces",
@@ -93,6 +108,7 @@ impl BuildingsManager {
                     x.id,
                     BuildingType {
                         block_type: x.clone(),
+                        capacity: x.capacity,
                         weights,
                     },
                 )),
@@ -233,9 +249,8 @@ impl BuildingsManager {
         let map_spaces = Self::get_building_map_spaces(conn, map_id)?;
         let building_types = Self::get_building_types(conn)?;
         let mut buildings: HashMap<i32, Building> = HashMap::new();
-        let impacted_buildings: HashMap<i32, HashSet<i32>> = HashMap::new();
-        let is_impacted: HashSet<i32> = HashSet::new();
         let buildings_grid: [[i32; MAP_SIZE]; MAP_SIZE] = Self::get_building_grid(conn, map_id)?;
+        let road_map_spaces: Vec<MapSpaces> = Self::get_road_map_spaces(conn, map_id)?;
 
         for map_space in map_spaces {
             let (absolute_entrance_x, absolute_entrance_y) = Self::get_absolute_entrance(
@@ -261,6 +276,7 @@ impl BuildingsManager {
                     absolute_entrance_x,
                     absolute_entrance_y,
                     weight,
+                    population: 0,
                 },
             );
         }
@@ -270,15 +286,22 @@ impl BuildingsManager {
             buildings,
             building_types,
             shortest_paths,
-            impacted_buildings,
-            is_impacted,
             buildings_grid,
+            road_map_spaces,
         })
     }
 
-    fn get_adjusted_weight(distance: &usize, weight: &i32) -> f32 {
-        let adjusted_weight = *weight as f32 / *distance as f32;
-        adjusted_weight.max(0.0)
+    fn get_adjusted_weight(
+        distance: &usize,
+        weight: &i32,
+        capacity: &i32,
+        population: &i32,
+    ) -> f32 {
+        if *population > *capacity {
+            0.0
+        } else {
+            (*weight as f32 / *distance as f32) * (1_f32 - (*population as f32 / *capacity as f32))
+        }
     }
 
     fn choose_weighted(choices: &[i32], weights: &[f32]) -> Result<i32> {
@@ -291,39 +314,6 @@ impl BuildingsManager {
 
 // Methods
 impl BuildingsManager {
-    pub fn damage_building(&mut self, time: i32, building_id: i32) {
-        let BuildingsManager {
-            impacted_buildings,
-            is_impacted,
-            ..
-        } = self;
-
-        impacted_buildings
-            .entry(time)
-            .or_insert_with(HashSet::<i32>::new);
-        impacted_buildings
-            .get_mut(&time)
-            .unwrap()
-            .insert(building_id);
-        is_impacted.insert(building_id);
-    }
-
-    pub fn revive_buildings(&mut self, time: i32) {
-        let time = time - EMP_TIMEOUT;
-        let BuildingsManager {
-            impacted_buildings,
-            is_impacted,
-            ..
-        } = self;
-
-        if impacted_buildings.contains_key(&time) {
-            for building in impacted_buildings.get(&time).unwrap() {
-                is_impacted.remove(building);
-            }
-        }
-        impacted_buildings.remove(&time);
-    }
-
     // get id of building using weighted random given starting co-ordinate
     pub fn get_weighted_random_building(&self, x: i32, y: i32) -> Result<i32> {
         let mut choices = vec![];
@@ -335,11 +325,17 @@ impl BuildingsManager {
                 absolute_entrance_x,
                 absolute_entrance_y,
                 weight,
+                population,
             } = building;
+            let capacity = self
+                .building_types
+                .get(&map_space.blk_type)
+                .ok_or(KeyError {
+                    key: map_space.blk_type,
+                    hashmap: "building_types".to_string(),
+                })?
+                .capacity;
             if *absolute_entrance_x == x && *absolute_entrance_y == y {
-                continue;
-            }
-            if self.is_impacted.contains(&map_space.id) {
                 continue;
             }
             let source_dest = SourceDest {
@@ -352,7 +348,8 @@ impl BuildingsManager {
                 Some(v) => v.len(),
                 None => return Err(ShortestPathNotFoundError(source_dest).into()),
             };
-            let adjusted_weight = Self::get_adjusted_weight(&shortest_path_length, weight);
+            let adjusted_weight =
+                Self::get_adjusted_weight(&shortest_path_length, weight, &capacity, population);
             choices.push(map_space.id);
             weights.push(adjusted_weight);
         }
@@ -362,23 +359,17 @@ impl BuildingsManager {
     pub fn assign_initial_buildings(&self, robots: &mut HashMap<i32, Robot>) -> Result<()> {
         let mut weights = vec![];
         let mut choices = vec![];
-        for building in self.buildings.values() {
-            weights.push(building.weight);
-            choices.push(building.map_space.id);
+        for road_map_space in self.road_map_spaces.iter() {
+            weights.push(1);
+            choices.push(road_map_space);
         }
         let dist =
             WeightedIndex::new(&weights).with_context(|| format!("Weights: {:?}", weights))?;
         let mut rng = thread_rng();
         for robot in robots.values_mut() {
-            robot.destination = choices[dist.sample(&mut rng)];
-            let initial_building_id = choices[dist.sample(&mut rng)];
-            let Building {
-                absolute_entrance_x,
-                absolute_entrance_y,
-                ..
-            } = self.buildings.get(&initial_building_id).unwrap();
-            robot.x_position = *absolute_entrance_x;
-            robot.y_position = *absolute_entrance_y;
+            let initial_road_block = choices[dist.sample(&mut rng)];
+            robot.x_position = initial_road_block.x_coordinate;
+            robot.y_position = initial_road_block.y_coordinate;
         }
         Ok(())
     }
@@ -393,16 +384,10 @@ impl BuildingsManager {
                     hashmap: "building_types".to_string(),
                 })?
                 .weights;
-            let weight = weights.get(&(hour - 1)).ok_or(KeyError {
+            building.weight = *weights.get(&(hour - 1)).ok_or(KeyError {
                 key: hour - 1,
                 hashmap: format!("building_types[{}].weights", building.map_space.blk_type),
             })?;
-            let change = weight - building.weight;
-            building.weight = *weights.get(&hour).ok_or(KeyError {
-                key: hour,
-                hashmap: format!("building_types[{}].weights", building.map_space.blk_type),
-            })?;
-            building.weight += change;
         }
         Ok(())
     }

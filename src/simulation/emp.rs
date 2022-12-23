@@ -116,22 +116,64 @@ impl Emps {
                             buildings_manager,
                         )?;
                     }
+
+                    // Robots whose shortest path was in impact of an emp
+                    let RobotsManager {
+                        robots,
+                        robots_destination,
+                        shortest_path_grid,
+                        ..
+                    } = robots_manager;
+                    let robots_on_path = shortest_path_grid[x as usize][y as usize].clone();
+                    for robot_id in robots_on_path.iter() {
+                        let robot = robots.get_mut(robot_id).ok_or(KeyError {
+                            key: *robot_id,
+                            hashmap: "robots".to_string(),
+                        })?;
+                        robot.assign_destination(
+                            buildings_manager,
+                            robots_destination,
+                            shortest_path_grid,
+                        )?;
+                    }
                 }
             }
 
             for building_id in &affected_buildings {
-                buildings_manager.damage_building(minute, *building_id);
+                let building =
+                    buildings_manager
+                        .buildings
+                        .get_mut(building_id)
+                        .ok_or(KeyError {
+                            key: *building_id,
+                            hashmap: "buildings".to_string(),
+                        })?;
                 let Building {
                     absolute_entrance_x: x,
                     absolute_entrance_y: y,
                     ..
-                } = buildings_manager.buildings[building_id];
+                } = building;
                 // robots in affected building
-                robots_manager.damage_and_reassign_robots(emp.damage, x, y, buildings_manager)?;
+                let destroyed_robots = robots_manager.damage_and_reassign_robots(
+                    emp.damage,
+                    *x,
+                    *y,
+                    buildings_manager,
+                )?;
+                let building =
+                    buildings_manager
+                        .buildings
+                        .get_mut(building_id)
+                        .ok_or(KeyError {
+                            key: *building_id,
+                            hashmap: "buildings".to_string(),
+                        })?;
+                building.population -= destroyed_robots;
                 // robots going to affected building
                 let RobotsManager {
                     robots,
                     robots_destination,
+                    shortest_path_grid,
                     ..
                 } = robots_manager;
                 let robots_going_to_building = robots_destination
@@ -146,7 +188,11 @@ impl Emps {
                         key: robot_id,
                         hashmap: "robots".to_string(),
                     })?;
-                    robot.assign_destination(buildings_manager, robots_destination)?;
+                    robot.assign_destination(
+                        buildings_manager,
+                        robots_destination,
+                        shortest_path_grid,
+                    )?;
                 }
             }
         }
