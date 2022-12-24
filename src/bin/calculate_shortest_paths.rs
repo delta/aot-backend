@@ -229,7 +229,7 @@ fn main() {
             map_ids.len(),
             map_id
         );
-        run_shortest_paths(&*pool.get().unwrap(), *map_id);
+        run_shortest_paths(&pool.get().unwrap(), *map_id);
     });
     println!(
         "\nCalculated shortest paths for level {} successfully!",

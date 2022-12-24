@@ -128,7 +128,7 @@ pub fn reset_password(
     user_id: i32,
     password: &str,
 ) -> Result<()> {
-    let hashed_password = bcrypt::hash(&password)?;
+    let hashed_password = bcrypt::hash(password)?;
     diesel::update(user::table.find(user_id))
         .set(user::password.eq(&hashed_password))
         .execute(pg_conn)

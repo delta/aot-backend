@@ -64,7 +64,7 @@ impl Robot {
         &mut self,
         buildings_manager: &BuildingsManager,
         robots_destination: &mut HashMap<i32, HashSet<i32>>,
-        shortest_path_grid: &mut Vec<Vec<HashSet<i32>>>,
+        shortest_path_grid: &mut [Vec<HashSet<i32>>],
     ) -> Result<()> {
         let destination_id =
             buildings_manager.get_weighted_random_building(self.x_position, self.y_position)?;
@@ -107,9 +107,9 @@ impl Robot {
     fn move_robot(
         &mut self,
         buildings_manager: &mut BuildingsManager,
-        robots_grid: &mut Vec<Vec<HashSet<i32>>>,
+        robots_grid: &mut [Vec<HashSet<i32>>],
         robots_destination: &mut HashMap<i32, HashSet<i32>>,
-        shortest_path_grid: &mut Vec<Vec<HashSet<i32>>>,
+        shortest_path_grid: &mut [Vec<HashSet<i32>>],
     ) -> Result<()> {
         let Robot {
             x_position,
@@ -145,7 +145,7 @@ impl RobotsManager {
     fn initiate_robots(
         buildings_manager: &BuildingsManager,
         robots_destination: &mut HashMap<i32, HashSet<i32>>,
-        shortest_path_grid: &mut Vec<Vec<HashSet<i32>>>,
+        shortest_path_grid: &mut [Vec<HashSet<i32>>],
         no_of_robots: i32,
     ) -> Result<HashMap<i32, Robot>> {
         let mut robots = HashMap::new();
