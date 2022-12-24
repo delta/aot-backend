@@ -8,25 +8,25 @@ default-run = "aot-backend"
 
 [dependencies]
 actix-web = {version = "3", features = ["rustls"] }
-anyhow = "1.0.53"
+anyhow = "1.0.68"
 derive_more = "0.99.17"
-chrono = { version = "0.4.10", features = ["serde"] }
+chrono = { version = "0.4.23", features = ["serde"] }
 diesel = { version = "1.4.4", features = ["chrono", "postgres", "r2d2"] }
 dotenv = "0.15.0"
 actix-session = "0.4.1"
-flexi_logger = "0.20.1"
-log = "0.4.14"
-rand = "0.8.4"
-rayon = "1.5.1"
-thiserror = "1.0.30"
-array2d = "0.2.1"
-petgraph = "0.5.0"
-serde = { version = "1.0", features = ["derive"] }
+flexi_logger = "0.24.2"
+log = "0.4.17"
+rand = "0.8.5"
+rayon = "1.6.1"
+thiserror = "1.0.38"
+array2d = "0.3.0"
+petgraph = "0.6.2"
+serde = { version = "1.0.151", features = ["derive"] }
 pwhash = "1"
 actix-cors = "0.5.4"
 diesel_migrations = "1.4.0"
-futures = "0.3.21"
-base64 = "0.13.0"
-redis = { version = "0.21.5", features = ["r2d2"] }
-r2d2 = "0.8.9"
+futures = "0.3.25"
+base64 = "0.20.0"
+redis = { version = "0.22.1", features = ["r2d2"] }
+r2d2 = "0.8.10"
 actix-redis = "0.9.2"
