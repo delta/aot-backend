@@ -53,7 +53,7 @@ impl Simulator {
     pub fn new(
         game_id: i32,
         attacker_path: &[NewAttackerPath],
-        conn: &PgConnection,
+        conn: &mut PgConnection,
     ) -> Result<Self> {
         use crate::schema::{game, levels_fixture, map_layout};
 

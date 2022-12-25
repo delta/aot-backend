@@ -29,11 +29,11 @@ async fn create_attack(
         return Err(ErrorBadRequest("Attack not allowed"));
     }
 
-    let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let defender_id = new_attack.defender_id;
     let (level, map) = web::block(move || {
-        let level = api::util::get_current_levels_fixture(&conn)?;
-        let map = util::get_map_id(&defender_id, &level.id, &conn)?;
+        let level = api::util::get_current_levels_fixture(&mut conn)?;
+        let map = util::get_map_id(&defender_id, &level.id, &mut conn)?;
         Ok((level, map)) as anyhow::Result<(LevelsFixture, Option<i32>)>
     })
     .await
@@ -45,11 +45,11 @@ async fn create_attack(
         return Err(ErrorBadRequest("Invalid base"));
     };
 
-    let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let (valid_road_paths, valid_emp_ids, is_attack_allowed) = web::block(move || {
-        let is_attack_allowed = util::is_attack_allowed(attacker_id, defender_id, &conn)?;
-        let valid_emp_ids: HashSet<i32> = util::get_valid_emp_ids(&conn)?;
-        let valid_road_paths = util::get_valid_road_paths(map_id, &conn)?;
+        let is_attack_allowed = util::is_attack_allowed(attacker_id, defender_id, &mut conn)?;
+        let valid_emp_ids: HashSet<i32> = util::get_valid_emp_ids(&mut conn)?;
+        let valid_road_paths = util::get_valid_road_paths(map_id, &mut conn)?;
         Ok((valid_road_paths, valid_emp_ids, is_attack_allowed))
             as anyhow::Result<(HashSet<(i32, i32)>, HashSet<i32>, bool)>
     })
@@ -70,13 +70,13 @@ async fn create_attack(
     }
 
     let file_content = web::block(move || {
-        let conn = pool.get()?;
-        let game_id = util::add_game(attacker_id, &new_attack, map_id, &conn)?;
-        let sim_result = util::run_simulation(game_id, attacker_path, &conn);
+        let mut conn = pool.get()?;
+        let game_id = util::add_game(attacker_id, &new_attack, map_id, &mut conn)?;
+        let sim_result = util::run_simulation(game_id, attacker_path, &mut conn);
         match sim_result {
             Ok(file_content) => Ok(file_content),
             Err(_) => {
-                remove_game(game_id, &conn)?;
+                remove_game(game_id, &mut conn)?;
                 Err(anyhow::anyhow!(
                     "Failed to run simulation for game {}",
                     game_id
@@ -98,8 +98,8 @@ async fn attack_history(
     let user_id = user.0;
     let attacker_id = attacker_id.0;
     let response = web::block(move || {
-        let conn = pool.get()?;
-        util::fetch_attack_history(attacker_id, user_id, &conn)
+        let mut conn = pool.get()?;
+        util::fetch_attack_history(attacker_id, user_id, &mut conn)
     })
     .await
     .map_err(|err| error::handle_error(err.into()))?;
@@ -109,8 +109,8 @@ async fn attack_history(
 async fn get_top_attacks(pool: web::Data<PgPool>, user: AuthUser) -> Result<impl Responder> {
     let user_id = user.0;
     let response = web::block(move || {
-        let conn = pool.get()?;
-        util::fetch_top_attacks(user_id, &conn)
+        let mut conn = pool.get()?;
+        util::fetch_top_attacks(user_id, &mut conn)
     })
     .await
     .map_err(|err| error::handle_error(err.into()))?;

@@ -33,7 +33,7 @@ pub fn can_show_replay(requested_user: i32, game: &Game, levels_fixture: &Levels
         || current_date > levels_fixture.start_date // game happened in previous rounds
 }
 
-pub fn get_current_levels_fixture(conn: &PgConnection) -> Result<LevelsFixture> {
+pub fn get_current_levels_fixture(conn: &mut PgConnection) -> Result<LevelsFixture> {
     use crate::schema::levels_fixture;
     let current_date = Local::now().naive_local();
     let level: LevelsFixture = levels_fixture::table
@@ -48,7 +48,7 @@ pub fn get_current_levels_fixture(conn: &PgConnection) -> Result<LevelsFixture> 
     Ok(level)
 }
 
-pub fn get_username(user_id: i32, conn: &PgConnection) -> Result<String> {
+pub fn get_username(user_id: i32, conn: &mut PgConnection) -> Result<String> {
     use crate::schema::user;
     let username: String = user::table
         .find(user_id)

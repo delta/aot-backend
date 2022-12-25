@@ -18,7 +18,7 @@ impl Game {
         &self,
         rating_factor: f32,
         no_of_robots: i32,
-        conn: &PgConnection,
+        conn: &mut PgConnection,
     ) -> Result<(f32, f32), diesel::result::Error> {
         use crate::schema::user;
 

@@ -70,10 +70,10 @@ async fn login(
     redis_pool: Data<RedisPool>,
 ) -> Result<impl Responder> {
     let username = request.username.clone();
-    let pg_conn = pg_pool
+    let mut pg_conn = pg_pool
         .get()
         .map_err(|err| error::handle_error(err.into()))?;
-    let user = web::block(move || util::get_user_by_username(&pg_conn, &username))
+    let user = web::block(move || util::get_user_by_username(&mut pg_conn, &username))
         .await
         .map_err(|err| error::handle_error(err.into()))?;
     if let Some(user) = user {
@@ -103,10 +103,10 @@ async fn login(
             if let PragyanMessage::Success(pragyan_user) = pragyan_auth.message {
                 let name = pragyan_user.user_fullname.clone();
                 let (user_id, username) = web::block(move || {
-                    let conn = pg_pool.get()?;
+                    let mut conn = pg_pool.get()?;
                     let mut redis_conn = redis_pool.get()?;
                     let email = username.clone();
-                    util::get_pragyan_user(&conn, &mut redis_conn, &email, &name)
+                    util::get_pragyan_user(&mut conn, &mut redis_conn, &email, &name)
                 })
                 .await
                 .map_err(|err| error::handle_error(err.into()))?;
@@ -146,8 +146,8 @@ async fn sendotp(
         .get()
         .map_err(|err| error::handle_error(err.into()))?;
     let user_id = user.0;
-    let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-    let user = web::block(move || util::get_user(&conn, user_id))
+    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+    let user = web::block(move || util::get_user(&mut conn, user_id))
         .await
         .map_err(|err| error::handle_error(err.into()))?;
     if let Some(ref user) = user {
@@ -159,9 +159,9 @@ async fn sendotp(
     }
     let user = user.unwrap();
 
-    let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let phone_number = user.clone().phone;
-    let duplicate_user = web::block(move || util::get_user_with_phone(&conn, &phone_number))
+    let duplicate_user = web::block(move || util::get_user_with_phone(&mut conn, &phone_number))
         .await
         .map_err(|err| error::handle_error(err.into()))?;
     if duplicate_user.is_some() {
@@ -198,8 +198,8 @@ async fn verify(
     if otp.len() != 5 {
         return Err(ErrorBadRequest("Invalid OTP"));
     }
-    let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-    let user = web::block(move || util::get_user(&conn, user_id))
+    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+    let user = web::block(move || util::get_user(&mut conn, user_id))
         .await
         .map_err(|err| error::handle_error(err.into()))?;
     if user.is_none() {
@@ -220,8 +220,8 @@ async fn verify(
     match otp_response {
         OtpVerificationResponse::Match => {
             web::block(move || {
-                let conn = pool.get()?;
-                util::verify_user(&conn, user_id)
+                let mut conn = pool.get()?;
+                util::verify_user(&mut conn, user_id)
             })
             .await
             .map_err(|err| error::handle_error(err.into()))?;
@@ -240,12 +240,12 @@ async fn send_resetpw_otp(
     request: Json<ResetPwRequest>,
     redis_pool: Data<RedisPool>,
 ) -> Result<impl Responder> {
-    let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let redis_conn = redis_pool
         .get()
         .map_err(|err| error::handle_error(err.into()))?;
     let phone_number = request.phone_number.clone();
-    let user = web::block(move || util::get_user_with_phone(&conn, &phone_number))
+    let user = web::block(move || util::get_user_with_phone(&mut conn, &phone_number))
         .await
         .map_err(|err| error::handle_error(err.into()))?;
     if user.is_none() {
@@ -282,14 +282,14 @@ async fn reset_pw(
     if otp.len() != 5 {
         return Err(ErrorBadRequest("Invalid OTP"));
     }
-    let pg_conn = pg_pool
+    let mut pg_conn = pg_pool
         .get()
         .map_err(|err| error::handle_error(err.into()))?;
     let redis_conn = redis_pool
         .get()
         .map_err(|err| error::handle_error(err.into()))?;
     let phone = phone_number.clone();
-    let user = web::block(move || util::get_user_with_phone(&pg_conn, &phone))
+    let user = web::block(move || util::get_user_with_phone(&mut pg_conn, &phone))
         .await
         .map_err(|err| error::handle_error(err.into()))?;
     if user.is_none() {
@@ -309,9 +309,9 @@ async fn reset_pw(
     match otp_response {
         OtpVerificationResponse::Match => {
             web::block(move || {
-                let conn = pg_pool.get()?;
+                let mut conn = pg_pool.get()?;
                 let redis_conn = redis_pool.get()?;
-                util::reset_password(&conn, redis_conn, user_id, &password)
+                util::reset_password(&mut conn, redis_conn, user_id, &password)
             })
             .await
             .map_err(|err| error::handle_error(err.into()))?;

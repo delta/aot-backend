@@ -7,9 +7,9 @@ use diesel::{prelude::*, update};
 
 fn main() {
     let pool = util::get_pg_conn_pool();
-    let conn = &*pool.get().expect("Could not retrieve connection from pool");
+    let mut conn = pool.get().expect("Could not retrieve connection from pool");
 
-    let level_id = api::util::get_current_levels_fixture(conn)
+    let level_id = api::util::get_current_levels_fixture(&mut conn)
         .expect("Could not get level id")
         .id;
     let invalid_users = user::table
@@ -21,13 +21,13 @@ fn main() {
         )
         .select(user::id)
         .filter(map_layout::is_valid.is_null())
-        .load::<i32>(conn)
+        .load::<i32>(&mut conn)
         .expect("Could not get invalid users");
 
     update(user::table)
         .filter(user::id.eq_any(invalid_users))
         .set(user::overall_rating.eq(user::overall_rating - 4.0 * K_FACTOR))
-        .execute(conn)
+        .execute(&mut conn)
         .expect("Could not update user ratings");
 
     println!("Ratings have been updated");

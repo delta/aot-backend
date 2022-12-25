@@ -30,13 +30,17 @@ pub fn is_attack_allowed_now() -> bool {
     current_time >= start_time && current_time <= end_time
 }
 
-pub fn get_valid_emp_ids(conn: &PgConnection) -> Result<HashSet<i32>> {
+pub fn get_valid_emp_ids(conn: &mut PgConnection) -> Result<HashSet<i32>> {
     use crate::schema::attack_type;
     let valid_emp_ids = HashSet::from_iter(attack_type::table.select(attack_type::id).load(conn)?);
     Ok(valid_emp_ids)
 }
 
-pub fn get_map_id(defender_id: &i32, level_id: &i32, conn: &PgConnection) -> Result<Option<i32>> {
+pub fn get_map_id(
+    defender_id: &i32,
+    level_id: &i32,
+    conn: &mut PgConnection,
+) -> Result<Option<i32>> {
     use crate::schema::map_layout;
     let map_id = map_layout::table
         .filter(map_layout::player.eq(defender_id))
@@ -53,7 +57,7 @@ pub fn get_map_id(defender_id: &i32, level_id: &i32, conn: &PgConnection) -> Res
     Ok(map_id)
 }
 
-pub fn get_valid_road_paths(map_id: i32, conn: &PgConnection) -> Result<HashSet<(i32, i32)>> {
+pub fn get_valid_road_paths(map_id: i32, conn: &mut PgConnection) -> Result<HashSet<(i32, i32)>> {
     use crate::schema::map_spaces;
     let valid_road_paths: HashSet<(i32, i32)> = map_spaces::table
         .filter(map_spaces::map_id.eq(map_id))
@@ -72,7 +76,11 @@ pub fn get_valid_road_paths(map_id: i32, conn: &PgConnection) -> Result<HashSet<
 }
 
 /// checks if the number of attacks per day is less than allowed for the given attacker
-pub fn is_attack_allowed(attacker_id: i32, defender_id: i32, conn: &PgConnection) -> Result<bool> {
+pub fn is_attack_allowed(
+    attacker_id: i32,
+    defender_id: i32,
+    conn: &mut PgConnection,
+) -> Result<bool> {
     let current_date = Local::now().naive_local();
     use crate::schema::{game, levels_fixture, map_layout};
     let joined_table = game::table.inner_join(map_layout::table.inner_join(levels_fixture::table));
@@ -137,7 +145,7 @@ pub fn add_game(
     attacker_id: i32,
     new_attack: &NewAttack,
     map_layout_id: i32,
-    conn: &PgConnection,
+    conn: &mut PgConnection,
 ) -> Result<i32> {
     use crate::schema::game;
 
@@ -170,7 +178,7 @@ pub fn add_game(
 pub fn fetch_attack_history(
     attacker_id: i32,
     user_id: i32,
-    conn: &PgConnection,
+    conn: &mut PgConnection,
 ) -> Result<GameHistoryResponse> {
     use crate::schema::{game, levels_fixture, map_layout};
 
@@ -193,7 +201,7 @@ pub fn fetch_attack_history(
     Ok(GameHistoryResponse { games })
 }
 
-pub fn fetch_top_attacks(user_id: i32, conn: &PgConnection) -> Result<GameHistoryResponse> {
+pub fn fetch_top_attacks(user_id: i32, conn: &mut PgConnection) -> Result<GameHistoryResponse> {
     use crate::schema::{game, levels_fixture, map_layout};
 
     let joined_table = game::table.inner_join(map_layout::table.inner_join(levels_fixture::table));
@@ -216,7 +224,7 @@ pub fn fetch_top_attacks(user_id: i32, conn: &PgConnection) -> Result<GameHistor
     Ok(GameHistoryResponse { games })
 }
 
-pub fn remove_game(game_id: i32, conn: &PgConnection) -> Result<()> {
+pub fn remove_game(game_id: i32, conn: &mut PgConnection) -> Result<()> {
     use crate::schema::game;
 
     diesel::delete(game::table.filter(game::id.eq(game_id)))
@@ -232,7 +240,7 @@ pub fn remove_game(game_id: i32, conn: &PgConnection) -> Result<()> {
 pub fn run_simulation(
     game_id: i32,
     attacker_path: Vec<NewAttackerPath>,
-    conn: &PgConnection,
+    conn: &mut PgConnection,
 ) -> Result<Vec<u8>> {
     let mut content = Vec::new();
     writeln!(content, "attacker_path")?;
@@ -353,7 +361,7 @@ pub fn run_simulation(
     Ok(content)
 }
 
-pub fn insert_simulation_log(game_id: i32, content: &[u8], conn: &PgConnection) -> Result<()> {
+pub fn insert_simulation_log(game_id: i32, content: &[u8], conn: &mut PgConnection) -> Result<()> {
     use crate::schema::simulation_log;
     let log_text = String::from_utf8(content.to_vec())?;
     let new_simulation_log = NewSimulationLog {

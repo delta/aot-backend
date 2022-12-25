@@ -4,7 +4,7 @@ use actix_cors::Cors;
 use actix_redis::RedisSession;
 use actix_web::{middleware, web, App, HttpResponse, HttpServer};
 use chrono::NaiveTime;
-use diesel_migrations::embed_migrations;
+use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use flexi_logger::{Cleanup, Criterion, Duplicate, FileSpec, Naming};
 
 mod api;
@@ -17,10 +17,8 @@ mod util;
 
 #[macro_use]
 extern crate diesel;
-#[macro_use]
-extern crate diesel_migrations;
 
-embed_migrations!();
+pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -46,8 +44,8 @@ async fn main() -> std::io::Result<()> {
     let frontend_url = std::env::var("FRONTEND_URL").expect("FRONTEND_URL must be set");
     let redis_url = std::env::var("REDIS_URL").unwrap();
 
-    let conn = pg_pool.get().expect("Could not get connection from pool");
-    embedded_migrations::run_with_output(&conn, &mut std::io::stdout()).expect("Migrations failed");
+    let conn = &mut pg_pool.get().expect("Could not get connection from pool");
+    conn.run_pending_migrations(MIGRATIONS).unwrap();
 
     HttpServer::new(move || {
         App::new()

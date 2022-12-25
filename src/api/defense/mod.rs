@@ -36,9 +36,9 @@ pub struct MapSpacesEntry {
 async fn get_user_base_details(pool: Data<PgPool>, user: AuthUser) -> Result<impl Responder> {
     let defender_id = user.0;
     let response = web::block(move || {
-        let conn = pool.get()?;
-        let map = util::fetch_map_layout(&conn, &defender_id)?;
-        util::get_details_from_map_layout(&conn, map)
+        let mut conn = pool.get()?;
+        let map = util::fetch_map_layout(&mut conn, &defender_id)?;
+        util::get_details_from_map_layout(&mut conn, map)
     })
     .await
     .map_err(|err| error::handle_error(err.into()))?;
@@ -50,16 +50,16 @@ async fn get_other_base_details(
     defender_id: web::Path<i32>,
     pool: web::Data<PgPool>,
 ) -> Result<impl Responder> {
-    let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-    let defender_exists = web::block(move || util::defender_exists(defender_id.0, &conn))
+    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+    let defender_exists = web::block(move || util::defender_exists(defender_id.0, &mut conn))
         .await
         .map_err(|err| error::handle_error(err.into()))?;
     if !defender_exists {
         return Err(ErrorNotFound("Player not found"));
     }
 
-    let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-    let map = web::block(move || util::fetch_map_layout(&conn, &defender_id.0))
+    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+    let map = web::block(move || util::fetch_map_layout(&mut conn, &defender_id.0))
         .await
         .map_err(|err| error::handle_error(err.into()))?;
 
@@ -68,8 +68,8 @@ async fn get_other_base_details(
     }
 
     let response = web::block(move || {
-        let conn = pool.get()?;
-        util::get_details_from_map_layout(&conn, map)
+        let mut conn = pool.get()?;
+        util::get_details_from_map_layout(&mut conn, map)
     })
     .await
     .map_err(|err| error::handle_error(err.into()))?;
@@ -81,8 +81,8 @@ async fn get_game_base_details(
     game_id: web::Path<i32>,
     pool: web::Data<PgPool>,
 ) -> Result<impl Responder> {
-    let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-    let map = web::block(move || util::fetch_map_layout_from_game(&conn, game_id.0))
+    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+    let map = web::block(move || util::fetch_map_layout_from_game(&mut conn, game_id.0))
         .await
         .map_err(|err| error::handle_error(err.into()))?;
 
@@ -91,8 +91,8 @@ async fn get_game_base_details(
     }
 
     let response = web::block(move || {
-        let conn = pool.get()?;
-        util::get_details_from_map_layout(&conn, map.unwrap())
+        let mut conn = pool.get()?;
+        util::get_details_from_map_layout(&mut conn, map.unwrap())
     })
     .await
     .map_err(|err| error::handle_error(err.into()))?;
@@ -112,11 +112,11 @@ async fn set_base_details(
     }
 
     let map_spaces = map_spaces.into_inner();
-    let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let (map, blocks) = web::block(move || {
         Ok((
-            util::fetch_map_layout(&conn, &defender_id)?,
-            util::fetch_blocks(&conn)?,
+            util::fetch_map_layout(&mut conn, &defender_id)?,
+            util::fetch_blocks(&mut conn)?,
         )) as anyhow::Result<(MapLayout, Vec<BlockType>)>
     })
     .await
@@ -125,9 +125,9 @@ async fn set_base_details(
     validate::is_valid_update_layout(&map_spaces, &blocks)?;
 
     web::block(move || {
-        let conn = pool.get()?;
-        util::set_map_invalid(&conn, map.id)?;
-        util::put_base_details(&map_spaces, &map, &conn)
+        let mut conn = pool.get()?;
+        util::set_map_invalid(&mut conn, map.id)?;
+        util::put_base_details(&map_spaces, &map, &mut conn)
     })
     .await
     .map_err(|err| error::handle_error(err.into()))?;
@@ -147,13 +147,13 @@ async fn confirm_base_details(
     }
 
     let map_spaces = map_spaces.into_inner();
-    let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let (map, blocks, mut level_constraints) = web::block(move || {
-        let map = util::fetch_map_layout(&conn, &defender_id)?;
+        let map = util::fetch_map_layout(&mut conn, &defender_id)?;
         Ok((
             map.clone(),
-            util::fetch_blocks(&conn)?,
-            util::get_level_constraints(&conn, map.level_id)?,
+            util::fetch_blocks(&mut conn)?,
+            util::get_level_constraints(&mut conn, map.level_id)?,
         )) as anyhow::Result<(MapLayout, Vec<BlockType>, HashMap<i32, i32>)>
     })
     .await
@@ -162,9 +162,9 @@ async fn confirm_base_details(
     validate::is_valid_save_layout(&map_spaces, &mut level_constraints, &blocks)?;
 
     web::block(move || {
-        let conn = pool.get()?;
-        util::put_base_details(&map_spaces, &map, &conn)?;
-        util::set_map_valid(&conn, map.id)
+        let mut conn = pool.get()?;
+        util::put_base_details(&map_spaces, &map, &mut conn)?;
+        util::set_map_valid(&mut conn, map.id)
     })
     .await
     .map_err(|err| error::handle_error(err.into()))?;
@@ -180,8 +180,8 @@ async fn defense_history(
     let user_id = user.0;
     let defender_id = defender_id.0;
     let response = web::block(move || {
-        let conn = pool.get()?;
-        util::fetch_defense_history(defender_id, user_id, &conn)
+        let mut conn = pool.get()?;
+        util::fetch_defense_history(defender_id, user_id, &mut conn)
     })
     .await
     .map_err(|err| error::handle_error(err.into()))?;
@@ -191,8 +191,8 @@ async fn defense_history(
 async fn get_top_defenses(pool: web::Data<PgPool>, user: AuthUser) -> Result<impl Responder> {
     let user_id = user.0;
     let response = web::block(move || {
-        let conn = pool.get()?;
-        util::fetch_top_defenses(user_id, &conn)
+        let mut conn = pool.get()?;
+        util::fetch_top_defenses(user_id, &mut conn)
     })
     .await
     .map_err(|err| error::handle_error(err.into()))?;

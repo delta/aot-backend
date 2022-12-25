@@ -47,7 +47,7 @@ pub struct BuildingsManager {
 // Associated functions
 impl BuildingsManager {
     // Get all map_spaces for this map excluding roads
-    fn get_building_map_spaces(conn: &PgConnection, map_id: i32) -> Result<Vec<MapSpaces>> {
+    fn get_building_map_spaces(conn: &mut PgConnection, map_id: i32) -> Result<Vec<MapSpaces>> {
         use crate::schema::map_spaces;
 
         Ok(map_spaces::table
@@ -61,7 +61,7 @@ impl BuildingsManager {
             })?)
     }
 
-    fn get_road_map_spaces(conn: &PgConnection, map_id: i32) -> Result<Vec<MapSpaces>> {
+    fn get_road_map_spaces(conn: &mut PgConnection, map_id: i32) -> Result<Vec<MapSpaces>> {
         use crate::schema::map_spaces;
 
         Ok(map_spaces::table
@@ -76,7 +76,7 @@ impl BuildingsManager {
     }
 
     // get time: weight HashMap given block_type id
-    fn get_weights(conn: &PgConnection, b_id: i32) -> Result<HashMap<i32, i32>> {
+    fn get_weights(conn: &mut PgConnection, b_id: i32) -> Result<HashMap<i32, i32>> {
         use crate::schema::building_weights::dsl::*;
         Ok(building_weights
             .filter(building_id.eq(b_id))
@@ -93,7 +93,7 @@ impl BuildingsManager {
     }
 
     // get all building_types with their weights
-    fn get_building_types(conn: &PgConnection) -> Result<HashMap<i32, BuildingType>> {
+    fn get_building_types(conn: &mut PgConnection) -> Result<HashMap<i32, BuildingType>> {
         use crate::schema::block_type::dsl::*;
         block_type
             .load::<BlockType>(conn)
@@ -119,7 +119,7 @@ impl BuildingsManager {
 
     // get all shortest paths with string pathlist converted to vector of i32 tuples
     fn get_shortest_paths(
-        conn: &PgConnection,
+        conn: &mut PgConnection,
         map_id: i32,
     ) -> Result<HashMap<SourceDest, Vec<(i32, i32)>>> {
         use crate::schema::shortest_path::dsl::*;
@@ -181,7 +181,10 @@ impl BuildingsManager {
     }
 
     // Returns a matrix with each element containing the map_space id of the building in that location
-    fn get_building_grid(conn: &PgConnection, map_id: i32) -> Result<[[i32; MAP_SIZE]; MAP_SIZE]> {
+    fn get_building_grid(
+        conn: &mut PgConnection,
+        map_id: i32,
+    ) -> Result<[[i32; MAP_SIZE]; MAP_SIZE]> {
         use crate::schema::block_type;
 
         let map_spaces: Vec<MapSpaces> = Self::get_building_map_spaces(conn, map_id)?;
@@ -245,7 +248,7 @@ impl BuildingsManager {
     }
 
     // get new instance with map_id
-    pub fn new(conn: &PgConnection, map_id: i32) -> Result<Self> {
+    pub fn new(conn: &mut PgConnection, map_id: i32) -> Result<Self> {
         let map_spaces = Self::get_building_map_spaces(conn, map_id)?;
         let building_types = Self::get_building_types(conn)?;
         let mut buildings: HashMap<i32, Building> = HashMap::new();

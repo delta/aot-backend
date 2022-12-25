@@ -28,11 +28,11 @@ async fn register(
     redis_pool: Data<RedisPool>,
     input_user: Json<InputUser>,
 ) -> Result<impl Responder> {
-    let conn = pg_pool
+    let mut conn = pg_pool
         .get()
         .map_err(|err| error::handle_error(err.into()))?;
     let user = input_user.clone();
-    let duplicates = web::block(move || util::get_duplicate_users(&conn, &user))
+    let duplicates = web::block(move || util::get_duplicate_users(&mut conn, &user))
         .await
         .map_err(|err| error::handle_error(err.into()))?;
     for duplicate in duplicates {
@@ -43,9 +43,9 @@ async fn register(
         }
     }
     web::block(move || {
-        let conn = pg_pool.get()?;
+        let mut conn = pg_pool.get()?;
         let redis_conn = redis_pool.get()?;
-        util::add_user(&conn, redis_conn, &input_user)
+        util::add_user(&mut conn, redis_conn, &input_user)
     })
     .await
     .map_err(|err| error::handle_error(err.into()))?;
@@ -60,8 +60,8 @@ async fn update_user(
     let user_id = user.0;
     let username = user_details.username.clone();
     if let Some(username) = username {
-        let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-        let duplicate = web::block(move || util::get_duplicate_username(&conn, &username))
+        let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+        let duplicate = web::block(move || util::get_duplicate_username(&mut conn, &username))
             .await
             .map_err(|err| error::handle_error(err.into()))?;
         if duplicate.is_some() {
@@ -69,8 +69,8 @@ async fn update_user(
         }
     }
     web::block(move || {
-        let conn = pool.get()?;
-        util::update_user(&conn, user_id, &user_details)
+        let mut conn = pool.get()?;
+        util::update_user(&mut conn, user_id, &user_details)
     })
     .await
     .map_err(|err| error::handle_error(err.into()))?;
@@ -79,16 +79,16 @@ async fn update_user(
 }
 
 async fn get_user_stats(user_id: Path<i32>, pool: Data<PgPool>) -> Result<impl Responder> {
-    let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-    let user = web::block(move || util::fetch_user(&conn, user_id.0))
+    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+    let user = web::block(move || util::fetch_user(&mut conn, user_id.0))
         .await
         .map_err(|err| error::handle_error(err.into()))?;
     if let Some(user) = user {
         let response = web::block(move || {
-            let conn = pool.get()?;
-            let attack_game = util::fetch_attack_game(&conn, user_id.0)?;
-            let defense_game = util::fetch_defense_game(&conn, user_id.0)?;
-            let users = util::fetch_all_user(&conn)?;
+            let mut conn = pool.get()?;
+            let attack_game = util::fetch_attack_game(&mut conn, user_id.0)?;
+            let defense_game = util::fetch_defense_game(&mut conn, user_id.0)?;
+            let users = util::fetch_all_user(&mut conn)?;
             util::make_response(&user, &attack_game, &defense_game, &users)
         })
         .await

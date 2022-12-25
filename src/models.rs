@@ -11,7 +11,7 @@ pub struct AttackType {
 }
 
 #[derive(Insertable)]
-#[table_name = "attack_type"]
+#[diesel(table_name = attack_type)]
 pub struct NewAttackType<'a> {
     pub att_type: &'a str,
     pub attack_radius: &'a i32,
@@ -49,7 +49,7 @@ pub struct BlockType {
 }
 
 #[derive(Insertable)]
-#[table_name = "block_type"]
+#[diesel(table_name = block_type)]
 pub struct NewBlockType<'a> {
     pub name: &'a str,
     pub width: &'a i32,
@@ -67,7 +67,7 @@ pub struct BuildingWeights {
 }
 
 #[derive(Insertable)]
-#[table_name = "building_weights"]
+#[diesel(table_name = building_weights)]
 pub struct NewBuildingWeights<'a> {
     pub time: &'a i32,
     pub building_id: &'a i32,
@@ -89,7 +89,7 @@ pub struct Game {
 }
 
 #[derive(Insertable)]
-#[table_name = "game"]
+#[diesel(table_name = game)]
 pub struct NewGame<'a> {
     pub attack_id: &'a i32,
     pub defend_id: &'a i32,
@@ -113,7 +113,7 @@ pub struct LevelsFixture {
 }
 
 #[derive(Insertable)]
-#[table_name = "levels_fixture"]
+#[diesel(table_name = levels_fixture)]
 pub struct NewLevelFixture<'a> {
     pub start_date: &'a NaiveDateTime,
     pub end_date: &'a NaiveDateTime,
@@ -129,7 +129,7 @@ pub struct LevelConstraints {
 }
 
 #[derive(Insertable)]
-#[table_name = "level_constraints"]
+#[diesel(table_name = level_constraints)]
 pub struct NewLevelConstraint<'a> {
     pub level_id: &'a i32,
     pub block_id: &'a i32,
@@ -145,7 +145,7 @@ pub struct MapLayout {
 }
 
 #[derive(Insertable)]
-#[table_name = "map_layout"]
+#[diesel(table_name = map_layout)]
 pub struct NewMapLayout<'a> {
     pub player: &'a i32,
     pub level_id: &'a i32,
@@ -162,7 +162,7 @@ pub struct MapSpaces {
 }
 
 #[derive(Deserialize, Insertable)]
-#[table_name = "map_spaces"]
+#[diesel(table_name = map_spaces)]
 pub struct NewMapSpaces {
     pub map_id: i32,
     pub blk_type: i32,
@@ -182,7 +182,7 @@ pub struct ShortestPath {
 }
 
 #[derive(Insertable)]
-#[table_name = "shortest_path"]
+#[diesel(table_name = shortest_path)]
 pub struct NewShortestPath {
     pub base_id: i32,
     pub source_x: i32,
@@ -207,7 +207,7 @@ pub struct User {
 }
 
 #[derive(Insertable, Debug)]
-#[table_name = "user"]
+#[diesel(table_name = user)]
 pub struct NewUser<'a> {
     pub name: &'a str,
     pub email: &'a str,
@@ -227,14 +227,14 @@ pub struct SimulationLog {
 }
 
 #[derive(Insertable)]
-#[table_name = "simulation_log"]
+#[diesel(table_name = simulation_log)]
 pub struct NewSimulationLog<'a> {
     pub game_id: &'a i32,
     pub log_text: &'a str,
 }
 
 #[derive(AsChangeset, Debug, Deserialize)]
-#[table_name = "user"]
+#[diesel(table_name = user)]
 pub struct UpdateUser {
     name: Option<String>,
     pub username: Option<String>,

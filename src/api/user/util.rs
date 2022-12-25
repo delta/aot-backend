@@ -28,7 +28,7 @@ pub struct StatsResponse {
     pub no_of_defenses: i32,
 }
 
-pub fn fetch_user(conn: &PgConnection, player_id: i32) -> Result<Option<User>> {
+pub fn fetch_user(conn: &mut PgConnection, player_id: i32) -> Result<Option<User>> {
     use crate::schema::user;
     Ok(user::table
         .filter(user::id.eq(player_id))
@@ -41,7 +41,7 @@ pub fn fetch_user(conn: &PgConnection, player_id: i32) -> Result<Option<User>> {
         })?)
 }
 
-pub fn fetch_all_user(conn: &PgConnection) -> Result<Vec<User>> {
+pub fn fetch_all_user(conn: &mut PgConnection) -> Result<Vec<User>> {
     use crate::schema::user;
     Ok(user::table
         .order_by(user::overall_rating.desc())
@@ -54,7 +54,7 @@ pub fn fetch_all_user(conn: &PgConnection) -> Result<Vec<User>> {
 }
 
 pub fn add_user(
-    pg_conn: &PgConnection,
+    pg_conn: &mut PgConnection,
     mut redis_conn: RedisConn,
     user: &InputUser,
 ) -> anyhow::Result<()> {
@@ -85,7 +85,7 @@ pub fn add_user(
     Ok(())
 }
 
-pub fn update_user(conn: &PgConnection, user_id: i32, update_user: &UpdateUser) -> Result<()> {
+pub fn update_user(conn: &mut PgConnection, user_id: i32, update_user: &UpdateUser) -> Result<()> {
     use crate::schema::user;
     diesel::update(user::table.find(user_id))
         .set(update_user)
@@ -98,7 +98,7 @@ pub fn update_user(conn: &PgConnection, user_id: i32, update_user: &UpdateUser) 
     Ok(())
 }
 
-pub fn get_duplicate_users(conn: &PgConnection, user: &InputUser) -> Result<Vec<User>> {
+pub fn get_duplicate_users(conn: &mut PgConnection, user: &InputUser) -> Result<Vec<User>> {
     use crate::schema::user;
     let duplicates = user::table
         .filter(user::username.eq(&user.username))
@@ -112,7 +112,7 @@ pub fn get_duplicate_users(conn: &PgConnection, user: &InputUser) -> Result<Vec<
     Ok(duplicates)
 }
 
-pub fn get_duplicate_username(conn: &PgConnection, username: &str) -> Result<Option<User>> {
+pub fn get_duplicate_username(conn: &mut PgConnection, username: &str) -> Result<Option<User>> {
     use crate::schema::user;
     Ok(user::table
         .filter(user::username.eq(username))
@@ -125,7 +125,7 @@ pub fn get_duplicate_username(conn: &PgConnection, username: &str) -> Result<Opt
         })?)
 }
 
-pub fn fetch_attack_game(conn: &PgConnection, player_id: i32) -> Result<Vec<Game>> {
+pub fn fetch_attack_game(conn: &mut PgConnection, player_id: i32) -> Result<Vec<Game>> {
     use crate::schema::game;
     Ok(game::table
         .filter(game::attack_id.eq(player_id))
@@ -138,7 +138,7 @@ pub fn fetch_attack_game(conn: &PgConnection, player_id: i32) -> Result<Vec<Game
         })?)
 }
 
-pub fn fetch_defense_game(conn: &PgConnection, player_id: i32) -> Result<Vec<Game>> {
+pub fn fetch_defense_game(conn: &mut PgConnection, player_id: i32) -> Result<Vec<Game>> {
     use crate::schema::game;
     Ok(game::table
         .filter(game::defend_id.eq(player_id))

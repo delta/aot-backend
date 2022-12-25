@@ -11,7 +11,7 @@ actix-web = {version = "3", features = ["rustls"] }
 anyhow = "1.0.68"
 derive_more = "0.99.17"
 chrono = { version = "0.4.23", features = ["serde"] }
-diesel = { version = "1.4.4", features = ["chrono", "postgres", "r2d2"] }
+diesel = { version = "2.0.2", features = ["chrono", "postgres", "r2d2"] }
 dotenv = "0.15.0"
 actix-session = "0.4.1"
 flexi_logger = "0.24.2"
@@ -24,7 +24,7 @@ petgraph = "0.6.2"
 serde = { version = "1.0.151", features = ["derive"] }
 pwhash = "1"
 actix-cors = "0.5.4"
-diesel_migrations = "1.4.0"
+diesel_migrations = "2.0.0"
 futures = "0.3.25"
 base64 = "0.20.0"
 redis = { version = "0.22.1", features = ["r2d2"] }

@@ -34,7 +34,7 @@ pub fn get_leaderboard(
     page: i64,
     limit: i64,
     user_id: i32,
-    conn: &PgConnection,
+    conn: &mut PgConnection,
 ) -> Result<LeaderboardResponse> {
     use crate::schema::{game, map_layout, user};
 
@@ -138,7 +138,11 @@ pub fn get_leaderboard(
     })
 }
 
-pub fn fetch_is_replay_allowed(game_id: i32, user_id: i32, conn: &PgConnection) -> Result<bool> {
+pub fn fetch_is_replay_allowed(
+    game_id: i32,
+    user_id: i32,
+    conn: &mut PgConnection,
+) -> Result<bool> {
     use crate::schema::{game, levels_fixture, map_layout};
 
     let joined_table = game::table.inner_join(map_layout::table.inner_join(levels_fixture::table));
@@ -154,7 +158,7 @@ pub fn fetch_is_replay_allowed(game_id: i32, user_id: i32, conn: &PgConnection) 
     Ok(false)
 }
 
-pub fn fetch_replay(game_id: i32, conn: &PgConnection) -> Result<SimulationLog> {
+pub fn fetch_replay(game_id: i32, conn: &mut PgConnection) -> Result<SimulationLog> {
     use crate::schema::simulation_log;
     Ok(simulation_log::table
         .filter(simulation_log::game_id.eq(game_id))

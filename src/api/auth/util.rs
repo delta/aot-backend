@@ -10,7 +10,7 @@ use rand::{distributions::Alphanumeric, Rng};
 use redis::Commands;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-pub fn get_user(conn: &PgConnection, id: i32) -> Result<Option<User>> {
+pub fn get_user(conn: &mut PgConnection, id: i32) -> Result<Option<User>> {
     let user = user::table
         .find(id)
         .first::<User>(conn)
@@ -23,7 +23,7 @@ pub fn get_user(conn: &PgConnection, id: i32) -> Result<Option<User>> {
     Ok(user)
 }
 
-pub fn get_user_by_username(conn: &PgConnection, username: &str) -> Result<Option<User>> {
+pub fn get_user_by_username(conn: &mut PgConnection, username: &str) -> Result<Option<User>> {
     let user = user::table
         .filter(user::username.eq(username))
         .first::<User>(conn)
@@ -37,7 +37,7 @@ pub fn get_user_by_username(conn: &PgConnection, username: &str) -> Result<Optio
 }
 
 pub fn get_pragyan_user(
-    pg_conn: &PgConnection,
+    pg_conn: &mut PgConnection,
     redis_conn: &mut RedisConn,
     email: &str,
     name: &str,
@@ -86,7 +86,7 @@ pub fn get_pragyan_user(
     }
 }
 
-pub fn verify_user(conn: &PgConnection, id: i32) -> Result<()> {
+pub fn verify_user(conn: &mut PgConnection, id: i32) -> Result<()> {
     let user: User = diesel::update(user::table.find(id))
         .set(user::is_verified.eq(true))
         .get_result(conn)
@@ -108,7 +108,7 @@ pub fn verify_user(conn: &PgConnection, id: i32) -> Result<()> {
     Ok(())
 }
 
-pub fn get_user_with_phone(conn: &PgConnection, phone: &str) -> Result<Option<User>> {
+pub fn get_user_with_phone(conn: &mut PgConnection, phone: &str) -> Result<Option<User>> {
     let user = user::table
         .filter(user::phone.eq(&phone))
         .filter(user::is_verified.eq(true))
@@ -123,7 +123,7 @@ pub fn get_user_with_phone(conn: &PgConnection, phone: &str) -> Result<Option<Us
 }
 
 pub fn reset_password(
-    pg_conn: &PgConnection,
+    pg_conn: &mut PgConnection,
     mut redis_conn: RedisConn,
     user_id: i32,
     password: &str,
