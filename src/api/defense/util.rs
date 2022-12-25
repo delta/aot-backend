@@ -34,7 +34,7 @@ pub fn is_defense_allowed_now() -> bool {
     current_time >= start_time || current_time <= end_time
 }
 
-pub fn defender_exists(defender: i32, conn: &PgConnection) -> Result<bool> {
+pub fn defender_exists(defender: i32, conn: &mut PgConnection) -> Result<bool> {
     use crate::schema::user;
 
     Ok(select(exists(user::table.filter(user::id.eq(defender))))
@@ -46,7 +46,7 @@ pub fn defender_exists(defender: i32, conn: &PgConnection) -> Result<bool> {
         })?)
 }
 
-pub fn fetch_map_layout(conn: &PgConnection, player: &i32) -> Result<MapLayout> {
+pub fn fetch_map_layout(conn: &mut PgConnection, player: &i32) -> Result<MapLayout> {
     use crate::schema::map_layout;
 
     let level_id = &api::util::get_current_levels_fixture(conn)?.id;
@@ -76,7 +76,10 @@ pub fn fetch_map_layout(conn: &PgConnection, player: &i32) -> Result<MapLayout> 
     }
 }
 
-pub fn fetch_map_layout_from_game(conn: &PgConnection, game_id: i32) -> Result<Option<MapLayout>> {
+pub fn fetch_map_layout_from_game(
+    conn: &mut PgConnection,
+    game_id: i32,
+) -> Result<Option<MapLayout>> {
     use crate::schema::{game, map_layout};
 
     let map_layout_id = game::table
@@ -105,7 +108,10 @@ pub fn fetch_map_layout_from_game(conn: &PgConnection, game_id: i32) -> Result<O
     }
 }
 
-pub fn get_details_from_map_layout(conn: &PgConnection, map: MapLayout) -> Result<DefenseResponse> {
+pub fn get_details_from_map_layout(
+    conn: &mut PgConnection,
+    map: MapLayout,
+) -> Result<DefenseResponse> {
     use crate::schema::{attack_type, level_constraints, levels_fixture, map_spaces};
 
     let map_spaces = map_spaces::table
@@ -149,7 +155,7 @@ pub fn get_details_from_map_layout(conn: &PgConnection, map: MapLayout) -> Resul
     })
 }
 
-pub fn fetch_blocks(conn: &PgConnection) -> Result<Vec<BlockType>> {
+pub fn fetch_blocks(conn: &mut PgConnection) -> Result<Vec<BlockType>> {
     use crate::schema::block_type::dsl::*;
 
     Ok(block_type
@@ -164,7 +170,7 @@ pub fn fetch_blocks(conn: &PgConnection) -> Result<Vec<BlockType>> {
 pub fn put_base_details(
     maps: &[MapSpacesEntry],
     map: &MapLayout,
-    conn: &PgConnection,
+    conn: &mut PgConnection,
 ) -> Result<()> {
     use crate::schema::map_spaces::dsl::*;
 
@@ -199,7 +205,10 @@ pub fn put_base_details(
     Ok(())
 }
 
-pub fn get_level_constraints(conn: &PgConnection, map_level_id: i32) -> Result<HashMap<i32, i32>> {
+pub fn get_level_constraints(
+    conn: &mut PgConnection,
+    map_level_id: i32,
+) -> Result<HashMap<i32, i32>> {
     use crate::schema::level_constraints::dsl::*;
 
     Ok(level_constraints
@@ -215,7 +224,7 @@ pub fn get_level_constraints(conn: &PgConnection, map_level_id: i32) -> Result<H
         .collect())
 }
 
-pub fn set_map_valid(conn: &PgConnection, map_id: i32) -> Result<()> {
+pub fn set_map_valid(conn: &mut PgConnection, map_id: i32) -> Result<()> {
     use crate::schema::map_layout::dsl::*;
 
     diesel::update(map_layout.find(map_id))
@@ -230,7 +239,7 @@ pub fn set_map_valid(conn: &PgConnection, map_id: i32) -> Result<()> {
     Ok(())
 }
 
-pub fn set_map_invalid(conn: &PgConnection, map_id: i32) -> Result<()> {
+pub fn set_map_invalid(conn: &mut PgConnection, map_id: i32) -> Result<()> {
     use crate::schema::map_layout::dsl::*;
 
     diesel::update(map_layout.find(map_id))
@@ -248,7 +257,7 @@ pub fn set_map_invalid(conn: &PgConnection, map_id: i32) -> Result<()> {
 pub fn fetch_defense_history(
     defender_id: i32,
     user_id: i32,
-    conn: &PgConnection,
+    conn: &mut PgConnection,
 ) -> Result<GameHistoryResponse> {
     use crate::schema::{game, levels_fixture, map_layout};
 
@@ -271,7 +280,7 @@ pub fn fetch_defense_history(
     Ok(GameHistoryResponse { games })
 }
 
-pub fn fetch_top_defenses(user_id: i32, conn: &PgConnection) -> Result<GameHistoryResponse> {
+pub fn fetch_top_defenses(user_id: i32, conn: &mut PgConnection) -> Result<GameHistoryResponse> {
     use crate::schema::{game, levels_fixture, map_layout};
 
     let joined_table = game::table.inner_join(map_layout::table.inner_join(levels_fixture::table));

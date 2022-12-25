@@ -31,7 +31,7 @@ fn get_absolute_coordinates(
 }
 
 //running shortest path simulation
-pub fn run_shortest_paths(conn: &PgConnection, input_map_layout_id: i32) {
+pub fn run_shortest_paths(conn: &mut PgConnection, input_map_layout_id: i32) {
     // reading map_spaces
     let mapspaces_list = map_spaces::table
         .filter(map_spaces::map_id.eq(input_map_layout_id))
@@ -205,7 +205,7 @@ fn main() {
     let level_id: i32 = args[1].parse().expect("Enter a valid level_id");
 
     let pool = util::get_pg_conn_pool();
-    let conn = &*pool.get().unwrap();
+    let mut conn = pool.get().unwrap();
 
     use aot_backend::schema::map_layout;
 
@@ -213,12 +213,12 @@ fn main() {
         .filter(map_layout::level_id.eq(level_id))
         .filter(map_layout::is_valid.eq(true))
         .select(map_layout::id)
-        .load::<i32>(conn)
+        .load::<i32>(&mut conn)
         .expect("Couldn't get map_ids for given level");
 
     println!("Deleting old shortest_path entries\n");
     diesel::delete(shortest_path::table)
-        .execute(conn)
+        .execute(&mut conn)
         .expect("Couldn't delete entries from shortest_path table");
 
     println!("Calculating shortest paths for level {}\n", level_id);
@@ -229,7 +229,7 @@ fn main() {
             map_ids.len(),
             map_id
         );
-        run_shortest_paths(&pool.get().unwrap(), *map_id);
+        run_shortest_paths(&mut pool.get().unwrap(), *map_id);
     });
     println!(
         "\nCalculated shortest paths for level {} successfully!",

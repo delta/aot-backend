@@ -24,7 +24,7 @@ pub struct Emps(HashMap<i32, HashSet<Emp>>);
 
 impl Emps {
     // Returns a hashmap of Emp with time as key
-    pub fn new(conn: &PgConnection, attacker_path: &[AttackerPath]) -> Result<Self> {
+    pub fn new(conn: &mut PgConnection, attacker_path: &[AttackerPath]) -> Result<Self> {
         use crate::schema::attack_type;
 
         let mut emps = HashMap::new();

@@ -22,8 +22,8 @@ async fn list_leaderboard(
         return Err(ErrorBadRequest("Invalid query params"));
     }
     let response = web::block(move || {
-        let conn = pool.get()?;
-        util::get_leaderboard(page, limit, user_id, &conn)
+        let mut conn = pool.get()?;
+        util::get_leaderboard(page, limit, user_id, &mut conn)
     })
     .await
     .map_err(|err| error::handle_error(err.into()))?;
@@ -38,9 +38,9 @@ async fn get_replay(
     let user_id = user.0;
     let game_id = game_id.0;
 
-    let conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let is_replay_allowed =
-        web::block(move || util::fetch_is_replay_allowed(game_id, user_id, &conn))
+        web::block(move || util::fetch_is_replay_allowed(game_id, user_id, &mut conn))
             .await
             .map_err(|err| error::handle_error(err.into()))?;
 
@@ -49,8 +49,8 @@ async fn get_replay(
     }
 
     let response = web::block(move || {
-        let conn = pool.get()?;
-        util::fetch_replay(game_id, &conn)
+        let mut conn = pool.get()?;
+        util::fetch_replay(game_id, &mut conn)
     })
     .await
     .map_err(|err| error::handle_error(err.into()))?;
