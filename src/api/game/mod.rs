@@ -25,7 +25,7 @@ async fn list_leaderboard(
         let mut conn = pool.get()?;
         util::get_leaderboard(page, limit, user_id, &mut conn)
     })
-    .await
+    .await?
     .map_err(|err| error::handle_error(err.into()))?;
     Ok(web::Json(response))
 }
@@ -36,12 +36,12 @@ async fn get_replay(
     user: AuthUser,
 ) -> Result<impl Responder> {
     let user_id = user.0;
-    let game_id = game_id.0;
+    let game_id = game_id.into_inner();
 
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let is_replay_allowed =
         web::block(move || util::fetch_is_replay_allowed(game_id, user_id, &mut conn))
-            .await
+            .await?
             .map_err(|err| error::handle_error(err.into()))?;
 
     if !is_replay_allowed {
@@ -52,7 +52,7 @@ async fn get_replay(
         let mut conn = pool.get()?;
         util::fetch_replay(game_id, &mut conn)
     })
-    .await
+    .await?
     .map_err(|err| error::handle_error(err.into()))?;
     Ok(web::Json(response))
 }

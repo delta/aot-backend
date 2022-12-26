@@ -22,7 +22,7 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
     .service(web::resource("/game/{id}").route(web::get().to(get_game_base_details)))
     .service(web::resource("/{defender_id}").route(web::get().to(get_other_base_details)))
     .service(web::resource("/{defender_id}/history").route(web::get().to(defense_history)))
-    .data(web::JsonConfig::default().limit(1024 * 1024));
+    .app_data(Data::new(web::JsonConfig::default().limit(1024 * 1024)));
 }
 
 #[derive(Deserialize)]
@@ -40,7 +40,7 @@ async fn get_user_base_details(pool: Data<PgPool>, user: AuthUser) -> Result<imp
         let map = util::fetch_map_layout(&mut conn, &defender_id)?;
         util::get_details_from_map_layout(&mut conn, map)
     })
-    .await
+    .await?
     .map_err(|err| error::handle_error(err.into()))?;
 
     Ok(Json(response))
@@ -50,17 +50,18 @@ async fn get_other_base_details(
     defender_id: web::Path<i32>,
     pool: web::Data<PgPool>,
 ) -> Result<impl Responder> {
+    let defender_id = defender_id.into_inner();
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-    let defender_exists = web::block(move || util::defender_exists(defender_id.0, &mut conn))
-        .await
+    let defender_exists = web::block(move || util::defender_exists(defender_id, &mut conn))
+        .await?
         .map_err(|err| error::handle_error(err.into()))?;
     if !defender_exists {
         return Err(ErrorNotFound("Player not found"));
     }
 
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-    let map = web::block(move || util::fetch_map_layout(&mut conn, &defender_id.0))
-        .await
+    let map = web::block(move || util::fetch_map_layout(&mut conn, &defender_id))
+        .await?
         .map_err(|err| error::handle_error(err.into()))?;
 
     if !map.is_valid {
@@ -71,7 +72,7 @@ async fn get_other_base_details(
         let mut conn = pool.get()?;
         util::get_details_from_map_layout(&mut conn, map)
     })
-    .await
+    .await?
     .map_err(|err| error::handle_error(err.into()))?;
 
     Ok(Json(response))
@@ -81,9 +82,10 @@ async fn get_game_base_details(
     game_id: web::Path<i32>,
     pool: web::Data<PgPool>,
 ) -> Result<impl Responder> {
+    let game_id = game_id.into_inner();
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-    let map = web::block(move || util::fetch_map_layout_from_game(&mut conn, game_id.0))
-        .await
+    let map = web::block(move || util::fetch_map_layout_from_game(&mut conn, game_id))
+        .await?
         .map_err(|err| error::handle_error(err.into()))?;
 
     if map.is_none() {
@@ -94,7 +96,7 @@ async fn get_game_base_details(
         let mut conn = pool.get()?;
         util::get_details_from_map_layout(&mut conn, map.unwrap())
     })
-    .await
+    .await?
     .map_err(|err| error::handle_error(err.into()))?;
 
     Ok(Json(response))
@@ -119,7 +121,7 @@ async fn set_base_details(
             util::fetch_blocks(&mut conn)?,
         )) as anyhow::Result<(MapLayout, Vec<BlockType>)>
     })
-    .await
+    .await?
     .map_err(|err| error::handle_error(err.into()))?;
 
     validate::is_valid_update_layout(&map_spaces, &blocks)?;
@@ -129,7 +131,7 @@ async fn set_base_details(
         util::set_map_invalid(&mut conn, map.id)?;
         util::put_base_details(&map_spaces, &map, &mut conn)
     })
-    .await
+    .await?
     .map_err(|err| error::handle_error(err.into()))?;
 
     Ok("Updated successfully")
@@ -156,7 +158,7 @@ async fn confirm_base_details(
             util::get_level_constraints(&mut conn, map.level_id)?,
         )) as anyhow::Result<(MapLayout, Vec<BlockType>, HashMap<i32, i32>)>
     })
-    .await
+    .await?
     .map_err(|err| error::handle_error(err.into()))?;
 
     validate::is_valid_save_layout(&map_spaces, &mut level_constraints, &blocks)?;
@@ -166,7 +168,7 @@ async fn confirm_base_details(
         util::put_base_details(&map_spaces, &map, &mut conn)?;
         util::set_map_valid(&mut conn, map.id)
     })
-    .await
+    .await?
     .map_err(|err| error::handle_error(err.into()))?;
 
     Ok("Saved successfully")
@@ -178,12 +180,12 @@ async fn defense_history(
     user: AuthUser,
 ) -> Result<impl Responder> {
     let user_id = user.0;
-    let defender_id = defender_id.0;
+    let defender_id = defender_id.into_inner();
     let response = web::block(move || {
         let mut conn = pool.get()?;
         util::fetch_defense_history(defender_id, user_id, &mut conn)
     })
-    .await
+    .await?
     .map_err(|err| error::handle_error(err.into()))?;
     Ok(web::Json(response))
 }
@@ -194,7 +196,7 @@ async fn get_top_defenses(pool: web::Data<PgPool>, user: AuthUser) -> Result<imp
         let mut conn = pool.get()?;
         util::fetch_top_defenses(user_id, &mut conn)
     })
-    .await
+    .await?
     .map_err(|err| error::handle_error(err.into()))?;
     Ok(web::Json(response))
 }

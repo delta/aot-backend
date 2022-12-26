@@ -1,8 +1,12 @@
 use crate::api::{attack, auth, defense, game, user};
 use crate::constants::{ATTACK_END_TIME, ATTACK_START_TIME};
 use actix_cors::Cors;
-use actix_redis::RedisSession;
-use actix_web::{middleware, web, App, HttpResponse, HttpServer};
+use actix_session::{
+    config::PersistentSession, storage::RedisActorSessionStore, SessionMiddleware,
+};
+use actix_web::cookie::time::Duration;
+use actix_web::web::Data;
+use actix_web::{cookie::Key, middleware, web, App, HttpResponse, HttpServer};
 use chrono::NaiveTime;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use flexi_logger::{Cleanup, Criterion, Duplicate, FileSpec, Naming};
@@ -41,6 +45,7 @@ async fn main() -> std::io::Result<()> {
     let pg_pool = util::get_pg_conn_pool();
     let redis_pool = util::get_redis_conn_pool();
     let cookie_key = std::env::var("COOKIE_KEY").expect("COOKIE_KEY must be set");
+    let key = Key::derive_from(cookie_key.as_bytes());
     let frontend_url = std::env::var("FRONTEND_URL").expect("FRONTEND_URL must be set");
     let redis_url = std::env::var("REDIS_URL").unwrap();
 
@@ -50,9 +55,13 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .wrap(
-                RedisSession::new(&redis_url, cookie_key.as_ref())
-                    .cookie_name("session")
-                    .ttl(7 * 24 * 60 * 60),
+                SessionMiddleware::builder(RedisActorSessionStore::new(&redis_url), key.clone())
+                    .cookie_name("session".to_string())
+                    .session_lifecycle(
+                        PersistentSession::default()
+                            .session_ttl(Duration::seconds(7 * 24 * 60 * 60)),
+                    )
+                    .build(),
             )
             .wrap(
                 Cors::default()
@@ -66,12 +75,9 @@ async fn main() -> std::io::Result<()> {
             .wrap(middleware::Logger::new(
                 "%t %{r}a %r %s %b %{Referer}i %{User-Agent}i %T",
             ))
-            .data(pg_pool.clone())
-            .data(redis_pool.clone())
-            .route(
-                "/",
-                web::get().to(|| HttpResponse::Ok().body("Hello from AoR")),
-            )
+            .app_data(Data::new(pg_pool.clone()))
+            .app_data(Data::new(redis_pool.clone()))
+            .route("/", web::get().to(HttpResponse::Ok))
             .service(web::scope("/attack").configure(attack::routes))
             .service(
                 web::scope("/user")
