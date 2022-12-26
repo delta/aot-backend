@@ -1,6 +1,19 @@
 use super::schema::*;
 use chrono::NaiveDateTime;
+use diesel_derive_enum::DbEnum;
 use serde::{Deserialize, Serialize};
+
+// src/my_code.rs
+
+#[derive(DbEnum, Debug)]
+#[DieselTypePath = "crate::schema::sql_types::BuildingCategory"]
+pub enum BuildingTypes {
+    Building,
+    Road,
+    Defender,
+    Diffuser,
+    Mine,
+}
 
 #[derive(Queryable, Serialize)]
 pub struct AttackType {
@@ -110,6 +123,10 @@ pub struct LevelsFixture {
     pub no_of_bombs: i32,
     pub no_of_robots: i32,
     pub rating_factor: f32,
+    pub no_of_defenders: i32,
+    pub no_of_attackers: i32,
+    pub no_of_mines: i32,
+    pub no_of_diffusers: i32,
 }
 
 #[derive(Insertable)]
@@ -119,6 +136,10 @@ pub struct NewLevelFixture<'a> {
     pub end_date: &'a NaiveDateTime,
     pub no_of_bombs: &'a i32,
     pub no_of_robots: &'a i32,
+    pub no_of_defenders: &'a i32,
+    pub no_of_attackers: &'a i32,
+    pub no_of_mines: &'a i32,
+    // pub no_of_diffusers: &'a i32,
 }
 
 #[derive(Queryable, Serialize)]
@@ -159,16 +180,19 @@ pub struct MapSpaces {
     pub x_coordinate: i32,
     pub y_coordinate: i32,
     pub rotation: i32,
+    pub building_type: i32,
 }
 
 #[derive(Deserialize, Insertable)]
 #[diesel(table_name = map_spaces)]
+
 pub struct NewMapSpaces {
     pub map_id: i32,
     pub blk_type: i32,
     pub x_coordinate: i32,
     pub y_coordinate: i32,
     pub rotation: i32,
+    //    pub building_type : Option<i32>,
 }
 
 #[derive(Queryable)]
