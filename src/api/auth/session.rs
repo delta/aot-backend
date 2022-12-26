@@ -1,5 +1,5 @@
 use crate::api::{error::AuthError, RedisConn, RedisPool};
-use actix_session::{Session, UserSession};
+use actix_session::{Session, SessionExt};
 use actix_web::{dev::Payload, web::Data, FromRequest, HttpRequest};
 use futures::future::{err, ok, Ready};
 use redis::Commands;
@@ -8,7 +8,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 pub struct AuthUser(pub i32);
 
 impl FromRequest for AuthUser {
-    type Config = ();
     type Error = AuthError;
     type Future = Ready<Result<AuthUser, AuthError>>;
 
@@ -32,7 +31,6 @@ impl FromRequest for AuthUser {
 pub struct UnverifiedUser(pub i32);
 
 impl FromRequest for UnverifiedUser {
-    type Config = ();
     type Error = AuthError;
     type Future = Ready<Result<UnverifiedUser, AuthError>>;
 
@@ -84,10 +82,10 @@ pub fn set(
     user_id: i32,
     is_verified: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    session.set("user", user_id)?;
-    session.set("is_verified", is_verified)?;
+    session.insert("user", user_id)?;
+    session.insert("is_verified", is_verified)?;
     let created_at = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
-    session.set("created_at", created_at)?;
+    session.insert("created_at", created_at)?;
     session.renew();
     Ok(())
 }

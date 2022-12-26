@@ -36,7 +36,7 @@ async fn create_attack(
         let map = util::get_map_id(&defender_id, &level.id, &mut conn)?;
         Ok((level, map)) as anyhow::Result<(LevelsFixture, Option<i32>)>
     })
-    .await
+    .await?
     .map_err(|err| error::handle_error(err.into()))?;
 
     let map_id = if let Some(map) = map {
@@ -53,7 +53,7 @@ async fn create_attack(
         Ok((valid_road_paths, valid_emp_ids, is_attack_allowed))
             as anyhow::Result<(HashSet<(i32, i32)>, HashSet<i32>, bool)>
     })
-    .await
+    .await?
     .map_err(|err| error::handle_error(err.into()))?;
 
     if !is_attack_allowed {
@@ -84,7 +84,7 @@ async fn create_attack(
             }
         }
     })
-    .await
+    .await?
     .map_err(|err| error::handle_error(err.into()))?;
 
     Ok(HttpResponse::Ok().body(file_content))
@@ -96,12 +96,12 @@ async fn attack_history(
     user: AuthUser,
 ) -> Result<impl Responder> {
     let user_id = user.0;
-    let attacker_id = attacker_id.0;
+    let attacker_id = attacker_id.into_inner();
     let response = web::block(move || {
         let mut conn = pool.get()?;
         util::fetch_attack_history(attacker_id, user_id, &mut conn)
     })
-    .await
+    .await?
     .map_err(|err| error::handle_error(err.into()))?;
     Ok(web::Json(response))
 }
@@ -112,7 +112,7 @@ async fn get_top_attacks(pool: web::Data<PgPool>, user: AuthUser) -> Result<impl
         let mut conn = pool.get()?;
         util::fetch_top_attacks(user_id, &mut conn)
     })
-    .await
+    .await?
     .map_err(|err| error::handle_error(err.into()))?;
     Ok(web::Json(response))
 }

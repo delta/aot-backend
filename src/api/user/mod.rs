@@ -33,7 +33,7 @@ async fn register(
         .map_err(|err| error::handle_error(err.into()))?;
     let user = input_user.clone();
     let duplicates = web::block(move || util::get_duplicate_users(&mut conn, &user))
-        .await
+        .await?
         .map_err(|err| error::handle_error(err.into()))?;
     for duplicate in duplicates {
         if duplicate.phone == input_user.phone && duplicate.is_verified {
@@ -47,7 +47,7 @@ async fn register(
         let redis_conn = redis_pool.get()?;
         util::add_user(&mut conn, redis_conn, &input_user)
     })
-    .await
+    .await?
     .map_err(|err| error::handle_error(err.into()))?;
     Ok("Successfully Registered")
 }
@@ -62,7 +62,7 @@ async fn update_user(
     if let Some(username) = username {
         let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
         let duplicate = web::block(move || util::get_duplicate_username(&mut conn, &username))
-            .await
+            .await?
             .map_err(|err| error::handle_error(err.into()))?;
         if duplicate.is_some() {
             return Err(ErrorConflict("Username already exists"));
@@ -72,26 +72,27 @@ async fn update_user(
         let mut conn = pool.get()?;
         util::update_user(&mut conn, user_id, &user_details)
     })
-    .await
+    .await?
     .map_err(|err| error::handle_error(err.into()))?;
 
     Ok("User updated successfully")
 }
 
 async fn get_user_stats(user_id: Path<i32>, pool: Data<PgPool>) -> Result<impl Responder> {
+    let user_id = user_id.into_inner();
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-    let user = web::block(move || util::fetch_user(&mut conn, user_id.0))
-        .await
+    let user = web::block(move || util::fetch_user(&mut conn, user_id))
+        .await?
         .map_err(|err| error::handle_error(err.into()))?;
     if let Some(user) = user {
         let response = web::block(move || {
             let mut conn = pool.get()?;
-            let attack_game = util::fetch_attack_game(&mut conn, user_id.0)?;
-            let defense_game = util::fetch_defense_game(&mut conn, user_id.0)?;
+            let attack_game = util::fetch_attack_game(&mut conn, user_id)?;
+            let defense_game = util::fetch_defense_game(&mut conn, user_id)?;
             let users = util::fetch_all_user(&mut conn)?;
             util::make_response(&user, &attack_game, &defense_game, &users)
         })
-        .await
+        .await?
         .map_err(|err| error::handle_error(err.into()))?;
         Ok(Json(response))
     } else {

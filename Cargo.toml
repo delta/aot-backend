@@ -7,13 +7,13 @@ default-run = "aot-backend"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-actix-web = {version = "3", features = ["rustls"] }
+actix-web = {version = "4", features = ["rustls"] }
 anyhow = "1.0.68"
 derive_more = "0.99.17"
 chrono = { version = "0.4.23", features = ["serde"] }
 diesel = { version = "2.0.2", features = ["chrono", "postgres", "r2d2"] }
 dotenv = "0.15.0"
-actix-session = "0.4.1"
+actix-session = { version = "0.7.2", features = ["redis-actor-session"] }
 flexi_logger = "0.24.2"
 log = "0.4.17"
 rand = "0.8.5"
@@ -23,10 +23,11 @@ array2d = "0.3.0"
 petgraph = "0.6.2"
 serde = { version = "1.0.151", features = ["derive"] }
 pwhash = "1"
-actix-cors = "0.5.4"
+actix-cors = "0.6.4"
 diesel_migrations = "2.0.0"
 futures = "0.3.25"
 base64 = "0.20.0"
 redis = { version = "0.22.1", features = ["r2d2"] }
 r2d2 = "0.8.10"
-actix-redis = "0.9.2"
+actix-redis = "0.12.0"
+awc = "3.0.1"

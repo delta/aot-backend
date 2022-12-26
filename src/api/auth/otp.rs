@@ -1,6 +1,6 @@
 use crate::api::auth::util::generate_otp;
 use crate::api::RedisConn;
-use actix_web::client::Client;
+use awc::Client;
 use redis::Commands;
 use serde::{Deserialize, Serialize};
 
@@ -68,8 +68,8 @@ pub async fn send_otp(
     };
     let response = Client::default()
         .post(&url)
-        .header("authorization", header)
-        .header("content-type", "application/json")
+        .insert_header(("authorization", header))
+        .insert_header(("content-type", "application/json"))
         .send_json(&OtpRequest {
             dst: input_phone,
             text: &otp_msg,

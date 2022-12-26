@@ -73,8 +73,9 @@ async fn login(
     let mut pg_conn = pg_pool
         .get()
         .map_err(|err| error::handle_error(err.into()))?;
+
     let user = web::block(move || util::get_user_by_username(&mut pg_conn, &username))
-        .await
+        .await?
         .map_err(|err| error::handle_error(err.into()))?;
     if let Some(user) = user {
         if !user.is_pragyan && bcrypt::verify(&request.password, &user.password) {
@@ -108,7 +109,7 @@ async fn login(
                     let email = username.clone();
                     util::get_pragyan_user(&mut conn, &mut redis_conn, &email, &name)
                 })
-                .await
+                .await?
                 .map_err(|err| error::handle_error(err.into()))?;
                 session::set(&session, user_id, true).map_err(|err| error::handle_error(err))?;
                 Ok(Json(LoginResponse {
@@ -148,7 +149,7 @@ async fn sendotp(
     let user_id = user.0;
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let user = web::block(move || util::get_user(&mut conn, user_id))
-        .await
+        .await?
         .map_err(|err| error::handle_error(err.into()))?;
     if let Some(ref user) = user {
         if user.is_verified {
@@ -162,7 +163,7 @@ async fn sendotp(
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let phone_number = user.clone().phone;
     let duplicate_user = web::block(move || util::get_user_with_phone(&mut conn, &phone_number))
-        .await
+        .await?
         .map_err(|err| error::handle_error(err.into()))?;
     if duplicate_user.is_some() {
         return Err(ErrorBadRequest("Phone number already registered"));
@@ -200,7 +201,7 @@ async fn verify(
     }
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let user = web::block(move || util::get_user(&mut conn, user_id))
-        .await
+        .await?
         .map_err(|err| error::handle_error(err.into()))?;
     if user.is_none() {
         return Err(ErrorBadRequest("User not found"));
@@ -223,10 +224,10 @@ async fn verify(
                 let mut conn = pool.get()?;
                 util::verify_user(&mut conn, user_id)
             })
-            .await
+            .await?
             .map_err(|err| error::handle_error(err.into()))?;
             session
-                .set("is_verified", true)
+                .insert("is_verified", true)
                 .map_err(|err| error::handle_error(err.into()))?;
             Ok("Account successfully verified")
         }
@@ -246,7 +247,7 @@ async fn send_resetpw_otp(
         .map_err(|err| error::handle_error(err.into()))?;
     let phone_number = request.phone_number.clone();
     let user = web::block(move || util::get_user_with_phone(&mut conn, &phone_number))
-        .await
+        .await?
         .map_err(|err| error::handle_error(err.into()))?;
     if user.is_none() {
         return Err(ErrorBadRequest("Invalid phone number"));
@@ -290,7 +291,7 @@ async fn reset_pw(
         .map_err(|err| error::handle_error(err.into()))?;
     let phone = phone_number.clone();
     let user = web::block(move || util::get_user_with_phone(&mut pg_conn, &phone))
-        .await
+        .await?
         .map_err(|err| error::handle_error(err.into()))?;
     if user.is_none() {
         return Err(ErrorBadRequest("Invalid phone number"));
@@ -313,7 +314,7 @@ async fn reset_pw(
                 let redis_conn = redis_pool.get()?;
                 util::reset_password(&mut conn, redis_conn, user_id, &password)
             })
-            .await
+            .await?
             .map_err(|err| error::handle_error(err.into()))?;
             Ok("Password reset successfully")
         }
