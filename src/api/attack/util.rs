@@ -2,7 +2,9 @@ use crate::api;
 use crate::api::util::{GameHistoryEntry, GameHistoryResponse};
 use crate::constants::*;
 use crate::error::DieselError;
-use crate::models::{Game, LevelsFixture, MapLayout, NewAttackerPath, NewGame, NewSimulationLog};
+use crate::models::{
+    AttackerType, Game, LevelsFixture, MapLayout, NewAttackerPath, NewGame, NewSimulationLog,
+};
 use crate::simulation::RenderRobot;
 use crate::simulation::{RenderAttacker, Simulator};
 use crate::util::function;
@@ -13,12 +15,19 @@ use diesel::prelude::*;
 use diesel::select;
 use diesel::PgConnection;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::io::Write;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct NewAttack {
     pub defender_id: i32,
+    pub no_of_attackers: i32,
+    pub attackers: Vec<NewAttacker>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct NewAttacker {
+    pub attacker_type: i32,
     pub attacker_path: Vec<NewAttackerPath>,
 }
 
@@ -239,48 +248,53 @@ pub fn remove_game(game_id: i32, conn: &mut PgConnection) -> Result<()> {
 
 pub fn run_simulation(
     game_id: i32,
-    attacker_path: Vec<NewAttackerPath>,
+    attackers: Vec<NewAttacker>,
     conn: &mut PgConnection,
 ) -> Result<Vec<u8>> {
     let mut content = Vec::new();
-    writeln!(content, "attacker_path")?;
-    writeln!(content, "id,y,x,is_emp")?;
-    attacker_path
-        .iter()
-        .enumerate()
-        .try_for_each(|(id, path)| {
-            writeln!(
-                content,
-                "{},{},{},{}",
-                id + 1,
-                path.y_coord,
-                path.x_coord,
-                path.is_emp
-            )
-        })?;
 
-    use crate::schema::game;
-    let mut simulator = Simulator::new(game_id, &attacker_path, conn)
-        .with_context(|| "Failed to create simulator")?;
-
-    writeln!(content, "emps")?;
-    writeln!(content, "id,time,type")?;
-    attacker_path
-        .iter()
-        .enumerate()
-        .try_for_each(|(id, path)| {
-            if path.is_emp {
+    for (attacker_id, attacker) in attackers.iter().enumerate() {
+        writeln!(content, "attacker {}", attacker_id + 1)?;
+        let attacker_path = &attacker.attacker_path;
+        writeln!(content, "attacker_path")?;
+        writeln!(content, "id,y,x,is_emp")?;
+        attacker_path
+            .iter()
+            .enumerate()
+            .try_for_each(|(id, path)| {
                 writeln!(
                     content,
-                    "{},{},{}",
+                    "{},{},{},{}",
                     id + 1,
-                    path.emp_time.unwrap(),
-                    path.emp_type.unwrap()
+                    path.y_coord,
+                    path.x_coord,
+                    path.is_emp
                 )
-            } else {
-                Ok(())
-            }
-        })?;
+            })?;
+        writeln!(content, "emps")?;
+        writeln!(content, "id,time,type")?;
+        attacker_path
+            .iter()
+            .enumerate()
+            .try_for_each(|(id, path)| {
+                if path.is_emp {
+                    writeln!(
+                        content,
+                        "{},{},{}",
+                        id + 1,
+                        path.emp_time.unwrap(),
+                        path.emp_type.unwrap()
+                    )
+                } else {
+                    Ok(())
+                }
+            })?;
+    }
+    let attacker_path = &attackers[0].attacker_path;
+
+    use crate::schema::game;
+    let mut simulator = Simulator::new(game_id, attacker_path, conn)
+        .with_context(|| "Failed to create simulator")?;
 
     for frame in 1..=NO_OF_FRAMES {
         writeln!(content, "frame {}", frame)?;
@@ -377,4 +391,28 @@ pub fn insert_simulation_log(game_id: i32, content: &[u8], conn: &mut PgConnecti
             error: err,
         })?;
     Ok(())
+}
+
+pub fn get_attacker_types(conn: &mut PgConnection) -> Result<HashMap<i32, AttackerType>> {
+    use crate::schema::attacker_type::dsl::*;
+    Ok(attacker_type
+        .load::<AttackerType>(conn)
+        .map_err(|err| DieselError {
+            table: "attacker_type",
+            function: function!(),
+            error: err,
+        })?
+        .iter()
+        .map(|attacker| {
+            (
+                attacker.id,
+                AttackerType {
+                    id: attacker.id,
+                    max_health: attacker.max_health,
+                    speed: attacker.speed,
+                    amt_of_emps: attacker.amt_of_emps,
+                },
+            )
+        })
+        .collect::<HashMap<i32, AttackerType>>())
 }
