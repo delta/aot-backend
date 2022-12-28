@@ -5,8 +5,8 @@ use crate::error::DieselError;
 use crate::models::{
     AttackerType, Game, LevelsFixture, MapLayout, NewAttackerPath, NewGame, NewSimulationLog,
 };
-use crate::simulation::RenderRobot;
-use crate::simulation::{RenderAttacker, Simulator};
+use crate::simulation::Simulator;
+use crate::simulation::{RenderAttacker, RenderRobot};
 use crate::util::function;
 use anyhow::{Context, Result};
 use chrono::{Local, NaiveTime};
@@ -290,31 +290,33 @@ pub fn run_simulation(
                 }
             })?;
     }
-    let attacker_path = &attackers[0].attacker_path;
 
     use crate::schema::game;
-    let mut simulator = Simulator::new(game_id, attacker_path, conn)
-        .with_context(|| "Failed to create simulator")?;
+    let mut simulator =
+        Simulator::new(game_id, &attackers, conn).with_context(|| "Failed to create simulator")?;
 
     for frame in 1..=NO_OF_FRAMES {
         writeln!(content, "frame {}", frame)?;
         let simulated_frame = simulator
             .simulate()
             .with_context(|| format!("Failed to simulate frame {}", frame))?;
-
-        writeln!(content, "attacker")?;
-        writeln!(content, "x,y,is_alive,emp_id")?;
-        let RenderAttacker {
-            x_position,
-            y_position,
-            is_alive,
-            emp_id,
-        } = simulated_frame.attacker;
-        writeln!(
-            content,
-            "{},{},{},{}",
-            x_position, y_position, is_alive, emp_id
-        )?;
+        for attacker in simulated_frame.attackers {
+            writeln!(content, "attacker {}", attacker.attacker_id)?;
+            writeln!(content, "x,y,is_alive,emp_id,health")?;
+            let RenderAttacker {
+                x_position,
+                y_position,
+                is_alive,
+                emp_id,
+                health,
+                ..
+            } = attacker;
+            writeln!(
+                content,
+                "{},{},{},{},{}",
+                x_position, y_position, is_alive, emp_id, health
+            )?;
+        }
 
         writeln!(content, "robots")?;
         writeln!(content, "id,health,x,y,in_building")?;
@@ -333,14 +335,15 @@ pub fn run_simulation(
             )?;
         }
     }
+    //TODO: Change is_alive to no_of_attackers_alive and emps_used too
     let (attack_score, defend_score) = simulator.get_scores();
     let (attacker_rating_change, defender_rating_change) =
         diesel::update(game::table.find(game_id))
             .set((
                 game::damage_done.eq(simulator.get_damage_done()),
                 game::robots_destroyed.eq(simulator.get_no_of_robots_destroyed()),
-                game::is_attacker_alive.eq(simulator.get_is_attacker_alive()),
-                game::emps_used.eq(simulator.get_emps_used()),
+                game::is_attacker_alive.eq(true),
+                game::emps_used.eq(1),
                 game::attack_score.eq(attack_score),
                 game::defend_score.eq(defend_score),
             ))
