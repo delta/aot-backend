@@ -11,7 +11,6 @@ use chrono::{Local, NaiveTime};
 use diesel::dsl::exists;
 use diesel::{prelude::*, select};
 use serde::{Deserialize, Serialize};
-// use std::any::type_name;
 use std::collections::HashMap;
 
 #[derive(Serialize)]
@@ -176,9 +175,9 @@ pub fn get_details_from_map_layout(
             error: err,
         })?;
 
-    let mine_types = fetch_mine_types(conn).unwrap();
-    let defender_types = fetch_defender_types(conn).unwrap();
-    let diffuser_types = fetch_diffuser_types(conn).unwrap();
+    let mine_types = fetch_mine_types(conn)?;
+    let defender_types = fetch_defender_types(conn)?;
+    let diffuser_types = fetch_diffuser_types(conn)?;
 
     Ok(DefenseResponse {
         map_spaces,
@@ -362,7 +361,6 @@ pub fn fetch_mine_types(conn: &mut PgConnection) -> Result<Vec<MineTypeResponse>
 }
 
 pub fn fetch_diffuser_types(conn: &mut PgConnection) -> Result<Vec<DiffuserTypeResponse>> {
-    println!("Hello");
     use crate::schema::{building_type, diffuser_type};
 
     let joined_table = building_type::table.inner_join(diffuser_type::table);
@@ -370,7 +368,6 @@ pub fn fetch_diffuser_types(conn: &mut PgConnection) -> Result<Vec<DiffuserTypeR
         .load::<(BuildingType, DiffuserType)>(conn)?
         .into_iter()
         .map(|(building_type, diffuser_type)| {
-            println!("{:?}", building_type);
             Ok(DiffuserTypeResponse {
                 id: diffuser_type.id,
                 radius: diffuser_type.radius,
@@ -400,21 +397,3 @@ pub fn fetch_defender_types(conn: &mut PgConnection) -> Result<Vec<DefenderTypeR
         .collect();
     Ok(types_result)
 }
-
-// pub fn get_defender_types(conn: &mut PgConnection) -> Vec<DefenderTypeResponse> {
-//     use crate::schema::{building_type, defender_type};
-
-//     let joined_table = building_type::table.inner_join(defender_type::table);
-//     let types_result: Vec<DefenderTypeResponse> = joined_table
-//         .load::<(BuildingType, DefenderType)>(conn)
-//         .into_iter()
-//         .map(|(building_type, defender_type)| DefenderTypeResponse {
-//             id:defender_type.id,
-//             radius:defender_type.radius,
-//             speed:defender_type.speed,
-//             damage:defender_type.damage,
-//             building_id: building_type.id,
-//         })
-//         .collect();
-//     types_result
-// }
