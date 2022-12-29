@@ -31,6 +31,7 @@ pub struct MapSpacesEntry {
     pub x_coordinate: i32,
     pub y_coordinate: i32,
     pub rotation: i32,
+    pub building_type: i32,
 }
 
 async fn get_user_base_details(pool: Data<PgPool>, user: AuthUser) -> Result<impl Responder> {

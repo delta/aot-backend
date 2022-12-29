@@ -3,11 +3,9 @@ use chrono::NaiveDateTime;
 use diesel_derive_enum::DbEnum;
 use serde::{Deserialize, Serialize};
 
-// src/my_code.rs
-
-#[derive(DbEnum, Debug)]
+#[derive(DbEnum, Debug, Serialize, Clone)]
 #[DieselTypePath = "crate::schema::sql_types::BuildingCategory"]
-pub enum BuildingTypes {
+pub enum BuildingCategory {
     Building,
     Road,
     Defender,
@@ -139,7 +137,6 @@ pub struct NewLevelFixture<'a> {
     pub no_of_defenders: &'a i32,
     pub no_of_attackers: &'a i32,
     pub no_of_mines: &'a i32,
-    // pub no_of_diffusers: &'a i32,
 }
 
 #[derive(Queryable, Serialize)]
@@ -185,14 +182,13 @@ pub struct MapSpaces {
 
 #[derive(Deserialize, Insertable)]
 #[diesel(table_name = map_spaces)]
-
 pub struct NewMapSpaces {
     pub map_id: i32,
     pub blk_type: i32,
     pub x_coordinate: i32,
     pub y_coordinate: i32,
     pub rotation: i32,
-    //    pub building_type : Option<i32>,
+    pub building_type: i32,
 }
 
 #[derive(Queryable)]
@@ -262,4 +258,44 @@ pub struct NewSimulationLog<'a> {
 pub struct UpdateUser {
     name: Option<String>,
     pub username: Option<String>,
+}
+
+#[derive(Queryable, Clone, Debug, Serialize)]
+pub struct MineType {
+    pub id: i32,
+    pub radius: i32,
+    pub damage: i32,
+}
+
+#[derive(Queryable, Clone, Debug, Serialize)]
+pub struct DiffuserType {
+    pub id: i32,
+    pub radius: i32,
+    pub speed: i32,
+}
+
+#[derive(Queryable, Clone, Debug, Serialize)]
+pub struct DefenderType {
+    pub id: i32,
+    pub radius: i32,
+    pub speed: i32,
+    pub damage: i32,
+}
+
+#[derive(Queryable, Clone, Debug, Serialize)]
+pub struct BuildingType {
+    pub id: i32,
+    pub defender_type: Option<i32>,
+    pub diffuser_type: Option<i32>,
+    pub mine_type: Option<i32>,
+    pub buiding_category: BuildingCategory,
+}
+
+#[derive(Queryable, Clone, Debug, Serialize)]
+#[diesel(table_name = building_type)]
+pub struct NewBuildingType<'a> {
+    pub defender_type: &'a Option<i32>,
+    pub diffuser_type: &'a Option<i32>,
+    pub mine_type: &'a Option<i32>,
+    pub buiding_category: &'a BuildingCategory,
 }
