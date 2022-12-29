@@ -346,18 +346,19 @@ pub fn fetch_mine_types(conn: &mut PgConnection) -> Result<Vec<MineTypeResponse>
 
     let joined_table = building_type::table.inner_join(mine_type::table);
 
-    let mines: Vec<MineTypeResponse> = joined_table
+    let mines: Result<Vec<MineTypeResponse>> = joined_table
         .load::<(BuildingType, MineType)>(conn)?
         .into_iter()
-        .map(|(building_type, mine_type)| MineTypeResponse {
-            id: mine_type.id,
-            radius: mine_type.radius,
-            damage: mine_type.damage,
-            building_id: building_type.id,
+        .map(|(building_type, mine_type)| {
+            Ok(MineTypeResponse {
+                id: mine_type.id,
+                radius: mine_type.radius,
+                damage: mine_type.damage,
+                building_id: building_type.id,
+            })
         })
         .collect();
-
-    Ok(mines)
+    mines
 }
 
 pub fn fetch_diffuser_types(conn: &mut PgConnection) -> Result<Vec<DiffuserTypeResponse>> {
@@ -384,16 +385,18 @@ pub fn fetch_defender_types(conn: &mut PgConnection) -> Result<Vec<DefenderTypeR
     use crate::schema::{building_type, defender_type};
 
     let joined_table = building_type::table.inner_join(defender_type::table);
-    let defenders: Vec<DefenderTypeResponse> = joined_table
+    let defenders: Result<Vec<DefenderTypeResponse>> = joined_table
         .load::<(BuildingType, DefenderType)>(conn)?
         .into_iter()
-        .map(|(building_type, defender_type)| DefenderTypeResponse {
-            id: defender_type.id,
-            radius: defender_type.radius,
-            speed: defender_type.speed,
-            damage: defender_type.damage,
-            building_id: building_type.id,
+        .map(|(building_type, defender_type)| {
+            Ok(DefenderTypeResponse {
+                id: defender_type.id,
+                radius: defender_type.radius,
+                speed: defender_type.speed,
+                damage: defender_type.damage,
+                building_id: building_type.id,
+            })
         })
         .collect();
-    Ok(defenders)
+    defenders
 }
