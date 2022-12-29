@@ -346,7 +346,7 @@ pub fn fetch_mine_types(conn: &mut PgConnection) -> Result<Vec<MineTypeResponse>
 
     let joined_table = building_type::table.inner_join(mine_type::table);
 
-    let results: Vec<MineTypeResponse> = joined_table
+    let mines: Vec<MineTypeResponse> = joined_table
         .load::<(BuildingType, MineType)>(conn)?
         .into_iter()
         .map(|(building_type, mine_type)| MineTypeResponse {
@@ -357,14 +357,14 @@ pub fn fetch_mine_types(conn: &mut PgConnection) -> Result<Vec<MineTypeResponse>
         })
         .collect();
 
-    Ok(results)
+    Ok(mines)
 }
 
 pub fn fetch_diffuser_types(conn: &mut PgConnection) -> Result<Vec<DiffuserTypeResponse>> {
     use crate::schema::{building_type, diffuser_type};
 
     let joined_table = building_type::table.inner_join(diffuser_type::table);
-    let types_result: Result<Vec<DiffuserTypeResponse>> = joined_table
+    let diffusers: Result<Vec<DiffuserTypeResponse>> = joined_table
         .load::<(BuildingType, DiffuserType)>(conn)?
         .into_iter()
         .map(|(building_type, diffuser_type)| {
@@ -377,14 +377,14 @@ pub fn fetch_diffuser_types(conn: &mut PgConnection) -> Result<Vec<DiffuserTypeR
         })
         .collect();
 
-    types_result
+    diffusers
 }
 
 pub fn fetch_defender_types(conn: &mut PgConnection) -> Result<Vec<DefenderTypeResponse>> {
     use crate::schema::{building_type, defender_type};
 
     let joined_table = building_type::table.inner_join(defender_type::table);
-    let types_result: Vec<DefenderTypeResponse> = joined_table
+    let defenders: Vec<DefenderTypeResponse> = joined_table
         .load::<(BuildingType, DefenderType)>(conn)?
         .into_iter()
         .map(|(building_type, defender_type)| DefenderTypeResponse {
@@ -395,5 +395,5 @@ pub fn fetch_defender_types(conn: &mut PgConnection) -> Result<Vec<DefenderTypeR
             building_id: building_type.id,
         })
         .collect();
-    Ok(types_result)
+    Ok(defenders)
 }
