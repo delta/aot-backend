@@ -1,8 +1,8 @@
-use super::robots::Robot;
 use crate::constants::*;
 use crate::error::DieselError;
 use crate::models::{BlockType, MapSpaces, ShortestPath};
 use crate::simulation::error::*;
+use crate::simulation::robots::robot::Robot;
 use crate::util::function;
 use anyhow::{Context, Result};
 use diesel::prelude::*;

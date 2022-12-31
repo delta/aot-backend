@@ -298,7 +298,6 @@ pub struct NewBuildingType<'a> {
     pub diffuser_type: &'a Option<i32>,
     pub mine_type: &'a Option<i32>,
     pub buiding_category: &'a BuildingCategory,
-
 }
 
 #[derive(Queryable, Clone, Debug, Serialize)]

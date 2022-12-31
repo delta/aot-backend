@@ -12,6 +12,7 @@ use self::attack::AttackManager;
 
 pub mod attack;
 pub mod blocks;
+pub mod defense;
 pub mod error;
 pub mod robots;
 
