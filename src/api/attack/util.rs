@@ -2,9 +2,11 @@ use crate::api;
 use crate::api::util::{GameHistoryEntry, GameHistoryResponse};
 use crate::constants::*;
 use crate::error::DieselError;
-use crate::models::{Game, LevelsFixture, MapLayout, NewAttackerPath, NewGame, NewSimulationLog};
-use crate::simulation::RenderRobot;
-use crate::simulation::{RenderAttacker, Simulator};
+use crate::models::{
+    AttackerType, Game, LevelsFixture, MapLayout, NewAttackerPath, NewGame, NewSimulationLog,
+};
+use crate::simulation::Simulator;
+use crate::simulation::{RenderAttacker, RenderRobot};
 use crate::util::function;
 use anyhow::{Context, Result};
 use chrono::{Local, NaiveTime};
@@ -13,12 +15,19 @@ use diesel::prelude::*;
 use diesel::select;
 use diesel::PgConnection;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::io::Write;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct NewAttack {
     pub defender_id: i32,
+    pub no_of_attackers: i32,
+    pub attackers: Vec<NewAttacker>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct NewAttacker {
+    pub attacker_type: i32,
     pub attacker_path: Vec<NewAttackerPath>,
 }
 
@@ -239,68 +248,78 @@ pub fn remove_game(game_id: i32, conn: &mut PgConnection) -> Result<()> {
 
 pub fn run_simulation(
     game_id: i32,
-    attacker_path: Vec<NewAttackerPath>,
+    attackers: Vec<NewAttacker>,
     conn: &mut PgConnection,
 ) -> Result<Vec<u8>> {
     let mut content = Vec::new();
-    writeln!(content, "attacker_path")?;
-    writeln!(content, "id,y,x,is_emp")?;
-    attacker_path
-        .iter()
-        .enumerate()
-        .try_for_each(|(id, path)| {
-            writeln!(
-                content,
-                "{},{},{},{}",
-                id + 1,
-                path.y_coord,
-                path.x_coord,
-                path.is_emp
-            )
-        })?;
 
-    use crate::schema::game;
-    let mut simulator = Simulator::new(game_id, &attacker_path, conn)
-        .with_context(|| "Failed to create simulator")?;
-
-    writeln!(content, "emps")?;
-    writeln!(content, "id,time,type")?;
-    attacker_path
-        .iter()
-        .enumerate()
-        .try_for_each(|(id, path)| {
-            if path.is_emp {
+    for (attacker_id, attacker) in attackers.iter().enumerate() {
+        writeln!(content, "attacker {}", attacker_id + 1)?;
+        let attacker_path = &attacker.attacker_path;
+        let attacker_type = &attacker.attacker_type;
+        writeln!(content, "attacker_path")?;
+        writeln!(content, "id,y,x,is_emp")?;
+        attacker_path
+            .iter()
+            .enumerate()
+            .try_for_each(|(id, path)| {
                 writeln!(
                     content,
-                    "{},{},{}",
+                    "{},{},{},{},{}",
                     id + 1,
-                    path.emp_time.unwrap(),
-                    path.emp_type.unwrap()
+                    path.y_coord,
+                    path.x_coord,
+                    path.is_emp,
+                    attacker_type,
                 )
-            } else {
-                Ok(())
-            }
-        })?;
+            })?;
+        writeln!(content, "emps")?;
+        writeln!(content, "id,time,type")?;
+        attacker_path
+            .iter()
+            .enumerate()
+            .try_for_each(|(id, path)| {
+                if path.is_emp {
+                    writeln!(
+                        content,
+                        "{},{},{}",
+                        id + 1,
+                        path.emp_time.unwrap(),
+                        path.emp_type.unwrap()
+                    )
+                } else {
+                    Ok(())
+                }
+            })?;
+    }
+
+    use crate::schema::game;
+    let mut simulator =
+        Simulator::new(game_id, &attackers, conn).with_context(|| "Failed to create simulator")?;
 
     for frame in 1..=NO_OF_FRAMES {
         writeln!(content, "frame {}", frame)?;
         let simulated_frame = simulator
             .simulate()
             .with_context(|| format!("Failed to simulate frame {}", frame))?;
-
-        writeln!(content, "attacker")?;
-        writeln!(content, "x,y,is_alive,emp_id")?;
-        let RenderAttacker {
-            x_position,
-            y_position,
-            is_alive,
-            emp_id,
-        } = simulated_frame.attacker;
-        writeln!(
-            content,
-            "{},{},{},{}",
-            x_position, y_position, is_alive, emp_id
-        )?;
+        for attacker in simulated_frame.attackers {
+            writeln!(content, "attacker {}", attacker.attacker_id)?;
+            writeln!(content, "x,y,is_alive,emp_id,health,type")?;
+            let RenderAttacker {
+                x_position,
+                y_position,
+                is_alive,
+                emp_id,
+                health,
+                attacker_type,
+                ..
+            } = attacker;
+            writeln!(
+                content,
+                "{},{},{},{},{},{}",
+                x_position, y_position, is_alive, emp_id, health, attacker_type
+            )?;
+        }
 
         writeln!(content, "robots")?;
         writeln!(content, "id,health,x,y,in_building")?;
@@ -319,14 +338,15 @@ pub fn run_simulation(
             )?;
         }
     }
+    //TODO: Change is_alive to no_of_attackers_alive and emps_used too
     let (attack_score, defend_score) = simulator.get_scores();
     let (attacker_rating_change, defender_rating_change) =
         diesel::update(game::table.find(game_id))
             .set((
                 game::damage_done.eq(simulator.get_damage_done()),
                 game::robots_destroyed.eq(simulator.get_no_of_robots_destroyed()),
-                game::is_attacker_alive.eq(simulator.get_is_attacker_alive()),
-                game::emps_used.eq(simulator.get_emps_used()),
+                game::is_attacker_alive.eq(true),
+                game::emps_used.eq(1),
                 game::attack_score.eq(attack_score),
                 game::defend_score.eq(defend_score),
             ))
@@ -377,4 +397,28 @@ pub fn insert_simulation_log(game_id: i32, content: &[u8], conn: &mut PgConnecti
             error: err,
         })?;
     Ok(())
+}
+
+pub fn get_attacker_types(conn: &mut PgConnection) -> Result<HashMap<i32, AttackerType>> {
+    use crate::schema::attacker_type::dsl::*;
+    Ok(attacker_type
+        .load::<AttackerType>(conn)
+        .map_err(|err| DieselError {
+            table: "attacker_type",
+            function: function!(),
+            error: err,
+        })?
+        .iter()
+        .map(|attacker| {
+            (
+                attacker.id,
+                AttackerType {
+                    id: attacker.id,
+                    max_health: attacker.max_health,
+                    speed: attacker.speed,
+                    amt_of_emps: attacker.amt_of_emps,
+                },
+            )
+        })
+        .collect::<HashMap<i32, AttackerType>>())
 }

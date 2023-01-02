@@ -299,3 +299,11 @@ pub struct NewBuildingType<'a> {
     pub mine_type: &'a Option<i32>,
     pub buiding_category: &'a BuildingCategory,
 }
+
+#[derive(Queryable, Clone, Debug, Serialize)]
+pub struct AttackerType {
+    pub id: i32,
+    pub max_health: i32,
+    pub speed: i32,
+    pub amt_of_emps: i32,
+}

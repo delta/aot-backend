@@ -1,27 +1,30 @@
+use crate::api::attack::util::NewAttacker;
 use crate::constants::*;
 use crate::error::DieselError;
-use crate::models::{AttackerPath, NewAttackerPath};
 use crate::util::function;
 use anyhow::Result;
-use attacker::Attacker;
 use blocks::BuildingsManager;
 use diesel::prelude::*;
-use emp::Emps;
 use robots::RobotsManager;
 use serde::Serialize;
 
-pub mod attacker;
+use self::attack::AttackManager;
+
+pub mod attack;
 pub mod blocks;
-pub mod emp;
+pub mod defense;
 pub mod error;
 pub mod robots;
 
 #[derive(Debug, Serialize)]
 pub struct RenderAttacker {
+    pub attacker_id: i32,
+    pub health: i32,
     pub x_position: i32,
     pub y_position: i32,
     pub is_alive: bool,
     pub emp_id: usize,
+    pub attacker_type: i32,
 }
 
 #[derive(Debug, Serialize)]
@@ -35,15 +38,14 @@ pub struct RenderRobot {
 
 #[derive(Debug, Serialize)]
 pub struct RenderSimulation {
-    pub attacker: RenderAttacker,
+    pub attackers: Vec<RenderAttacker>,
     pub robots: Vec<RenderRobot>,
 }
 
 pub struct Simulator {
     buildings_manager: BuildingsManager,
     robots_manager: RobotsManager,
-    attacker: Attacker,
-    emps: Emps,
+    attack_manager: AttackManager,
     frames_passed: i32,
     pub no_of_robots: i32,
     pub rating_factor: f32,
@@ -52,7 +54,7 @@ pub struct Simulator {
 impl Simulator {
     pub fn new(
         game_id: i32,
-        attacker_path: &[NewAttackerPath],
+        attackers: &Vec<NewAttacker>,
         conn: &mut PgConnection,
     ) -> Result<Self> {
         use crate::schema::{game, levels_fixture, map_layout};
@@ -79,27 +81,12 @@ impl Simulator {
 
         let buildings_manager = BuildingsManager::new(conn, map_id)?;
         let robots_manager = RobotsManager::new(&buildings_manager, no_of_robots)?;
-        let mut attacker_path: Vec<AttackerPath> = attacker_path
-            .iter()
-            .enumerate()
-            .map(|(id, path)| AttackerPath {
-                id: id + 1,
-                x_coord: path.x_coord,
-                y_coord: path.y_coord,
-                is_emp: path.is_emp,
-                emp_type: path.emp_type,
-                emp_time: path.emp_time,
-            })
-            .collect();
-        attacker_path.reverse();
-        let emps = Emps::new(conn, &attacker_path)?;
-        let attacker = Attacker::new(attacker_path);
+        let attack_manager = AttackManager::new(conn, attackers)?;
 
         Ok(Simulator {
             buildings_manager,
             robots_manager,
-            attacker,
-            emps,
+            attack_manager,
             frames_passed: 0,
             no_of_robots,
             rating_factor,
@@ -120,14 +107,6 @@ impl Simulator {
 
     pub fn get_hour(frames_passed: i32) -> i32 {
         GAME_START_HOUR + Self::get_minute(frames_passed) / 60
-    }
-
-    pub fn get_emps_used(&self) -> i32 {
-        self.attacker.emps_used as i32
-    }
-
-    pub fn get_is_attacker_alive(&self) -> bool {
-        self.attacker.is_alive
     }
 
     pub fn get_no_of_robots_destroyed(&self) -> i32 {
@@ -161,8 +140,7 @@ impl Simulator {
         let Simulator {
             buildings_manager,
             robots_manager,
-            attacker,
-            emps,
+            attack_manager,
             frames_passed,
             ..
         } = self;
@@ -172,12 +150,9 @@ impl Simulator {
 
         robots_manager.move_robots(buildings_manager)?;
 
-        let minute = Self::get_minute(frames_passed);
-        emps.simulate(minute, robots_manager, buildings_manager, attacker)?;
+        //Simulate Emps and attackers
+        attack_manager.simulate_attack(frames_passed, robots_manager, buildings_manager)?;
 
-        if Self::attacker_allowed(frames_passed) {
-            attacker.update_position();
-        }
         if Self::is_hour(frames_passed) {
             buildings_manager.update_building_weights(Self::get_hour(frames_passed))?;
         }
@@ -193,24 +168,35 @@ impl Simulator {
                 in_building: robot.stay_in_time > 0,
             })
             .collect();
-        let (x_position, y_position) = attacker.get_current_position()?;
-        let render_attacker = RenderAttacker {
-            x_position,
-            y_position,
-            is_alive: attacker.is_alive,
-            emp_id: match attacker.path.last() {
-                Some(path) => {
-                    if path.is_emp {
-                        path.id
-                    } else {
-                        0
-                    }
-                }
-                None => 0,
-            },
-        };
+
+        let render_attackers: Result<Vec<RenderAttacker>> = attack_manager
+            .attackers
+            .values()
+            .map(|attacker| {
+                let (x_position, y_position) = attacker.get_current_position()?;
+                Ok(RenderAttacker {
+                    attacker_id: attacker.id,
+                    health: attacker.health,
+                    x_position,
+                    y_position,
+                    is_alive: attacker.is_alive,
+                    attacker_type: attacker.attacker_type,
+                    emp_id: match attacker.path.last() {
+                        Some(path) => {
+                            if path.is_emp {
+                                path.id
+                            } else {
+                                0
+                            }
+                        }
+                        None => 0,
+                    },
+                })
+            })
+            .collect();
+
         Ok(RenderSimulation {
-            attacker: render_attacker,
+            attackers: render_attackers?,
             robots: render_robots,
         })
     }
