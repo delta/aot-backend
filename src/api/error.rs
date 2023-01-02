@@ -44,6 +44,7 @@ pub enum BaseInvalidError {
     BlockOutsideMap,
     BlockCountExceeded(String),
     BlocksUnused(String),
+    BuildingCountExceeded(String),
     NotConnected(String),
 }
 
@@ -75,6 +76,12 @@ impl ResponseError for BaseInvalidError {
                 format!(
                     "You have some unused {} buildings. Use all of them.",
                     block_type
+                )
+            }
+            BaseInvalidError::BuildingCountExceeded(building_type) => {
+                format!(
+                    "You have exceeded the maximum number of {}",
+                    building_type
                 )
             }
             BaseInvalidError::NotConnected(no_path_info) => no_path_info.to_string(),
