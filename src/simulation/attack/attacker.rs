@@ -9,6 +9,7 @@ pub struct Attacker {
     pub is_alive: bool,
     pub health: i32,
     pub speed: i32,
+    pub attacker_type: i32,
 }
 
 impl Attacker {
@@ -62,6 +63,7 @@ impl Attacker {
             emps_used,
             health: attacker_type.max_health,
             speed: attacker_type.speed,
+            attacker_type: attacker_type.id,
         }
     }
 }

@@ -256,6 +256,7 @@ pub fn run_simulation(
     for (attacker_id, attacker) in attackers.iter().enumerate() {
         writeln!(content, "attacker {}", attacker_id + 1)?;
         let attacker_path = &attacker.attacker_path;
+        let attacker_type = &attacker.attacker_type;
         writeln!(content, "attacker_path")?;
         writeln!(content, "id,y,x,is_emp")?;
         attacker_path
@@ -264,11 +265,12 @@ pub fn run_simulation(
             .try_for_each(|(id, path)| {
                 writeln!(
                     content,
-                    "{},{},{},{}",
+                    "{},{},{},{},{}",
                     id + 1,
                     path.y_coord,
                     path.x_coord,
-                    path.is_emp
+                    path.is_emp,
+                    attacker_type,
                 )
             })?;
         writeln!(content, "emps")?;
@@ -302,19 +304,20 @@ pub fn run_simulation(
             .with_context(|| format!("Failed to simulate frame {}", frame))?;
         for attacker in simulated_frame.attackers {
             writeln!(content, "attacker {}", attacker.attacker_id)?;
-            writeln!(content, "x,y,is_alive,emp_id,health")?;
+            writeln!(content, "x,y,is_alive,emp_id,health,type")?;
             let RenderAttacker {
                 x_position,
                 y_position,
                 is_alive,
                 emp_id,
                 health,
+                attacker_type,
                 ..
             } = attacker;
             writeln!(
                 content,
-                "{},{},{},{},{}",
-                x_position, y_position, is_alive, emp_id, health
+                "{},{},{},{},{},{}",
+                x_position, y_position, is_alive, emp_id, health, attacker_type
             )?;
         }
 

@@ -24,6 +24,7 @@ pub struct RenderAttacker {
     pub y_position: i32,
     pub is_alive: bool,
     pub emp_id: usize,
+    pub attacker_type: i32,
 }
 
 #[derive(Debug, Serialize)]
@@ -168,30 +169,34 @@ impl Simulator {
             })
             .collect();
 
-        let mut render_attackers: Vec<RenderAttacker> = Vec::new();
-
-        for (_, attacker) in attack_manager.attackers.iter() {
-            let (x_position, y_position) = attacker.get_current_position()?;
-            render_attackers.push(RenderAttacker {
-                attacker_id: attacker.id,
-                health: attacker.health,
-                x_position,
-                y_position,
-                is_alive: attacker.is_alive,
-                emp_id: match attacker.path.last() {
-                    Some(path) => {
-                        if path.is_emp {
-                            path.id
-                        } else {
-                            0
+        let render_attackers: Result<Vec<RenderAttacker>> = attack_manager
+            .attackers
+            .values()
+            .map(|attacker| {
+                let (x_position, y_position) = attacker.get_current_position()?;
+                Ok(RenderAttacker {
+                    attacker_id: attacker.id,
+                    health: attacker.health,
+                    x_position,
+                    y_position,
+                    is_alive: attacker.is_alive,
+                    attacker_type: attacker.attacker_type,
+                    emp_id: match attacker.path.last() {
+                        Some(path) => {
+                            if path.is_emp {
+                                path.id
+                            } else {
+                                0
+                            }
                         }
-                    }
-                    None => 0,
-                },
+                        None => 0,
+                    },
+                })
             })
-        }
+            .collect();
+
         Ok(RenderSimulation {
-            attackers: render_attackers,
+            attackers: render_attackers?,
             robots: render_robots,
         })
     }
