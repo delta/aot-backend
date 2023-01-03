@@ -288,7 +288,7 @@ pub struct BuildingType {
     pub defender_type: Option<i32>,
     pub diffuser_type: Option<i32>,
     pub mine_type: Option<i32>,
-    pub buiding_category: BuildingCategory,
+    pub building_category: BuildingCategory,
 }
 
 #[derive(Queryable, Clone, Debug, Serialize)]
@@ -297,7 +297,7 @@ pub struct NewBuildingType<'a> {
     pub defender_type: &'a Option<i32>,
     pub diffuser_type: &'a Option<i32>,
     pub mine_type: &'a Option<i32>,
-    pub buiding_category: &'a BuildingCategory,
+    pub building_category: &'a BuildingCategory,
 }
 
 #[derive(Queryable, Clone, Debug, Serialize)]

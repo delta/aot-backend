@@ -6,7 +6,7 @@ use crate::constants::{DEFENSE_END_TIME, DEFENSE_START_TIME};
 use crate::models::*;
 use crate::util::function;
 use crate::{api::util::GameHistoryResponse, error::DieselError};
-use anyhow::Result;
+use anyhow::{Ok, Result};
 use chrono::{Local, NaiveTime};
 use diesel::dsl::exists;
 use diesel::{prelude::*, select};
@@ -338,6 +338,18 @@ pub fn fetch_top_defenses(user_id: i32, conn: &mut PgConnection) -> Result<GameH
         .collect();
     let games = games_result?;
     Ok(GameHistoryResponse { games })
+}
+
+pub fn fetch_building_categories(
+    conn: &mut PgConnection,
+) -> Result<HashMap<i32, BuildingCategory>> {
+    use crate::schema::building_type;
+
+    Ok(building_type::table
+        .load::<BuildingType>(conn)?
+        .into_iter()
+        .map(|building_type| (building_type.id, building_type.building_category))
+        .collect())
 }
 
 pub fn fetch_mine_types(conn: &mut PgConnection) -> Result<Vec<MineTypeResponse>> {
