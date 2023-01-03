@@ -344,14 +344,11 @@ pub fn fetch_building_categories(
     conn: &mut PgConnection,
 ) -> Result<HashMap<i32, BuildingCategory>> {
     use crate::schema::building_type;
-    use crate::schema::map_spaces;
 
-    let joined_table = building_type::table.inner_join(map_spaces::table);
-
-    Ok(joined_table
-        .load::<(BuildingType, MapSpaces)>(conn)?
+    Ok(building_type::table
+        .load::<BuildingType>(conn)?
         .into_iter()
-        .map(|(building_type, _map_spaces)| (building_type.id, building_type.building_category))
+        .map(|building_type| (building_type.id, building_type.building_category))
         .collect())
 }
 

@@ -40,6 +40,7 @@ pub enum BaseInvalidError {
     InvalidBlockType(i32),
     #[display(fmt = "{:?}", self)]
     InvalidRotation(String, i32),
+    InvalidBuildingType,
     OverlappingBlocks,
     BlockOutsideMap,
     BlockCountExceeded(String),
@@ -59,6 +60,9 @@ impl ResponseError for BaseInvalidError {
                     "Invalid rotation {} for a block of type {}",
                     rotation, block_type
                 )
+            }
+            BaseInvalidError::InvalidBuildingType => {
+                "City has invalid type of building placed".to_string()
             }
             BaseInvalidError::OverlappingBlocks => {
                 "City has overlapping roads or buildings".to_string()

@@ -56,9 +56,9 @@ pub fn is_valid_update_layout(
         .map(|block| (block.id, block.clone()))
         .collect();
 
-    let mut no_of_defenders: i32 = 0;
-    let mut no_of_diffusers: i32 = 0;
-    let mut no_of_mines: i32 = 0;
+    let mut no_of_defenders = 0;
+    let mut no_of_diffusers = 0;
+    let mut no_of_mines = 0;
 
     for map_space in map_spaces {
         let blk_type = map_space.blk_type;
@@ -80,6 +80,9 @@ pub fn is_valid_update_layout(
         }
 
         // generate count of different types of buildings
+        if !building_categories.contains_key(&map_space.building_type) {
+            return Err(BaseInvalidError::InvalidBuildingType);
+        }
         match building_categories[&map_space.building_type] {
             BuildingCategory::Defender => no_of_defenders += 1,
             BuildingCategory::Diffuser => no_of_diffusers += 1,
@@ -141,9 +144,9 @@ pub fn is_valid_save_layout(
         .map(|block| (block.id, block.clone()))
         .collect();
 
-    let mut no_of_defenders: i32 = 0;
-    let mut no_of_diffusers: i32 = 0;
-    let mut no_of_mines: i32 = 0;
+    let mut no_of_defenders = 0;
+    let mut no_of_diffusers = 0;
+    let mut no_of_mines = 0;
 
     for map_space in map_spaces {
         let MapSpacesEntry {
@@ -165,6 +168,9 @@ pub fn is_valid_save_layout(
         }
 
         // generate count of different types of buildings
+        if !building_categories.contains_key(&map_space.building_type) {
+            return Err(BaseInvalidError::InvalidBuildingType);
+        }
         match building_categories[&map_space.building_type] {
             BuildingCategory::Defender => no_of_defenders += 1,
             BuildingCategory::Diffuser => no_of_diffusers += 1,
