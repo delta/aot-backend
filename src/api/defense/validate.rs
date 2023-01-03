@@ -1,7 +1,6 @@
 /// Functions to check if a base layout is valid
-use std::option::Option;
 use super::MapSpacesEntry;
-use crate::{api::error::BaseInvalidError, constants::*, models::*, schema::building_type::building_category};
+use crate::{api::error::BaseInvalidError, constants::*, models::*};
 use petgraph::{self, algo::tarjan_scc, prelude::*, Graph};
 use std::collections::{HashMap, HashSet};
 
@@ -60,7 +59,7 @@ pub fn is_valid_update_layout(
     let mut no_of_defenders: i32 = 0;
     let mut no_of_diffusers: i32 = 0;
     let mut no_of_mines: i32 = 0;
-    
+
     for map_space in map_spaces {
         let blk_type = map_space.blk_type;
         if !blocks.contains_key(&blk_type) {
@@ -82,11 +81,11 @@ pub fn is_valid_update_layout(
 
         // generate count of different types of buildings
         match building_categories[&map_space.building_type] {
-            BuildingCategory::Defender => no_of_defenders = no_of_defenders+1,
-            BuildingCategory::Diffuser => no_of_diffusers = no_of_diffusers+1,
-            BuildingCategory::Mine => no_of_mines = no_of_mines+1,
-            BuildingCategory::Building => {},
-            BuildingCategory::Road => {},
+            BuildingCategory::Defender => no_of_defenders += 1,
+            BuildingCategory::Diffuser => no_of_diffusers += 1,
+            BuildingCategory::Mine => no_of_mines += 1,
+            BuildingCategory::Building => {}
+            BuildingCategory::Road => {}
         }
 
         for i in 0..width {
@@ -108,18 +107,16 @@ pub fn is_valid_update_layout(
     // checks count of different types of buildings
     if no_of_defenders > levels_fixture.no_of_defenders {
         return Err(BaseInvalidError::BuildingCountExceeded(
-            "defenders".to_string()
+            "defenders".to_string(),
         ));
     }
     if no_of_diffusers > levels_fixture.no_of_diffusers {
         return Err(BaseInvalidError::BuildingCountExceeded(
-            "diffusers".to_string()
+            "diffusers".to_string(),
         ));
     }
     if no_of_mines > levels_fixture.no_of_mines {
-        return Err(BaseInvalidError::BuildingCountExceeded(
-            "mines".to_string()
-        ));
+        return Err(BaseInvalidError::BuildingCountExceeded("mines".to_string()));
     }
 
     Ok(())
@@ -169,11 +166,11 @@ pub fn is_valid_save_layout(
 
         // generate count of different types of buildings
         match building_categories[&map_space.building_type] {
-            BuildingCategory::Defender => no_of_defenders = no_of_defenders+1,
-            BuildingCategory::Diffuser => no_of_diffusers = no_of_diffusers+1,
-            BuildingCategory::Mine => no_of_mines = no_of_mines+1,
-            BuildingCategory::Building => {},
-            BuildingCategory::Road => {},
+            BuildingCategory::Defender => no_of_defenders += 1,
+            BuildingCategory::Diffuser => no_of_diffusers += 1,
+            BuildingCategory::Mine => no_of_mines += 1,
+            BuildingCategory::Building => {}
+            BuildingCategory::Road => {}
         }
 
         // add roads and entrances to graph
@@ -192,18 +189,16 @@ pub fn is_valid_save_layout(
     // checks count of different types of buildings
     if no_of_defenders > levels_fixture.no_of_defenders {
         return Err(BaseInvalidError::BuildingCountExceeded(
-            "defenders".to_string()
+            "defenders".to_string(),
         ));
     }
     if no_of_diffusers > levels_fixture.no_of_diffusers {
         return Err(BaseInvalidError::BuildingCountExceeded(
-            "diffusers".to_string()
+            "diffusers".to_string(),
         ));
     }
     if no_of_mines > levels_fixture.no_of_mines {
-        return Err(BaseInvalidError::BuildingCountExceeded(
-            "mines".to_string()
-        ));
+        return Err(BaseInvalidError::BuildingCountExceeded("mines".to_string()));
     }
 
     //checks if all blocks are used

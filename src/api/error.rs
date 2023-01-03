@@ -79,10 +79,7 @@ impl ResponseError for BaseInvalidError {
                 )
             }
             BaseInvalidError::BuildingCountExceeded(building_type) => {
-                format!(
-                    "You have exceeded the maximum number of {}",
-                    building_type
-                )
+                format!("You have exceeded the maximum number of {}", building_type)
             }
             BaseInvalidError::NotConnected(no_path_info) => no_path_info.to_string(),
         };

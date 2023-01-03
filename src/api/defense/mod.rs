@@ -3,8 +3,6 @@ use super::PgPool;
 use crate::api;
 use crate::api::error;
 use crate::models::*;
-use crate::schema::building_type::building_category;
-use crate::schema::levels_fixture;
 use actix_web::error::{ErrorBadRequest, ErrorForbidden, ErrorNotFound};
 use actix_web::web::{self, Data, Json};
 use actix_web::{Responder, Result};
@@ -125,7 +123,13 @@ async fn set_base_details(
             util::fetch_blocks(&mut conn)?,
             api::util::get_current_levels_fixture(&mut conn)?,
             util::fetch_building_categories(&mut conn)?,
-        )) as anyhow::Result<(MapLayout, Vec<BlockType>, LevelsFixture, HashMap<i32, BuildingCategory>)>
+        ))
+            as anyhow::Result<(
+                MapLayout,
+                Vec<BlockType>,
+                LevelsFixture,
+                HashMap<i32, BuildingCategory>,
+            )>
     })
     .await?
     .map_err(|err| error::handle_error(err.into()))?;
@@ -156,20 +160,34 @@ async fn confirm_base_details(
 
     let map_spaces = map_spaces.into_inner();
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-    let (map, blocks, mut level_constraints, levels_fixture, building_categories) = web::block(move || {
-        let map = util::fetch_map_layout(&mut conn, &defender_id)?;
-        Ok((
-            map.clone(),
-            util::fetch_blocks(&mut conn)?,
-            util::get_level_constraints(&mut conn, map.level_id)?,
-            api::util::get_current_levels_fixture(&mut conn)?,
-            util::fetch_building_categories(&mut conn)?
-        )) as anyhow::Result<(MapLayout, Vec<BlockType>, HashMap<i32, i32>, LevelsFixture, HashMap<i32, BuildingCategory>)>
-    })
-    .await?
-    .map_err(|err| error::handle_error(err.into()))?;
+    let (map, blocks, mut level_constraints, levels_fixture, building_categories) =
+        web::block(move || {
+            let map = util::fetch_map_layout(&mut conn, &defender_id)?;
+            Ok((
+                map.clone(),
+                util::fetch_blocks(&mut conn)?,
+                util::get_level_constraints(&mut conn, map.level_id)?,
+                api::util::get_current_levels_fixture(&mut conn)?,
+                util::fetch_building_categories(&mut conn)?,
+            ))
+                as anyhow::Result<(
+                    MapLayout,
+                    Vec<BlockType>,
+                    HashMap<i32, i32>,
+                    LevelsFixture,
+                    HashMap<i32, BuildingCategory>,
+                )>
+        })
+        .await?
+        .map_err(|err| error::handle_error(err.into()))?;
 
-    validate::is_valid_save_layout(&map_spaces, &mut level_constraints, &levels_fixture, &building_categories, &blocks)?;
+    validate::is_valid_save_layout(
+        &map_spaces,
+        &mut level_constraints,
+        &levels_fixture,
+        &building_categories,
+        &blocks,
+    )?;
 
     web::block(move || {
         let mut conn = pool.get()?;
