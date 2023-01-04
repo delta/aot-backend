@@ -46,8 +46,7 @@ fn get_absolute_entrance(map_space: &MapSpacesEntry, block_type: &BlockType) -> 
 //checks overlaps of blocks and also within map size
 pub fn is_valid_update_layout(
     map_spaces: &[MapSpacesEntry],
-    levels_fixture: &LevelsFixture,
-    building_categories: &HashMap<i32, BuildingCategory>,
+    buildings: &HashMap<i32, BuildingType>,
     blocks: &[BlockType],
 ) -> Result<(), BaseInvalidError> {
     let mut occupied_positions: HashSet<(i32, i32)> = HashSet::new();
@@ -55,13 +54,15 @@ pub fn is_valid_update_layout(
         .iter()
         .map(|block| (block.id, block.clone()))
         .collect();
-
-    let mut no_of_defenders = 0;
-    let mut no_of_diffusers = 0;
-    let mut no_of_mines = 0;
-
     for map_space in map_spaces {
-        let blk_type = map_space.blk_type;
+        let building_type = map_space.building_type;
+
+        if !buildings.contains_key(&building_type) {
+            return Err(BaseInvalidError::InvalidBuildingType(building_type));
+        }
+        let building = buildings.get(&building_type).unwrap();
+
+        let blk_type = building.blk_type;
         if !blocks.contains_key(&blk_type) {
             return Err(BaseInvalidError::InvalidBlockType(blk_type));
         }
@@ -77,18 +78,6 @@ pub fn is_valid_update_layout(
                 blocks[&blk_type].name.clone(),
                 map_space.rotation,
             ));
-        }
-
-        // generate count of different types of buildings
-        if !building_categories.contains_key(&map_space.building_type) {
-            return Err(BaseInvalidError::InvalidBuildingType);
-        }
-        match building_categories[&map_space.building_type] {
-            BuildingCategory::Defender => no_of_defenders += 1,
-            BuildingCategory::Diffuser => no_of_diffusers += 1,
-            BuildingCategory::Mine => no_of_mines += 1,
-            BuildingCategory::Building => {}
-            BuildingCategory::Road => {}
         }
 
         for i in 0..width {
@@ -107,33 +96,17 @@ pub fn is_valid_update_layout(
         }
     }
 
-    // checks count of different types of buildings
-    if no_of_defenders > levels_fixture.no_of_defenders {
-        return Err(BaseInvalidError::BuildingCountExceeded(
-            "defenders".to_string(),
-        ));
-    }
-    if no_of_diffusers > levels_fixture.no_of_diffusers {
-        return Err(BaseInvalidError::BuildingCountExceeded(
-            "diffusers".to_string(),
-        ));
-    }
-    if no_of_mines > levels_fixture.no_of_mines {
-        return Err(BaseInvalidError::BuildingCountExceeded("mines".to_string()));
-    }
-
     Ok(())
 }
 
 // checks if no of buildings are within level constraints and if the city is connected
 pub fn is_valid_save_layout(
     map_spaces: &[MapSpacesEntry],
-    level_constraints: &mut HashMap<i32, i32>,
-    levels_fixture: &LevelsFixture,
-    building_categories: &HashMap<i32, BuildingCategory>,
+    building_constraints: &mut HashMap<i32, i32>,
+    buildings: &HashMap<i32, BuildingType>,
     blocks: &[BlockType],
 ) -> Result<(), BaseInvalidError> {
-    is_valid_update_layout(map_spaces, levels_fixture, building_categories, blocks)?;
+    is_valid_update_layout(map_spaces, buildings, blocks)?;
 
     let mut graph: Graph<(), (), Directed> = Graph::new();
     let mut map_grid: HashMap<(i32, i32), NodeIndex> = HashMap::new();
@@ -144,39 +117,25 @@ pub fn is_valid_save_layout(
         .map(|block| (block.id, block.clone()))
         .collect();
 
-    let mut no_of_defenders = 0;
-    let mut no_of_diffusers = 0;
-    let mut no_of_mines = 0;
-
     for map_space in map_spaces {
         let MapSpacesEntry {
-            blk_type,
+            building_type,
             x_coordinate,
             y_coordinate,
             ..
         } = *map_space;
 
-        // check for level constraints
-        if let Some(block_constraint) = level_constraints.get_mut(&blk_type) {
-            if *block_constraint > 0 {
-                *block_constraint -= 1;
-            } else {
-                return Err(BaseInvalidError::BlockCountExceeded(
-                    blocks[&blk_type].name.clone(),
-                ));
-            }
-        }
+        let building = buildings.get(&building_type).unwrap();
 
-        // generate count of different types of buildings
-        if !building_categories.contains_key(&map_space.building_type) {
-            return Err(BaseInvalidError::InvalidBuildingType);
-        }
-        match building_categories[&map_space.building_type] {
-            BuildingCategory::Defender => no_of_defenders += 1,
-            BuildingCategory::Diffuser => no_of_diffusers += 1,
-            BuildingCategory::Mine => no_of_mines += 1,
-            BuildingCategory::Building => {}
-            BuildingCategory::Road => {}
+        let blk_type = building.blk_type;
+
+        // check for level constraints
+        if let Some(building_constraint) = building_constraints.get_mut(&building_type) {
+            if *building_constraint > 0 {
+                *building_constraint -= 1;
+            } else {
+                return Err(BaseInvalidError::BlockCountExceeded(building_type));
+            }
         }
 
         // add roads and entrances to graph
@@ -192,26 +151,19 @@ pub fn is_valid_save_layout(
         }
     }
 
-    // checks count of different types of buildings
-    if no_of_defenders > levels_fixture.no_of_defenders {
-        return Err(BaseInvalidError::BuildingCountExceeded(
-            "defenders".to_string(),
-        ));
-    }
-    if no_of_diffusers > levels_fixture.no_of_diffusers {
-        return Err(BaseInvalidError::BuildingCountExceeded(
-            "diffusers".to_string(),
-        ));
-    }
-    if no_of_mines > levels_fixture.no_of_mines {
-        return Err(BaseInvalidError::BuildingCountExceeded("mines".to_string()));
-    }
-
     //checks if all blocks are used
-    for block_constraint in level_constraints {
-        if *block_constraint.1 != 0 {
+    for building_constraint in building_constraints {
+        if buildings
+            .get(building_constraint.0)
+            .unwrap()
+            .building_category
+            == BuildingCategory::Building
+            && *building_constraint.1 != 0
+        {
             return Err(BaseInvalidError::BlocksUnused(
-                blocks[block_constraint.0].name.clone(),
+                blocks[&buildings.get(building_constraint.0).unwrap().blk_type]
+                    .name
+                    .clone(),
             ));
         }
     }

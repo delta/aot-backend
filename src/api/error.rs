@@ -40,12 +40,11 @@ pub enum BaseInvalidError {
     InvalidBlockType(i32),
     #[display(fmt = "{:?}", self)]
     InvalidRotation(String, i32),
-    InvalidBuildingType,
+    InvalidBuildingType(i32),
     OverlappingBlocks,
     BlockOutsideMap,
-    BlockCountExceeded(String),
+    BlockCountExceeded(i32),
     BlocksUnused(String),
-    BuildingCountExceeded(String),
     NotConnected(String),
 }
 
@@ -61,8 +60,8 @@ impl ResponseError for BaseInvalidError {
                     rotation, block_type
                 )
             }
-            BaseInvalidError::InvalidBuildingType => {
-                "City has invalid type of building placed".to_string()
+            BaseInvalidError::InvalidBuildingType(building_id) => {
+                format!("City has invalid building of type {} placed", building_id)
             }
             BaseInvalidError::OverlappingBlocks => {
                 "City has overlapping roads or buildings".to_string()
@@ -81,9 +80,6 @@ impl ResponseError for BaseInvalidError {
                     "You have some unused {} buildings. Use all of them.",
                     block_type
                 )
-            }
-            BaseInvalidError::BuildingCountExceeded(building_type) => {
-                format!("You have exceeded the maximum number of {}", building_type)
             }
             BaseInvalidError::NotConnected(no_path_info) => no_path_info.to_string(),
         };

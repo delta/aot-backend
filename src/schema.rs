@@ -45,6 +45,7 @@ diesel::table! {
         defender_type -> Nullable<Int4>,
         diffuser_type -> Nullable<Int4>,
         mine_type -> Nullable<Int4>,
+        blk_type -> Int4,
         building_category -> BuildingCategory,
     }
 }
@@ -99,10 +100,10 @@ diesel::table! {
 }
 
 diesel::table! {
-    level_constraints (level_id, block_id) {
+    level_constraints (level_id, building_id) {
         level_id -> Int4,
-        block_id -> Int4,
         no_of_buildings -> Int4,
+        building_id -> Int4,
     }
 }
 
@@ -114,10 +115,7 @@ diesel::table! {
         no_of_bombs -> Int4,
         no_of_robots -> Int4,
         rating_factor -> Float4,
-        no_of_defenders -> Int4,
         no_of_attackers -> Int4,
-        no_of_mines -> Int4,
-        no_of_diffusers -> Int4,
     }
 }
 
@@ -134,7 +132,6 @@ diesel::table! {
     map_spaces (id) {
         id -> Int4,
         map_id -> Int4,
-        blk_type -> Int4,
         x_coordinate -> Int4,
         y_coordinate -> Int4,
         rotation -> Int4,
@@ -183,16 +180,16 @@ diesel::table! {
     }
 }
 
+diesel::joinable!(building_type -> block_type (blk_type));
 diesel::joinable!(building_type -> defender_type (defender_type));
 diesel::joinable!(building_type -> diffuser_type (diffuser_type));
 diesel::joinable!(building_type -> mine_type (mine_type));
 diesel::joinable!(building_weights -> block_type (building_id));
 diesel::joinable!(game -> map_layout (map_layout_id));
-diesel::joinable!(level_constraints -> block_type (block_id));
+diesel::joinable!(level_constraints -> building_type (building_id));
 diesel::joinable!(level_constraints -> levels_fixture (level_id));
 diesel::joinable!(map_layout -> levels_fixture (level_id));
 diesel::joinable!(map_layout -> user (player));
-diesel::joinable!(map_spaces -> block_type (blk_type));
 diesel::joinable!(map_spaces -> building_type (building_type));
 diesel::joinable!(map_spaces -> map_layout (map_id));
 diesel::joinable!(shortest_path -> map_layout (base_id));

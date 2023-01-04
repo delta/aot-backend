@@ -35,10 +35,10 @@ pub fn can_show_replay(requested_user: i32, game: &Game, levels_fixture: &Levels
 
 pub fn get_current_levels_fixture(conn: &mut PgConnection) -> Result<LevelsFixture> {
     use crate::schema::levels_fixture;
-    let current_date = Local::now().naive_local();
+    // let current_date = Local::now().naive_local();
     let level: LevelsFixture = levels_fixture::table
-        .filter(levels_fixture::start_date.le(current_date))
-        .filter(levels_fixture::end_date.gt(current_date))
+        // .filter(levels_fixture::start_date.le(current_date))
+        // .filter(levels_fixture::end_date.gt(current_date))
         .first(conn)
         .map_err(|err| DieselError {
             table: "levels_fixture",

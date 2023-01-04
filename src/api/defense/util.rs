@@ -36,12 +36,25 @@ pub struct DefenderTypeResponse {
     pub speed: i32,
     pub damage: i32,
     pub building_id: i32,
+    pub block: BlockTypeResponse,
+}
+
+#[derive(Serialize)]
+pub struct BlockTypeResponse {
+    pub id: i32,
+    pub name: String,
+    pub width: i32,
+    pub height: i32,
+    pub entrance_x: i32,
+    pub entrance_y: i32,
+    pub capacity: i32,
+    pub building_id: i32,
 }
 
 #[derive(Serialize)]
 pub struct DefenseResponse {
     pub map_spaces: Vec<MapSpaces>,
-    pub blocks: Vec<BlockType>,
+    pub blocks: Vec<BlockTypeResponse>,
     pub levels_fixture: LevelsFixture,
     pub level_constraints: Vec<LevelConstraints>,
     pub attack_type: Vec<AttackType>,
@@ -150,7 +163,7 @@ pub fn get_details_from_map_layout(
             function: function!(),
             error: err,
         })?;
-    let blocks: Vec<BlockType> = fetch_blocks(conn)?;
+    let blocks = fetch_block_types(conn)?;
     let levels_fixture = levels_fixture::table
         .find(map.level_id)
         .first::<LevelsFixture>(conn)
@@ -222,7 +235,6 @@ pub fn put_base_details(
         .iter()
         .map(|e| NewMapSpaces {
             map_id: map.id,
-            blk_type: e.blk_type,
             x_coordinate: e.x_coordinate,
             y_coordinate: e.y_coordinate,
             rotation: e.rotation,
@@ -257,7 +269,7 @@ pub fn get_level_constraints(
             error: err,
         })?
         .iter()
-        .map(|constraint| (constraint.block_id, constraint.no_of_buildings))
+        .map(|constraint| (constraint.building_id, constraint.no_of_buildings))
         .collect())
 }
 
@@ -340,18 +352,6 @@ pub fn fetch_top_defenses(user_id: i32, conn: &mut PgConnection) -> Result<GameH
     Ok(GameHistoryResponse { games })
 }
 
-pub fn fetch_building_categories(
-    conn: &mut PgConnection,
-) -> Result<HashMap<i32, BuildingCategory>> {
-    use crate::schema::building_type;
-
-    Ok(building_type::table
-        .load::<BuildingType>(conn)?
-        .into_iter()
-        .map(|building_type| (building_type.id, building_type.building_category))
-        .collect())
-}
-
 pub fn fetch_mine_types(conn: &mut PgConnection) -> Result<Vec<MineTypeResponse>> {
     use crate::schema::building_type;
     use crate::schema::mine_type;
@@ -394,21 +394,72 @@ pub fn fetch_diffuser_types(conn: &mut PgConnection) -> Result<Vec<DiffuserTypeR
 }
 
 pub fn fetch_defender_types(conn: &mut PgConnection) -> Result<Vec<DefenderTypeResponse>> {
-    use crate::schema::{building_type, defender_type};
+    use crate::schema::{block_type, building_type, defender_type};
 
-    let joined_table = building_type::table.inner_join(defender_type::table);
+    let joined_table = building_type::table
+        .inner_join(defender_type::table)
+        .inner_join(block_type::table);
     let defenders: Result<Vec<DefenderTypeResponse>> = joined_table
-        .load::<(BuildingType, DefenderType)>(conn)?
+        .load::<(BuildingType, DefenderType, BlockType)>(conn)?
         .into_iter()
-        .map(|(building_type, defender_type)| {
+        .map(|(building_type, defender_type, block_type)| {
             Ok(DefenderTypeResponse {
                 id: defender_type.id,
                 radius: defender_type.radius,
                 speed: defender_type.speed,
                 damage: defender_type.damage,
                 building_id: building_type.id,
+                block: BlockTypeResponse {
+                    id: block_type.id,
+                    name: block_type.name,
+                    width: block_type.width,
+                    height: block_type.height,
+                    entrance_x: block_type.entrance_x,
+                    entrance_y: block_type.entrance_y,
+                    capacity: block_type.capacity,
+                    building_id: building_type.id,
+                },
             })
         })
         .collect();
     defenders
+}
+
+pub fn fetch_block_types(conn: &mut PgConnection) -> Result<Vec<BlockTypeResponse>> {
+    use crate::schema::{block_type, building_type};
+
+    let joined_table = building_type::table
+        .filter(building_type::building_category.eq(BuildingCategory::Building))
+        .inner_join(block_type::table);
+    let blocks: Result<Vec<BlockTypeResponse>> = joined_table
+        .load::<(BuildingType, BlockType)>(conn)?
+        .into_iter()
+        .map(|(building_type, block_type)| {
+            Ok(BlockTypeResponse {
+                id: block_type.id,
+                name: block_type.name,
+                width: block_type.width,
+                height: block_type.height,
+                entrance_x: block_type.entrance_x,
+                entrance_y: block_type.entrance_y,
+                capacity: block_type.capacity,
+                building_id: building_type.id,
+            })
+        })
+        .collect();
+    blocks
+}
+
+pub fn fetch_buildings(conn: &mut PgConnection) -> Result<HashMap<i32, BuildingType>> {
+    use crate::schema::building_type::dsl::*;
+    Ok(building_type
+        .load::<BuildingType>(conn)
+        .map_err(|err| DieselError {
+            table: "building_type",
+            function: function!(),
+            error: err,
+        })?
+        .into_iter()
+        .map(|building| (building.id, building))
+        .collect::<HashMap<i32, BuildingType>>())
 }

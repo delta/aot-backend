@@ -67,10 +67,11 @@ pub fn get_map_id(
 }
 
 pub fn get_valid_road_paths(map_id: i32, conn: &mut PgConnection) -> Result<HashSet<(i32, i32)>> {
-    use crate::schema::map_spaces;
+    use crate::schema::{building_type, map_spaces};
     let valid_road_paths: HashSet<(i32, i32)> = map_spaces::table
+        .inner_join(building_type::table)
         .filter(map_spaces::map_id.eq(map_id))
-        .filter(map_spaces::blk_type.eq(ROAD_ID))
+        .filter(building_type::blk_type.eq(ROAD_ID))
         .select((map_spaces::x_coordinate, map_spaces::y_coordinate))
         .load::<(i32, i32)>(conn)
         .map_err(|err| DieselError {

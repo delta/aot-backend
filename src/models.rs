@@ -3,11 +3,10 @@ use chrono::NaiveDateTime;
 use diesel_derive_enum::DbEnum;
 use serde::{Deserialize, Serialize};
 
-#[derive(DbEnum, Debug, Serialize, Clone)]
+#[derive(DbEnum, Debug, Serialize, Clone, PartialEq)]
 #[DieselTypePath = "crate::schema::sql_types::BuildingCategory"]
 pub enum BuildingCategory {
     Building,
-    Road,
     Defender,
     Diffuser,
     Mine,
@@ -121,10 +120,7 @@ pub struct LevelsFixture {
     pub no_of_bombs: i32,
     pub no_of_robots: i32,
     pub rating_factor: f32,
-    pub no_of_defenders: i32,
     pub no_of_attackers: i32,
-    pub no_of_mines: i32,
-    pub no_of_diffusers: i32,
 }
 
 #[derive(Insertable)]
@@ -134,23 +130,22 @@ pub struct NewLevelFixture<'a> {
     pub end_date: &'a NaiveDateTime,
     pub no_of_bombs: &'a i32,
     pub no_of_robots: &'a i32,
-    pub no_of_defenders: &'a i32,
+    pub rating_factor: &'a f32,
     pub no_of_attackers: &'a i32,
-    pub no_of_mines: &'a i32,
 }
 
 #[derive(Queryable, Serialize)]
 pub struct LevelConstraints {
     pub level_id: i32,
-    pub block_id: i32,
     pub no_of_buildings: i32,
+    pub building_id: i32,
 }
 
 #[derive(Insertable)]
 #[diesel(table_name = level_constraints)]
 pub struct NewLevelConstraint<'a> {
     pub level_id: &'a i32,
-    pub block_id: &'a i32,
+    pub building_id: &'a i32,
     pub no_of_buildings: &'a i32,
 }
 
@@ -173,7 +168,6 @@ pub struct NewMapLayout<'a> {
 pub struct MapSpaces {
     pub id: i32,
     pub map_id: i32,
-    pub blk_type: i32,
     pub x_coordinate: i32,
     pub y_coordinate: i32,
     pub rotation: i32,
@@ -184,7 +178,6 @@ pub struct MapSpaces {
 #[diesel(table_name = map_spaces)]
 pub struct NewMapSpaces {
     pub map_id: i32,
-    pub blk_type: i32,
     pub x_coordinate: i32,
     pub y_coordinate: i32,
     pub rotation: i32,
@@ -277,9 +270,9 @@ pub struct DiffuserType {
 #[derive(Queryable, Clone, Debug, Serialize)]
 pub struct DefenderType {
     pub id: i32,
-    pub radius: i32,
     pub speed: i32,
     pub damage: i32,
+    pub radius: i32,
 }
 
 #[derive(Queryable, Clone, Debug, Serialize)]
@@ -288,6 +281,7 @@ pub struct BuildingType {
     pub defender_type: Option<i32>,
     pub diffuser_type: Option<i32>,
     pub mine_type: Option<i32>,
+    pub blk_type: i32,
     pub building_category: BuildingCategory,
 }
 
@@ -297,6 +291,7 @@ pub struct NewBuildingType<'a> {
     pub defender_type: &'a Option<i32>,
     pub diffuser_type: &'a Option<i32>,
     pub mine_type: &'a Option<i32>,
+    pub blk_type: &'a i32,
     pub building_category: &'a BuildingCategory,
 }
 

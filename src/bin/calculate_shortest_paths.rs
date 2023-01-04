@@ -1,6 +1,7 @@
+use anyhow::Result;
 use aot_backend::constants::*;
 use aot_backend::models::*;
-use aot_backend::schema::{block_type, map_spaces, shortest_path};
+use aot_backend::schema::{block_type, building_type, map_spaces, shortest_path};
 use aot_backend::util;
 use array2d::Array2D;
 use diesel::prelude::*;
@@ -30,6 +31,20 @@ fn get_absolute_coordinates(
     }
 }
 
+fn get_blocks(conn: &mut PgConnection) -> Result<HashMap<i32, BlockType>> {
+    Ok(building_type::table
+        .inner_join(block_type::table)
+        .select((building_type::id, block_type::all_columns))
+        .load::<(i32, BlockType)>(conn)?
+        .into_iter()
+        .map(|(id, block)| (id, block))
+        .collect())
+}
+
+fn get_block_id(building_id: &i32, building_map: &HashMap<i32, BlockType>) -> i32 {
+    building_map[building_id].id
+}
+
 //running shortest path simulation
 pub fn run_shortest_paths(conn: &mut PgConnection, input_map_layout_id: i32) {
     // reading map_spaces
@@ -42,6 +57,8 @@ pub fn run_shortest_paths(conn: &mut PgConnection, input_map_layout_id: i32) {
     let blocks_list = block_type::table
         .load::<BlockType>(conn)
         .expect("Couldn't get road id");
+
+    let buildings_block_map = get_blocks(conn).expect("Couldn't get blocks");
 
     // initialising map for types of blocks
     let mut map = HashMap::new();
@@ -66,14 +83,14 @@ pub fn run_shortest_paths(conn: &mut PgConnection, input_map_layout_id: i32) {
             i.rotation,
             i.x_coordinate,
             i.y_coordinate,
-            map[&i.blk_type].2,
-            map[&i.blk_type].3,
+            map[&get_block_id(&i.building_type, &buildings_block_map)].2,
+            map[&get_block_id(&i.building_type, &buildings_block_map)].3,
         );
         graph_2d
             .set(
                 absolute_entrance_y as usize,
                 absolute_entrance_x as usize,
-                i.blk_type,
+                get_block_id(&i.building_type, &buildings_block_map),
             )
             .unwrap();
         node_to_index.insert(
@@ -124,21 +141,21 @@ pub fn run_shortest_paths(conn: &mut PgConnection, input_map_layout_id: i32) {
     let mut shortest_paths = vec![];
     for i in &mapspaces_list {
         for j in &mapspaces_list {
-            if j.blk_type != ROAD_ID {
+            if get_block_id(&j.building_type, &buildings_block_map) != ROAD_ID {
                 let (start_absolute_entrance_x, start_absolute_entrance_y) =
                     get_absolute_coordinates(
                         i.rotation,
                         i.x_coordinate,
                         i.y_coordinate,
-                        map[&i.blk_type].2,
-                        map[&i.blk_type].3,
+                        map[&get_block_id(&i.building_type, &buildings_block_map)].2,
+                        map[&get_block_id(&i.building_type, &buildings_block_map)].3,
                     );
                 let (dest_absolute_entrance_x, dest_absolute_entrance_y) = get_absolute_coordinates(
                     j.rotation,
                     j.x_coordinate,
                     j.y_coordinate,
-                    map[&j.blk_type].2,
-                    map[&j.blk_type].3,
+                    map[&get_block_id(&j.building_type, &buildings_block_map)].2,
+                    map[&get_block_id(&j.building_type, &buildings_block_map)].3,
                 );
                 let start_node = index_to_node[&((start_absolute_entrance_y as usize) * MAP_SIZE
                     + (start_absolute_entrance_x as usize))];
