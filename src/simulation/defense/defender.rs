@@ -1,3 +1,4 @@
+use crate::models::*;
 pub struct Defender {
     pub id: i32,
     pub defender_type: i32,
@@ -11,14 +12,29 @@ pub struct Defender {
 }
 
 impl Defender {
-    // #[allow(dead_code)]
-    // pub fn new() -> Self {
-    //     println!("Defender Created");
-    //     todo!()
-    // }
+    #[allow(dead_code)]
+    pub fn new(defender_type: &DefenderType, id: i32, x_position: i32, y_position: i32) -> Self {
+        Self {
+            id,
+            defender_type: defender_type.id,
+            radius: defender_type.radius,
+            speed: defender_type.speed,
+            damage: defender_type.damage,
+            x_position,
+            y_position,
+            is_alive: true,
+            target_id: None,
+        }
+    }
 
     #[allow(dead_code)]
     pub fn simulate() {
-        todo!()
+        //checking any attcker within his range
+
+        //assign target
+
+        //change the position
+
+        //after reaching target defender will be out
     }
 }
