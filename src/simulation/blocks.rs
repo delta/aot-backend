@@ -42,7 +42,7 @@ pub struct BuildingsManager {
     pub shortest_paths: HashMap<SourceDest, Vec<(i32, i32)>>,
     pub buildings_grid: [[i32; MAP_SIZE]; MAP_SIZE],
     road_map_spaces: Vec<MapSpaces>,
-    blocks: HashMap<i32, BlockType>,
+    building_block_map: HashMap<i32, BlockType>,
 }
 
 // Associated functions
@@ -186,7 +186,7 @@ impl BuildingsManager {
     }
 
     //Returns Hashmap of building id and block type
-    fn get_blocks(conn: &mut PgConnection) -> Result<HashMap<i32, BlockType>> {
+    fn get_building_block_map(conn: &mut PgConnection) -> Result<HashMap<i32, BlockType>> {
         use crate::schema::{block_type, building_type};
 
         Ok(building_type::table
@@ -207,16 +207,17 @@ impl BuildingsManager {
     fn get_building_grid(
         conn: &mut PgConnection,
         map_id: i32,
-        blocks: &HashMap<i32, BlockType>,
+        building_block_map: &HashMap<i32, BlockType>,
     ) -> Result<[[i32; MAP_SIZE]; MAP_SIZE]> {
         let map_spaces: Vec<MapSpaces> = Self::get_building_map_spaces(conn, map_id)?;
         let mut building_grid: [[i32; MAP_SIZE]; MAP_SIZE] = [[0; MAP_SIZE]; MAP_SIZE];
 
         for map_space in map_spaces {
-            let BlockType { width, height, .. } =
-                blocks.get(&map_space.building_type).ok_or(KeyError {
+            let BlockType { width, height, .. } = building_block_map
+                .get(&map_space.building_type)
+                .ok_or(KeyError {
                     key: map_space.building_type,
-                    hashmap: "building_map".to_string(),
+                    hashmap: "building_block_map".to_string(),
                 })?;
             let MapSpaces {
                 x_coordinate,
@@ -266,12 +267,15 @@ impl BuildingsManager {
         Ok(building_grid)
     }
 
-    fn get_block_id(building_id: &i32, building_map: &HashMap<i32, BlockType>) -> Result<i32> {
-        Ok(building_map
+    fn get_block_id(
+        building_id: &i32,
+        building_block_map: &HashMap<i32, BlockType>,
+    ) -> Result<i32> {
+        Ok(building_block_map
             .get(building_id)
             .ok_or(KeyError {
                 key: *building_id,
-                hashmap: "building_map".to_string(),
+                hashmap: "building_block_map".to_string(),
             })?
             .id)
     }
@@ -280,14 +284,14 @@ impl BuildingsManager {
     pub fn new(conn: &mut PgConnection, map_id: i32) -> Result<Self> {
         let map_spaces = Self::get_building_map_spaces(conn, map_id)?;
         let building_types = Self::get_building_types(conn)?;
-        let blocks = Self::get_blocks(conn)?;
+        let building_block_map = Self::get_building_block_map(conn)?;
         let mut buildings: HashMap<i32, Building> = HashMap::new();
         let buildings_grid: [[i32; MAP_SIZE]; MAP_SIZE] =
-            Self::get_building_grid(conn, map_id, &blocks)?;
+            Self::get_building_grid(conn, map_id, &building_block_map)?;
         let road_map_spaces: Vec<MapSpaces> = Self::get_road_map_spaces(conn, map_id)?;
 
         for map_space in map_spaces {
-            let blk_type = Self::get_block_id(&map_space.building_type, &blocks)?;
+            let blk_type = Self::get_block_id(&map_space.building_type, &building_block_map)?;
 
             let (absolute_entrance_x, absolute_entrance_y) =
                 Self::get_absolute_entrance(&map_space, &building_types[&blk_type].block_type)?;
@@ -322,7 +326,7 @@ impl BuildingsManager {
             shortest_paths,
             buildings_grid,
             road_map_spaces,
-            blocks,
+            building_block_map,
         })
     }
 
@@ -362,7 +366,7 @@ impl BuildingsManager {
                 weight,
                 population,
             } = building;
-            let blk_type = Self::get_block_id(&map_space.building_type, &self.blocks)?;
+            let blk_type = Self::get_block_id(&map_space.building_type, &self.building_block_map)?;
             let capacity = self
                 .building_types
                 .get(&blk_type)
@@ -412,7 +416,8 @@ impl BuildingsManager {
 
     pub fn update_building_weights(&mut self, hour: i32) -> Result<()> {
         for building in self.buildings.values_mut() {
-            let blk_type = Self::get_block_id(&building.map_space.building_type, &self.blocks)?;
+            let blk_type =
+                Self::get_block_id(&building.map_space.building_type, &self.building_block_map)?;
             let weights = &self
                 .building_types
                 .get(&blk_type)

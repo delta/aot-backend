@@ -145,8 +145,8 @@ pub struct LevelConstraints {
 #[diesel(table_name = level_constraints)]
 pub struct NewLevelConstraint<'a> {
     pub level_id: &'a i32,
-    pub building_id: &'a i32,
     pub no_of_buildings: &'a i32,
+    pub building_id: &'a i32,
 }
 
 #[derive(Clone, Queryable, Serialize)]

@@ -163,7 +163,7 @@ pub fn get_details_from_map_layout(
             function: function!(),
             error: err,
         })?;
-    let blocks = fetch_block_types(conn)?;
+    let blocks = fetch_building_blocks(conn)?;
     let levels_fixture = levels_fixture::table
         .find(map.level_id)
         .first::<LevelsFixture>(conn)
@@ -313,7 +313,12 @@ pub fn fetch_defense_history(
     let joined_table = game::table.inner_join(map_layout::table.inner_join(levels_fixture::table));
     let games_result: Result<Vec<GameHistoryEntry>> = joined_table
         .filter(game::defend_id.eq(defender_id))
-        .load::<(Game, (MapLayout, LevelsFixture))>(conn)?
+        .load::<(Game, (MapLayout, LevelsFixture))>(conn)
+        .map_err(|err| DieselError {
+            table: "game",
+            function: function!(),
+            error: err,
+        })?
         .into_iter()
         .map(|(game, (_, levels_fixture))| {
             let is_replay_available = api::util::can_show_replay(user_id, &game, &levels_fixture);
@@ -336,7 +341,12 @@ pub fn fetch_top_defenses(user_id: i32, conn: &mut PgConnection) -> Result<GameH
     let games_result: Result<Vec<GameHistoryEntry>> = joined_table
         .order_by(game::defend_score.desc())
         .limit(10)
-        .load::<(Game, (MapLayout, LevelsFixture))>(conn)?
+        .load::<(Game, (MapLayout, LevelsFixture))>(conn)
+        .map_err(|err| DieselError {
+            table: "game",
+            function: function!(),
+            error: err,
+        })?
         .into_iter()
         .map(|(game, (_, levels_fixture))| {
             let is_replay_available = api::util::can_show_replay(user_id, &game, &levels_fixture);
@@ -359,7 +369,12 @@ pub fn fetch_mine_types(conn: &mut PgConnection) -> Result<Vec<MineTypeResponse>
     let joined_table = building_type::table.inner_join(mine_type::table);
 
     let mines: Result<Vec<MineTypeResponse>> = joined_table
-        .load::<(BuildingType, MineType)>(conn)?
+        .load::<(BuildingType, MineType)>(conn)
+        .map_err(|err| DieselError {
+            table: "mine_type",
+            function: function!(),
+            error: err,
+        })?
         .into_iter()
         .map(|(building_type, mine_type)| {
             Ok(MineTypeResponse {
@@ -378,7 +393,12 @@ pub fn fetch_diffuser_types(conn: &mut PgConnection) -> Result<Vec<DiffuserTypeR
 
     let joined_table = building_type::table.inner_join(diffuser_type::table);
     let diffusers: Result<Vec<DiffuserTypeResponse>> = joined_table
-        .load::<(BuildingType, DiffuserType)>(conn)?
+        .load::<(BuildingType, DiffuserType)>(conn)
+        .map_err(|err| DieselError {
+            table: "diffuser_type",
+            function: function!(),
+            error: err,
+        })?
         .into_iter()
         .map(|(building_type, diffuser_type)| {
             Ok(DiffuserTypeResponse {
@@ -400,7 +420,12 @@ pub fn fetch_defender_types(conn: &mut PgConnection) -> Result<Vec<DefenderTypeR
         .inner_join(defender_type::table)
         .inner_join(block_type::table);
     let defenders: Result<Vec<DefenderTypeResponse>> = joined_table
-        .load::<(BuildingType, DefenderType, BlockType)>(conn)?
+        .load::<(BuildingType, DefenderType, BlockType)>(conn)
+        .map_err(|err| DieselError {
+            table: "defender_type",
+            function: function!(),
+            error: err,
+        })?
         .into_iter()
         .map(|(building_type, defender_type, block_type)| {
             Ok(DefenderTypeResponse {
@@ -425,29 +450,32 @@ pub fn fetch_defender_types(conn: &mut PgConnection) -> Result<Vec<DefenderTypeR
     defenders
 }
 
-pub fn fetch_block_types(conn: &mut PgConnection) -> Result<Vec<BlockTypeResponse>> {
+pub fn fetch_building_blocks(conn: &mut PgConnection) -> Result<Vec<BlockTypeResponse>> {
     use crate::schema::{block_type, building_type};
 
     let joined_table = building_type::table
         .filter(building_type::building_category.eq(BuildingCategory::Building))
         .inner_join(block_type::table);
-    let blocks: Result<Vec<BlockTypeResponse>> = joined_table
-        .load::<(BuildingType, BlockType)>(conn)?
+    let blocks: Vec<BlockTypeResponse> = joined_table
+        .load::<(BuildingType, BlockType)>(conn)
+        .map_err(|err| DieselError {
+            table: "building_type",
+            function: function!(),
+            error: err,
+        })?
         .into_iter()
-        .map(|(building_type, block_type)| {
-            Ok(BlockTypeResponse {
-                id: block_type.id,
-                name: block_type.name,
-                width: block_type.width,
-                height: block_type.height,
-                entrance_x: block_type.entrance_x,
-                entrance_y: block_type.entrance_y,
-                capacity: block_type.capacity,
-                building_id: building_type.id,
-            })
+        .map(|(building_type, block_type)| BlockTypeResponse {
+            id: block_type.id,
+            name: block_type.name,
+            width: block_type.width,
+            height: block_type.height,
+            entrance_x: block_type.entrance_x,
+            entrance_y: block_type.entrance_y,
+            capacity: block_type.capacity,
+            building_id: building_type.id,
         })
         .collect();
-    blocks
+    Ok(blocks)
 }
 
 pub fn fetch_buildings(conn: &mut PgConnection) -> Result<HashMap<i32, BuildingType>> {

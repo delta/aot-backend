@@ -71,7 +71,7 @@ impl ResponseError for BaseInvalidError {
             }
             BaseInvalidError::BlockCountExceeded(block_type) => {
                 format!(
-                    "You have exceeded the maximum number of {} buildings",
+                    "You have exceeded the maximum number of building of type {}",
                     block_type
                 )
             }
