@@ -12,7 +12,7 @@ use std::collections::{HashMap, HashSet};
 
 use super::attacker::Attacker;
 
-#[derive(Debug, Eq, Hash, PartialEq)]
+#[derive(Debug, Eq, Hash, PartialEq, Clone)]
 pub struct Emp {
     path_id: usize,
     x_coord: i32,
@@ -69,6 +69,91 @@ impl Emps {
             }
         }
         Ok(Emps(emps))
+    }
+
+    pub fn effect_from_diffuser(
+        &mut self,
+        diff_x: i32,
+        diff_y: i32,
+        diff_radius: i32,
+        diff_speed: i32,
+        time: usize,
+    ) -> bool {
+        let Emps(time_emps_map) = self;
+
+        let mut got_emp = false;
+        let mut optimal_emp = Emp {
+            path_id: 1,
+            x_coord: -1,
+            y_coord: -1,
+            radius: -1,
+            damage: -1,
+            attacker_id: -1,
+        };
+        let mut optimal_emp_time = 0;
+        let mut optimal_emp_radius = 0.0;
+
+        for (emp_time, (_, emps)) in time_emps_map.iter_mut().enumerate() {
+            if emp_time > time {
+                for emp in emps.iter() {
+                    let emp_x = emp.x_coord;
+                    let emp_y = emp.y_coord;
+
+                    let radius =
+                        (((diff_x - emp_x).pow(2) + (diff_y - emp_y).pow(2)) as f32).sqrt();
+
+                    if (radius <= (diff_radius as f32))
+                        && (((time as f32) + (radius / (diff_speed as f32))) <= (emp_time as f32))
+                    {
+                        if got_emp {
+                            if radius < optimal_emp_radius
+                                || ((radius == optimal_emp_radius)
+                                    && (emp.damage > optimal_emp.damage))
+                            {
+                                optimal_emp_radius = radius;
+                                optimal_emp_time = emp_time;
+                                optimal_emp = Emp {
+                                    path_id: emp.path_id,
+                                    x_coord: emp.x_coord,
+                                    y_coord: emp.y_coord,
+                                    radius: emp.radius,
+                                    damage: emp.damage,
+                                    attacker_id: emp.attacker_id,
+                                }
+                            }
+                        } else {
+                            got_emp = true;
+                            optimal_emp_radius = radius;
+                            optimal_emp_time = emp_time;
+                            optimal_emp = Emp {
+                                path_id: emp.path_id,
+                                x_coord: emp.x_coord,
+                                y_coord: emp.y_coord,
+                                radius: emp.radius,
+                                damage: emp.damage,
+                                attacker_id: emp.attacker_id,
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if got_emp {
+            time_emps_map
+                .get_mut(&(optimal_emp_time as i32))
+                .unwrap()
+                .remove(&optimal_emp);
+
+            optimal_emp.damage = 0;
+
+            time_emps_map
+                .get_mut(&(optimal_emp_time as i32))
+                .unwrap()
+                .insert(optimal_emp);
+        }
+
+        got_emp
     }
 
     pub fn simulate(
