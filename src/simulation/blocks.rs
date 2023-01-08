@@ -12,7 +12,7 @@ use rand::prelude::*;
 use std::collections::HashMap;
 
 #[derive(Debug)]
-struct BuildingType {
+struct BuildingClass {
     block_type: BlockType,
     capacity: i32,
     weights: HashMap<i32, i32>,
@@ -38,21 +38,24 @@ pub struct SourceDest {
 #[derive(Debug)]
 pub struct BuildingsManager {
     pub buildings: HashMap<i32, Building>,
-    building_types: HashMap<i32, BuildingType>,
+    building_types: HashMap<i32, BuildingClass>,
     pub shortest_paths: HashMap<SourceDest, Vec<(i32, i32)>>,
     pub buildings_grid: [[i32; MAP_SIZE]; MAP_SIZE],
     road_map_spaces: Vec<MapSpaces>,
+    building_block_map: HashMap<i32, BlockType>,
 }
 
 // Associated functions
 impl BuildingsManager {
     // Get all map_spaces for this map excluding roads
     fn get_building_map_spaces(conn: &mut PgConnection, map_id: i32) -> Result<Vec<MapSpaces>> {
-        use crate::schema::map_spaces;
+        use crate::schema::{block_type, building_type, map_spaces};
 
         Ok(map_spaces::table
+            .inner_join(building_type::table.inner_join(block_type::table))
             .filter(map_spaces::map_id.eq(map_id))
-            .filter(map_spaces::blk_type.ne(ROAD_ID))
+            .filter(block_type::id.ne(ROAD_ID))
+            .select(map_spaces::all_columns)
             .load::<MapSpaces>(conn)
             .map_err(|err| DieselError {
                 table: "map_spaces",
@@ -62,11 +65,13 @@ impl BuildingsManager {
     }
 
     fn get_road_map_spaces(conn: &mut PgConnection, map_id: i32) -> Result<Vec<MapSpaces>> {
-        use crate::schema::map_spaces;
+        use crate::schema::{block_type, building_type, map_spaces};
 
         Ok(map_spaces::table
+            .inner_join(building_type::table.inner_join(block_type::table))
             .filter(map_spaces::map_id.eq(map_id))
-            .filter(map_spaces::blk_type.eq(ROAD_ID))
+            .filter(block_type::id.eq(ROAD_ID))
+            .select(map_spaces::all_columns)
             .load::<MapSpaces>(conn)
             .map_err(|err| DieselError {
                 table: "map_spaces",
@@ -93,7 +98,7 @@ impl BuildingsManager {
     }
 
     // get all building_types with their weights
-    fn get_building_types(conn: &mut PgConnection) -> Result<HashMap<i32, BuildingType>> {
+    fn get_building_types(conn: &mut PgConnection) -> Result<HashMap<i32, BuildingClass>> {
         use crate::schema::block_type::dsl::*;
         block_type
             .load::<BlockType>(conn)
@@ -106,7 +111,7 @@ impl BuildingsManager {
             .map(|x| match Self::get_weights(conn, x.id) {
                 Ok(weights) => Ok((
                     x.id,
-                    BuildingType {
+                    BuildingClass {
                         block_type: x.clone(),
                         capacity: x.capacity,
                         weights,
@@ -180,24 +185,39 @@ impl BuildingsManager {
         }
     }
 
+    //Returns Hashmap of building id and block type
+    fn get_building_block_map(conn: &mut PgConnection) -> Result<HashMap<i32, BlockType>> {
+        use crate::schema::{block_type, building_type};
+
+        Ok(building_type::table
+            .inner_join(block_type::table)
+            .select((building_type::id, block_type::all_columns))
+            .load::<(i32, BlockType)>(conn)
+            .map_err(|err| DieselError {
+                table: "block_type",
+                function: function!(),
+                error: err,
+            })?
+            .into_iter()
+            .map(|(id, block)| (id, block))
+            .collect())
+    }
+
     // Returns a matrix with each element containing the map_space id of the building in that location
     fn get_building_grid(
         conn: &mut PgConnection,
         map_id: i32,
+        building_block_map: &HashMap<i32, BlockType>,
     ) -> Result<[[i32; MAP_SIZE]; MAP_SIZE]> {
-        use crate::schema::block_type;
-
         let map_spaces: Vec<MapSpaces> = Self::get_building_map_spaces(conn, map_id)?;
         let mut building_grid: [[i32; MAP_SIZE]; MAP_SIZE] = [[0; MAP_SIZE]; MAP_SIZE];
 
         for map_space in map_spaces {
-            let BlockType { width, height, .. } = block_type::table
-                .filter(block_type::id.eq(map_space.blk_type))
-                .first::<BlockType>(conn)
-                .map_err(|err| DieselError {
-                    table: "block_type",
-                    function: function!(),
-                    error: err,
+            let BlockType { width, height, .. } = building_block_map
+                .get(&map_space.building_type)
+                .ok_or(KeyError {
+                    key: map_space.building_type,
+                    hashmap: "building_block_map".to_string(),
                 })?;
             let MapSpaces {
                 x_coordinate,
@@ -247,30 +267,45 @@ impl BuildingsManager {
         Ok(building_grid)
     }
 
+    fn get_block_id(
+        building_id: &i32,
+        building_block_map: &HashMap<i32, BlockType>,
+    ) -> Result<i32> {
+        Ok(building_block_map
+            .get(building_id)
+            .ok_or(KeyError {
+                key: *building_id,
+                hashmap: "building_block_map".to_string(),
+            })?
+            .id)
+    }
+
     // get new instance with map_id
     pub fn new(conn: &mut PgConnection, map_id: i32) -> Result<Self> {
         let map_spaces = Self::get_building_map_spaces(conn, map_id)?;
         let building_types = Self::get_building_types(conn)?;
+        let building_block_map = Self::get_building_block_map(conn)?;
         let mut buildings: HashMap<i32, Building> = HashMap::new();
-        let buildings_grid: [[i32; MAP_SIZE]; MAP_SIZE] = Self::get_building_grid(conn, map_id)?;
+        let buildings_grid: [[i32; MAP_SIZE]; MAP_SIZE] =
+            Self::get_building_grid(conn, map_id, &building_block_map)?;
         let road_map_spaces: Vec<MapSpaces> = Self::get_road_map_spaces(conn, map_id)?;
 
         for map_space in map_spaces {
-            let (absolute_entrance_x, absolute_entrance_y) = Self::get_absolute_entrance(
-                &map_space,
-                &building_types[&map_space.blk_type].block_type,
-            )?;
+            let blk_type = Self::get_block_id(&map_space.building_type, &building_block_map)?;
+
+            let (absolute_entrance_x, absolute_entrance_y) =
+                Self::get_absolute_entrance(&map_space, &building_types[&blk_type].block_type)?;
             let weight = *building_types
-                .get(&map_space.blk_type)
+                .get(&blk_type)
                 .ok_or(KeyError {
-                    key: map_space.blk_type,
+                    key: blk_type,
                     hashmap: "building_types".to_string(),
                 })?
                 .weights
                 .get(&9)
                 .ok_or(KeyError {
                     key: 9,
-                    hashmap: format!("building_types[{}].weights", map_space.blk_type),
+                    hashmap: format!("building_types[{}].weights", blk_type),
                 })?;
             buildings.insert(
                 map_space.id,
@@ -291,6 +326,7 @@ impl BuildingsManager {
             shortest_paths,
             buildings_grid,
             road_map_spaces,
+            building_block_map,
         })
     }
 
@@ -330,11 +366,12 @@ impl BuildingsManager {
                 weight,
                 population,
             } = building;
+            let blk_type = Self::get_block_id(&map_space.building_type, &self.building_block_map)?;
             let capacity = self
                 .building_types
-                .get(&map_space.blk_type)
+                .get(&blk_type)
                 .ok_or(KeyError {
-                    key: map_space.blk_type,
+                    key: blk_type,
                     hashmap: "building_types".to_string(),
                 })?
                 .capacity;
@@ -379,17 +416,19 @@ impl BuildingsManager {
 
     pub fn update_building_weights(&mut self, hour: i32) -> Result<()> {
         for building in self.buildings.values_mut() {
+            let blk_type =
+                Self::get_block_id(&building.map_space.building_type, &self.building_block_map)?;
             let weights = &self
                 .building_types
-                .get(&building.map_space.blk_type)
+                .get(&blk_type)
                 .ok_or(KeyError {
-                    key: building.map_space.blk_type,
+                    key: blk_type,
                     hashmap: "building_types".to_string(),
                 })?
                 .weights;
             building.weight = *weights.get(&(hour - 1)).ok_or(KeyError {
                 key: hour - 1,
-                hashmap: format!("building_types[{}].weights", building.map_space.blk_type),
+                hashmap: format!("building_types[{}].weights", blk_type),
             })?;
         }
         Ok(())

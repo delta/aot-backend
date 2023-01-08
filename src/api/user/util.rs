@@ -69,7 +69,7 @@ pub fn add_user(
         overall_rating: &INITIAL_RATING,
         is_pragyan: &false,
         password: &hashed_password,
-        is_verified: &false,
+        is_verified: &true,
         highest_rating: &INITIAL_RATING,
     };
     let user: User = diesel::insert_into(user::table)
