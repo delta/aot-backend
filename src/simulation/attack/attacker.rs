@@ -2,6 +2,7 @@ use crate::models::*;
 use crate::simulation::error::EmptyAttackerPathError;
 use anyhow::Result;
 
+#[derive(Clone)]
 pub struct Attacker {
     pub id: i32,
     pub path: Vec<AttackerPath>,

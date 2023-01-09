@@ -1,25 +1,43 @@
-use self::{defender::Defender, diffuser::Diffuser, mine::Mine};
+use self::{defender::Defenders, diffuser::Diffusers, mine::Mines};
+use anyhow::{Ok, Result};
+use diesel::PgConnection;
 
+use crate::simulation::attack::AttackManager;
 pub mod defender;
 pub mod diffuser;
 pub mod mine;
 
 pub struct DefenseManager {
-    pub defenders: Vec<Defender>,
-    pub diffusers: Vec<Diffuser>,
-    pub mine: Vec<Mine>,
+    pub defenders: Defenders,
+    pub diffusers: Diffusers,
+    pub mines: Mines,
 }
 
 impl DefenseManager {
-    // #[allow(dead_code)]
-    // pub fn new() -> Self {
-    //     todo!()
-    // }
+    #[allow(dead_code)]
+    pub fn new(conn: &mut PgConnection) -> Result<Self> {
+        let defenders = Defenders::new(conn)?;
+        let diffusers = Diffusers::new(conn)?;
+        let mines = Mines::new(conn)?;
 
-    //gets pos of all the attackers
+        Ok(DefenseManager {
+            defenders,
+            diffusers,
+            mines,
+        })
+    }
 
     #[allow(dead_code)]
-    pub fn simulate() {
-        todo!()
+    pub fn simulate(
+        &mut self,
+        attack_manager: &mut AttackManager,
+        conn: &mut PgConnection,
+        map_id: i32,
+        minute: i32,
+    ) -> Result<()> {
+        self.mines.simulate(attack_manager)?;
+        self.diffusers.simulate(minute, attack_manager)?;
+        self.defenders.simulate(attack_manager, conn, map_id)?;
+        Ok(())
     }
 }

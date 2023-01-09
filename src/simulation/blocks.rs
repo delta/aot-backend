@@ -48,7 +48,7 @@ pub struct BuildingsManager {
 // Associated functions
 impl BuildingsManager {
     // Get all map_spaces for this map excluding roads
-    fn get_building_map_spaces(conn: &mut PgConnection, map_id: i32) -> Result<Vec<MapSpaces>> {
+    pub fn get_building_map_spaces(conn: &mut PgConnection, map_id: i32) -> Result<Vec<MapSpaces>> {
         use crate::schema::{block_type, building_type, map_spaces};
 
         Ok(map_spaces::table
@@ -64,7 +64,7 @@ impl BuildingsManager {
             })?)
     }
 
-    fn get_road_map_spaces(conn: &mut PgConnection, map_id: i32) -> Result<Vec<MapSpaces>> {
+    pub fn get_road_map_spaces(conn: &mut PgConnection, map_id: i32) -> Result<Vec<MapSpaces>> {
         use crate::schema::{block_type, building_type, map_spaces};
 
         Ok(map_spaces::table
@@ -123,7 +123,7 @@ impl BuildingsManager {
     }
 
     // get all shortest paths with string pathlist converted to vector of i32 tuples
-    fn get_shortest_paths(
+    pub fn get_shortest_paths(
         conn: &mut PgConnection,
         map_id: i32,
     ) -> Result<HashMap<SourceDest, Vec<(i32, i32)>>> {
