@@ -427,24 +427,11 @@ pub fn get_attacker_types(conn: &mut PgConnection) -> Result<HashMap<i32, Attack
 
 pub fn fetch_attacker_types(conn: &mut PgConnection) -> Result<Vec<AttackerType>> {
     use crate::schema::attacker_type::dsl::*;
-
-    let attacker_types: Result<Vec<AttackerType>> = attacker_type
+    Ok(attacker_type
         .load::<AttackerType>(conn)
         .map_err(|err| DieselError {
             table: "attacker_type",
             function: function!(),
             error: err,
-        })?
-        .into_iter()
-        .map(|attacker| {
-            Ok(AttackerType {
-                id: attacker.id,
-                max_health: attacker.max_health,
-                speed: attacker.speed,
-                amt_of_emps: attacker.amt_of_emps,
-            })
-        })
-        .collect();
-
-    attacker_types
+        })?)
 }
