@@ -14,7 +14,8 @@ mod validate;
 pub fn routes(cfg: &mut web::ServiceConfig) {
     cfg.service(web::resource("").route(web::post().to(create_attack)))
         .service(web::resource("/{attacker_id}/history").route(web::get().to(attack_history)))
-        .service(web::resource("/top").route(web::get().to(get_top_attacks)));
+        .service(web::resource("/top").route(web::get().to(get_top_attacks)))
+        .service(web::resource("/attacker_types").route(web::get().to(attacker_types)));
 }
 
 async fn create_attack(
@@ -125,6 +126,16 @@ async fn get_top_attacks(pool: web::Data<PgPool>, user: AuthUser) -> Result<impl
     let response = web::block(move || {
         let mut conn = pool.get()?;
         util::fetch_top_attacks(user_id, &mut conn)
+    })
+    .await?
+    .map_err(|err| error::handle_error(err.into()))?;
+    Ok(web::Json(response))
+}
+
+async fn attacker_types(pool: web::Data<PgPool>) -> Result<impl Responder> {
+    let response = web::block(move || {
+        let mut conn = pool.get()?;
+        util::fetch_attacker_types(&mut conn)
     })
     .await?
     .map_err(|err| error::handle_error(err.into()))?;
