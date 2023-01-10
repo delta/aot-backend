@@ -275,7 +275,7 @@ pub fn run_simulation(
                 )
             })?;
         writeln!(content, "emps")?;
-        writeln!(content, "id,time,type")?;
+        writeln!(content, "id,time,type,attacker_id")?;
         attacker_path
             .iter()
             .enumerate()
@@ -283,10 +283,11 @@ pub fn run_simulation(
                 if path.is_emp {
                     writeln!(
                         content,
-                        "{},{},{}",
+                        "{},{},{},{}",
                         id + 1,
                         path.emp_time.unwrap(),
-                        path.emp_type.unwrap()
+                        path.emp_type.unwrap(),
+                        attacker_id + 1,
                     )
                 } else {
                     Ok(())
@@ -422,4 +423,15 @@ pub fn get_attacker_types(conn: &mut PgConnection) -> Result<HashMap<i32, Attack
             )
         })
         .collect::<HashMap<i32, AttackerType>>())
+}
+
+pub fn fetch_attacker_types(conn: &mut PgConnection) -> Result<Vec<AttackerType>> {
+    use crate::schema::attacker_type::dsl::*;
+    Ok(attacker_type
+        .load::<AttackerType>(conn)
+        .map_err(|err| DieselError {
+            table: "attacker_type",
+            function: function!(),
+            error: err,
+        })?)
 }
