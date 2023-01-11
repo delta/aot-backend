@@ -61,6 +61,7 @@ pub struct DefenseResponse {
     pub defender_types: Vec<DefenderTypeResponse>,
     pub diffuser_types: Vec<DiffuserTypeResponse>,
     pub mine_types: Vec<MineTypeResponse>,
+    pub attacker_types: Vec<AttackerType>,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -191,6 +192,7 @@ pub fn get_details_from_map_layout(
     let mine_types = fetch_mine_types(conn)?;
     let defender_types = fetch_defender_types(conn)?;
     let diffuser_types = fetch_diffuser_types(conn)?;
+    let attacker_types = fetch_attacker_types(conn)?;
 
     Ok(DefenseResponse {
         map_spaces,
@@ -201,6 +203,7 @@ pub fn get_details_from_map_layout(
         mine_types,
         defender_types,
         diffuser_types,
+        attacker_types,
     })
 }
 
@@ -490,4 +493,15 @@ pub fn fetch_buildings(conn: &mut PgConnection) -> Result<HashMap<i32, BuildingT
         .into_iter()
         .map(|building| (building.id, building))
         .collect::<HashMap<i32, BuildingType>>())
+}
+
+pub fn fetch_attacker_types(conn: &mut PgConnection) -> Result<Vec<AttackerType>> {
+    use crate::schema::attacker_type::dsl::*;
+    Ok(attacker_type
+        .load::<AttackerType>(conn)
+        .map_err(|err| DieselError {
+            table: "attacker_type",
+            function: function!(),
+            error: err,
+        })?)
 }
