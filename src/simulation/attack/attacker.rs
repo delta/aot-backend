@@ -15,7 +15,11 @@ pub struct Attacker {
 impl Attacker {
     pub fn update_position(&mut self) {
         if self.is_alive && self.path.len() > 1 {
-            self.path.pop();
+            if self.path.len() > self.speed as usize {
+                self.path.truncate(self.path.len() - self.speed as usize);
+            } else {
+                self.path.truncate(1);
+            }
         }
     }
 

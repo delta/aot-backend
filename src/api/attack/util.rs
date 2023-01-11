@@ -306,7 +306,7 @@ pub fn run_simulation(
             .with_context(|| format!("Failed to simulate frame {}", frame))?;
         for attacker in simulated_frame.attackers {
             writeln!(content, "attacker {}", attacker.attacker_id)?;
-            writeln!(content, "x,y,is_alive,emp_id,health,type")?;
+            writeln!(content, "id,x,y,is_alive,emp_id,health,type")?;
             let RenderAttacker {
                 x_position,
                 y_position,
@@ -314,12 +314,12 @@ pub fn run_simulation(
                 emp_id,
                 health,
                 attacker_type,
-                ..
+                attacker_id,
             } = attacker;
             writeln!(
                 content,
-                "{},{},{},{},{},{}",
-                x_position, y_position, is_alive, emp_id, health, attacker_type
+                "{},{},{},{},{},{},{}",
+                attacker_id, x_position, y_position, is_alive, emp_id, health, attacker_type
             )?;
         }
 
