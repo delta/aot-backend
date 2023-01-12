@@ -10,7 +10,6 @@ pub struct AttackPathStats {
     pub is_alive: bool,
 }
 
-#[derive(Clone)]
 pub struct Attacker {
     pub id: i32,
     pub path: Vec<AttackerPath>,

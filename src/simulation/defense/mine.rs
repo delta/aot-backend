@@ -1,7 +1,6 @@
 use crate::models::*;
 use crate::simulation::attack::AttackManager;
 use anyhow::{Ok, Result};
-use diesel::dsl::not;
 use diesel::prelude::*;
 use diesel::PgConnection;
 
@@ -19,12 +18,15 @@ pub struct Mines(Vec<Mine>);
 
 impl Mines {
     #[allow(dead_code)]
-    pub fn new(conn: &mut PgConnection) -> Result<Self> {
+    pub fn new(conn: &mut PgConnection, map_id: i32) -> Result<Self> {
         use crate::schema::{building_type, map_spaces, mine_type};
 
         let joined_table = map_spaces::table
+            .filter(map_spaces::map_id.eq(map_id))
             .inner_join(building_type::table)
-            .inner_join(mine_type::table.on(not(building_type::mine_type.is_null())));
+            .inner_join(
+                mine_type::table.on(building_type::building_category.eq(BuildingCategory::Mine)),
+            );
 
         let mines: Vec<Mine> = joined_table
             .load::<(MapSpaces, BuildingType, MineType)>(conn)?
@@ -49,21 +51,25 @@ impl Mines {
         let Mines(mines) = self;
         let attackers = &mut attack_manager.attackers;
 
-        for (_, (_, attacker)) in attackers.iter_mut().enumerate() {
-            let (attacker_x, attacker_y) = attacker.get_current_position()?;
+        for mine in mines.iter_mut() {
+            let mine_x = mine.x_position;
+            let mine_y = mine.y_position;
 
-            for mine in mines.iter_mut() {
-                let mine_x = mine.x_position;
-                let mine_y = mine.y_position;
-
-                let dist =
-                    (((mine_x - attacker_x).pow(2) + (mine_y - attacker_y).pow(2)) as f32).sqrt();
-
-                //check if there is any attacker within the range
-                if dist as i32 <= mine.radius {
-                    //damage attckers
-                    attacker.get_damage(mine.damage);
-                    //deativate mine
+            if mine.is_activated {
+                let mut mine_is_used = false;
+                for attacker in attackers.values_mut() {
+                    let (attacker_x, attacker_y) = attacker.get_current_position()?;
+                    let dist = (((mine_x - attacker_x).pow(2) + (mine_y - attacker_y).pow(2))
+                        as f32)
+                        .sqrt();
+                    //check if there is any attacker within the range
+                    if dist as i32 <= mine.radius {
+                        //damage attckers
+                        attacker.get_damage(mine.damage);
+                        mine_is_used = true;
+                    }
+                }
+                if mine_is_used {
                     mine.is_activated = false;
                 }
             }
