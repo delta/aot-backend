@@ -28,7 +28,7 @@ pub struct NewAttackType<'a> {
     pub attack_damage: &'a i32,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct AttackerPath {
     pub id: usize,
     pub y_coord: i32,
@@ -164,7 +164,7 @@ pub struct NewMapLayout<'a> {
     pub level_id: &'a i32,
 }
 
-#[derive(Queryable, Debug, Serialize, Deserialize, Copy, Clone)]
+#[derive(Queryable, Debug, Serialize, Deserialize)]
 pub struct MapSpaces {
     pub id: i32,
     pub map_id: i32,

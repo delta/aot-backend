@@ -15,10 +15,10 @@ pub struct DefenseManager {
 
 impl DefenseManager {
     #[allow(dead_code)]
-    pub fn new(conn: &mut PgConnection) -> Result<Self> {
+    pub fn new(conn: &mut PgConnection, map_id: i32) -> Result<Self> {
         let defenders = Defenders::new(conn)?;
         let diffusers = Diffusers::new(conn)?;
-        let mines = Mines::new(conn)?;
+        let mines = Mines::new(conn, map_id)?;
 
         Ok(DefenseManager {
             defenders,

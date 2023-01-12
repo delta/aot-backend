@@ -12,7 +12,7 @@ use std::collections::{HashMap, HashSet};
 
 use super::attacker::Attacker;
 
-#[derive(Debug, Eq, Hash, PartialEq, Clone)]
+#[derive(Debug, Eq, Hash, PartialEq)]
 pub struct Emp {
     path_id: usize,
     x_coord: i32,
@@ -93,8 +93,8 @@ impl Emps {
         let mut optimal_emp_time = 0;
         let mut optimal_emp_radius = 0.0;
 
-        for (emp_time, (_, emps)) in time_emps_map.iter_mut().enumerate() {
-            if emp_time > time {
+        for (emp_time, emps) in time_emps_map.iter_mut() {
+            if *emp_time > time as i32 {
                 for emp in emps.iter() {
                     let emp_x = emp.x_coord;
                     let emp_y = emp.y_coord;
@@ -103,7 +103,7 @@ impl Emps {
                         (((diff_x - emp_x).pow(2) + (diff_y - emp_y).pow(2)) as f32).sqrt();
 
                     if (radius <= (diff_radius as f32))
-                        && (((time as f32) + (radius / (diff_speed as f32))) <= (emp_time as f32))
+                        && (((time as f32) + (radius / (diff_speed as f32))) <= (*emp_time as f32))
                     {
                         if got_emp {
                             if radius < optimal_emp_radius
@@ -111,7 +111,7 @@ impl Emps {
                                     && (emp.damage > optimal_emp.damage))
                             {
                                 optimal_emp_radius = radius;
-                                optimal_emp_time = emp_time;
+                                optimal_emp_time = *emp_time;
                                 optimal_emp = Emp {
                                     path_id: emp.path_id,
                                     x_coord: emp.x_coord,
@@ -124,7 +124,7 @@ impl Emps {
                         } else {
                             got_emp = true;
                             optimal_emp_radius = radius;
-                            optimal_emp_time = emp_time;
+                            optimal_emp_time = *emp_time;
                             optimal_emp = Emp {
                                 path_id: emp.path_id,
                                 x_coord: emp.x_coord,
@@ -141,14 +141,14 @@ impl Emps {
 
         if got_emp {
             time_emps_map
-                .get_mut(&(optimal_emp_time as i32))
+                .get_mut(&optimal_emp_time)
                 .unwrap()
                 .remove(&optimal_emp);
 
             optimal_emp.damage = 0;
 
             time_emps_map
-                .get_mut(&(optimal_emp_time as i32))
+                .get_mut(&optimal_emp_time)
                 .unwrap()
                 .insert(optimal_emp);
         }
