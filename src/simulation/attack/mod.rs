@@ -8,8 +8,8 @@ use self::{attacker::Attacker, emp::Emps};
 
 use super::{blocks::BuildingsManager, error::KeyError, robots::RobotsManager, Simulator};
 
-mod attacker;
-mod emp;
+pub mod attacker;
+pub mod emp;
 
 pub struct AttackManager {
     pub attackers: HashMap<i32, Attacker>,
