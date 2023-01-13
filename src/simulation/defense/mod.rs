@@ -20,7 +20,7 @@ impl DefenseManager {
     #[allow(dead_code)]
     pub fn new(conn: &mut PgConnection,map_id:i32) -> Result<Self> {
         let defenders = Defenders::new(conn, map_id)?;
-        let diffusers = Diffusers::new(conn)?;
+        let diffusers = Diffusers::new(conn,map_id)?;
         let mines = Mines::new(conn, map_id)?;
 
         Ok(DefenseManager {
