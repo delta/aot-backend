@@ -17,7 +17,7 @@ impl DefenseManager {
     #[allow(dead_code)]
     pub fn new(conn: &mut PgConnection, map_id: i32) -> Result<Self> {
         let defenders = Defenders::new(conn)?;
-        let diffusers = Diffusers::new(conn,map_id)?;
+        let diffusers = Diffusers::new(conn, map_id)?;
         let mines = Mines::new(conn, map_id)?;
 
         Ok(DefenseManager {
@@ -36,7 +36,8 @@ impl DefenseManager {
         minute: i32,
     ) -> Result<()> {
         self.mines.simulate(attack_manager)?;
-        self.diffusers.simulate(minute, attack_manager)?;
+        self.diffusers
+            .simulate(minute, attack_manager, conn, map_id)?;
         self.defenders.simulate(attack_manager, conn, map_id)?;
         Ok(())
     }
