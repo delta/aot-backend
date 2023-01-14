@@ -34,16 +34,17 @@ impl Diffusers {
         use crate::schema::{building_type, diffuser_type, map_spaces};
         let joined_table = map_spaces::table
             .filter(map_spaces::map_id.eq(map_id))
-            .inner_join(building_type::table)
             .inner_join(
-                diffuser_type::table
-                    .on(building_type::building_category.eq(BuildingCategory::Diffuser)),
+                building_type::table.inner_join(
+                    diffuser_type::table
+                        .on(building_type::building_category.eq(BuildingCategory::Diffuser)),
+                ),
             );
 
         let diffusers: Vec<Diffuser> = joined_table
-            .load::<(MapSpaces, BuildingType, DiffuserType)>(conn)?
+            .load::<(MapSpaces, (BuildingType, DiffuserType))>(conn)?
             .into_iter()
-            .map(|(map_space, _, diffuser_type)| Diffuser {
+            .map(|(map_space, (_, diffuser_type))| Diffuser {
                 id: map_space.id,
                 diffuser_type: diffuser_type.id,
                 radius: diffuser_type.radius,
@@ -270,12 +271,13 @@ impl Diffusers {
         attack_manager: &mut AttackManager,
         conn: &mut PgConnection,
         map_id: i32,
+        building_manager: BuildingsManager,
     ) -> Result<()> {
         //get list of active emps within radius
         let Diffusers(diffusers) = self;
         let Emps(time_emps_map) = &mut attack_manager.emps;
         let attackers = &attack_manager.attackers;
-        let shortest_paths = BuildingsManager::get_shortest_paths(conn, map_id)?;
+        let shortest_paths = building_manager.shortest_paths;
 
         for diffuser in diffusers.iter_mut() {
             if diffuser.is_alive {

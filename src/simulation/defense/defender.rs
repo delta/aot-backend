@@ -32,14 +32,15 @@ impl Defenders {
     pub fn new(conn: &mut PgConnection) -> Result<Self> {
         use crate::schema::{building_type, defender_type, map_spaces};
 
-        let joined_table = map_spaces::table
-            .inner_join(building_type::table)
-            .inner_join(defender_type::table.on(not(building_type::defender_type.is_null())));
+        let joined_table = map_spaces::table.inner_join(
+            building_type::table
+                .inner_join(defender_type::table.on(not(building_type::defender_type.is_null()))),
+        );
 
         let result: Vec<Defender> = joined_table
-            .load::<(MapSpaces, BuildingType, DefenderType)>(conn)?
+            .load::<(MapSpaces, (BuildingType, DefenderType))>(conn)?
             .into_iter()
-            .map(|(map_space, _, defender_type)| Defender {
+            .map(|(map_space, (_, defender_type))| Defender {
                 id: map_space.id,
                 defender_type: defender_type.id,
                 radius: defender_type.radius,

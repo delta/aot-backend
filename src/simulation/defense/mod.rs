@@ -3,6 +3,7 @@ use anyhow::{Ok, Result};
 use diesel::PgConnection;
 
 use crate::simulation::attack::AttackManager;
+use crate::simulation::blocks::BuildingsManager;
 pub mod defender;
 pub mod diffuser;
 pub mod mine;
@@ -35,9 +36,10 @@ impl DefenseManager {
         map_id: i32,
         minute: i32,
     ) -> Result<()> {
+        let building_manager = BuildingsManager::new(conn, map_id)?;
         self.mines.simulate(attack_manager)?;
         self.diffusers
-            .simulate(minute, attack_manager, conn, map_id)?;
+            .simulate(minute, attack_manager, conn, map_id, building_manager)?;
         self.defenders.simulate(attack_manager, conn, map_id)?;
         Ok(())
     }

@@ -23,15 +23,14 @@ impl Mines {
 
         let joined_table = map_spaces::table
             .filter(map_spaces::map_id.eq(map_id))
-            .inner_join(building_type::table)
-            .inner_join(
+            .inner_join(building_type::table.inner_join(
                 mine_type::table.on(building_type::building_category.eq(BuildingCategory::Mine)),
-            );
+            ));
 
         let mines: Vec<Mine> = joined_table
-            .load::<(MapSpaces, BuildingType, MineType)>(conn)?
+            .load::<(MapSpaces, (BuildingType, MineType))>(conn)?
             .into_iter()
-            .map(|(map_space, _, mine_type)| Mine {
+            .map(|(map_space, (_, mine_type))| Mine {
                 id: map_space.id,
                 mine_type: mine_type.id,
                 damage: mine_type.damage,
