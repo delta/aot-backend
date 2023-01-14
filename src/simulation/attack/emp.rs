@@ -12,7 +12,7 @@ use std::collections::{HashMap, HashSet};
 
 use super::attacker::Attacker;
 
-#[derive(Debug, Eq, Hash, PartialEq,Clone)]
+#[derive(Debug, Eq, Hash, PartialEq, Clone)]
 pub struct Emp {
     pub path_id: usize,
     pub x_coord: i32,

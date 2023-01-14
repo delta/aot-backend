@@ -37,9 +37,10 @@ impl DefenseManager {
         building_manager: &mut BuildingsManager,
         conn: &mut PgConnection,
         minute: i32,
+        map_id:i32,
     ) -> Result<()> {
         self.mines.simulate(attacker_manager)?;
-        self.diffusers.simulate(minute, attacker_manager)?;
+        self.diffusers.simulate(minute, attacker_manager,conn,map_id)?;
         self.defenders.simulate(attacker_manager, building_manager)?;
         Ok(())
     }
