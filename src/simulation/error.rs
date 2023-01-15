@@ -12,6 +12,9 @@ pub struct EmpDetailsError {
 pub struct EmptyAttackerPathError;
 
 #[derive(Debug, Display, Error)]
+pub struct EmptyDefenderPathError;
+
+#[derive(Debug, Display, Error)]
 #[display(fmt = "{:?}", self)]
 pub struct KeyError {
     pub key: i32,

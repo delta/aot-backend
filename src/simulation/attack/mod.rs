@@ -8,7 +8,7 @@ use self::{attacker::Attacker, emp::Emps};
 
 use super::{blocks::BuildingsManager, error::KeyError, robots::RobotsManager, Simulator};
 
-mod attacker;
+pub mod attacker;
 mod emp;
 
 pub struct AttackManager {

@@ -1,6 +1,7 @@
 use crate::api::attack::util::NewAttacker;
 use crate::constants::*;
 use crate::error::DieselError;
+use crate::simulation::defense::DefenseManager;
 use crate::util::function;
 use anyhow::Result;
 use blocks::BuildingsManager;
@@ -47,6 +48,7 @@ pub struct Simulator {
     robots_manager: RobotsManager,
     attack_manager: AttackManager,
     frames_passed: i32,
+    defense_manager: DefenseManager,
     pub no_of_robots: i32,
     pub rating_factor: f32,
 }
@@ -82,6 +84,7 @@ impl Simulator {
         let buildings_manager = BuildingsManager::new(conn, map_id)?;
         let robots_manager = RobotsManager::new(&buildings_manager, no_of_robots)?;
         let attack_manager = AttackManager::new(conn, attackers)?;
+        let defense_manager = DefenseManager::new(conn, map_id)?;
 
         Ok(Simulator {
             buildings_manager,
@@ -90,6 +93,7 @@ impl Simulator {
             frames_passed: 0,
             no_of_robots,
             rating_factor,
+            defense_manager,
         })
     }
 
@@ -142,6 +146,7 @@ impl Simulator {
             robots_manager,
             attack_manager,
             frames_passed,
+            defense_manager,
             ..
         } = self;
         *frames_passed += 1;
@@ -152,6 +157,8 @@ impl Simulator {
 
         //Simulate Emps and attackers
         attack_manager.simulate_attack(frames_passed, robots_manager, buildings_manager)?;
+
+        defense_manager.simulate(attack_manager, buildings_manager)?;
 
         if Self::is_hour(frames_passed) {
             buildings_manager.update_building_weights(Self::get_hour(frames_passed))?;

@@ -2,6 +2,12 @@ use crate::models::*;
 use crate::simulation::error::EmptyAttackerPathError;
 use anyhow::Result;
 
+pub struct AttackPathStats {
+    pub attacker_path: AttackerPath,
+    pub health: i32,
+    pub is_alive: bool,
+}
+
 pub struct Attacker {
     pub id: i32,
     pub path: Vec<AttackerPath>,
@@ -10,17 +16,51 @@ pub struct Attacker {
     pub health: i32,
     pub speed: i32,
     pub attacker_type: i32,
+    pub path_in_current_frame: Vec<AttackPathStats>,
 }
 
 impl Attacker {
     pub fn update_position(&mut self) {
         if self.is_alive && self.path.len() > 1 {
             if self.path.len() > self.speed as usize {
-                self.path.truncate(self.path.len() - self.speed as usize);
+                self.path_in_current_frame = self
+                    .path
+                    .split_off(self.path.len() - self.speed as usize)
+                    .into_iter()
+                    .map(|attacker_path| AttackPathStats {
+                        attacker_path,
+                        health: self.health,
+                        is_alive: self.is_alive,
+                    })
+                    .collect();
             } else {
-                self.path.truncate(1);
+                self.path_in_current_frame = self
+                    .path
+                    .split_off(1)
+                    .into_iter()
+                    .map(|attacker_path| AttackPathStats {
+                        attacker_path,
+                        health: self.health,
+                        is_alive: self.is_alive,
+                    })
+                    .collect();
             }
         }
+        self.path_in_current_frame.insert(
+            0,
+            AttackPathStats {
+                attacker_path: AttackerPath {
+                    id: self.path.last().unwrap().id,
+                    y_coord: self.path.last().unwrap().y_coord,
+                    x_coord: self.path.last().unwrap().x_coord,
+                    is_emp: self.path.last().unwrap().is_emp,
+                    emp_type: self.path.last().unwrap().emp_type,
+                    emp_time: self.path.last().unwrap().emp_time,
+                },
+                health: self.health,
+                is_alive: self.is_alive,
+            },
+        )
     }
 
     pub fn is_planted(&self, path_id: usize) -> Result<bool> {
@@ -37,11 +77,13 @@ impl Attacker {
         }
     }
 
-    pub fn get_damage(&mut self, damage: i32) {
-        self.health -= damage;
-        if self.health <= 0 {
-            self.is_alive = false;
-            self.health = 0;
+    pub fn get_damage(&mut self, damage: i32, current_attacker_pos: usize) {
+        for position in 0..=current_attacker_pos {
+            self.path_in_current_frame[position].health -= damage;
+            if self.path_in_current_frame[position].health <= 0 {
+                self.path_in_current_frame[position].is_alive = false;
+                self.path_in_current_frame[position].health = 0
+            }
         }
     }
 
@@ -60,6 +102,7 @@ impl Attacker {
             })
             .collect();
         attacker_path.reverse();
+        let path_in_current_frame = Vec::new();
         Self {
             id,
             is_alive: true,
@@ -68,6 +111,7 @@ impl Attacker {
             health: attacker_type.max_health,
             speed: attacker_type.speed,
             attacker_type: attacker_type.id,
+            path_in_current_frame,
         }
     }
 }
