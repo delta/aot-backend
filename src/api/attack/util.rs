@@ -5,8 +5,8 @@ use crate::error::DieselError;
 use crate::models::{
     AttackerType, Game, LevelsFixture, MapLayout, NewAttackerPath, NewGame, NewSimulationLog,
 };
-use crate::simulation::Simulator;
 use crate::simulation::{RenderAttacker, RenderRobot};
+use crate::simulation::{RenderDefender, Simulator};
 use crate::util::function;
 use anyhow::{Context, Result};
 use chrono::{Local, NaiveTime};
@@ -320,6 +320,23 @@ pub fn run_simulation(
                 content,
                 "{},{},{},{},{},{},{}",
                 attacker_id, x_position, y_position, is_alive, emp_id, health, attacker_type
+            )?;
+        }
+
+        for defender in simulated_frame.defenders {
+            writeln!(content, "defender {}", defender.defender_id)?;
+            writeln!(content, "id,x,y,is_alive,type")?;
+            let RenderDefender {
+                defender_id,
+                x_position,
+                y_position,
+                is_alive,
+                defender_type,
+            } = defender;
+            writeln!(
+                content,
+                "{},{},{},{},{}",
+                defender_id, x_position, y_position, is_alive, defender_type
             )?;
         }
 

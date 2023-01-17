@@ -1,5 +1,6 @@
 use crate::models::*;
 use crate::simulation::error::EmptyAttackerPathError;
+use crate::simulation::RenderAttacker;
 use anyhow::Result;
 
 pub struct AttackPathStats {
@@ -21,6 +22,7 @@ pub struct Attacker {
 
 impl Attacker {
     pub fn update_position(&mut self) {
+        self.path_in_current_frame = Vec::new();
         if self.is_alive && self.path.len() > 1 {
             if self.path.len() > self.speed as usize {
                 self.path_in_current_frame = self
@@ -49,14 +51,7 @@ impl Attacker {
         self.path_in_current_frame.insert(
             0,
             AttackPathStats {
-                attacker_path: AttackerPath {
-                    id: self.path.last().unwrap().id,
-                    y_coord: self.path.last().unwrap().y_coord,
-                    x_coord: self.path.last().unwrap().x_coord,
-                    is_emp: self.path.last().unwrap().is_emp,
-                    emp_type: self.path.last().unwrap().emp_type,
-                    emp_time: self.path.last().unwrap().emp_time,
-                },
+                attacker_path: self.path[self.path.len() - 1],
                 health: self.health,
                 is_alive: self.is_alive,
             },
@@ -85,6 +80,32 @@ impl Attacker {
                 self.path_in_current_frame[position].health = 0
             }
         }
+    }
+
+    pub fn post_simulate(&mut self) -> Result<Vec<RenderAttacker>> {
+        let mut render_attacker: Vec<RenderAttacker> = Vec::new();
+        for attacker_path_stats in self.path_in_current_frame.iter().rev() {
+            self.is_alive = attacker_path_stats.is_alive;
+            self.health = attacker_path_stats.health;
+            render_attacker.push(RenderAttacker {
+                attacker_id: self.id,
+                health: attacker_path_stats.health,
+                x_position: attacker_path_stats.attacker_path.x_coord,
+                y_position: attacker_path_stats.attacker_path.y_coord,
+                is_alive: attacker_path_stats.is_alive,
+                attacker_type: self.attacker_type,
+                emp_id: if attacker_path_stats.attacker_path.is_emp {
+                    attacker_path_stats.attacker_path.id
+                } else {
+                    0
+                },
+            });
+            if !attacker_path_stats.is_alive {
+                break;
+            }
+        }
+
+        Ok(render_attacker)
     }
 
     pub fn new(path: &[NewAttackerPath], attacker_type: &AttackerType, id: i32) -> Self {

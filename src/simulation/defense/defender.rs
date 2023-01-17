@@ -11,6 +11,7 @@ use crate::simulation::blocks::*;
 use crate::simulation::error::EmptyDefenderPathError;
 use crate::simulation::error::KeyError;
 use crate::simulation::error::ShortestPathNotFoundError;
+use crate::simulation::RenderDefender;
 use crate::util::function;
 use anyhow::{Ok, Result};
 use diesel::prelude::*;
@@ -142,6 +143,7 @@ impl Defenders {
                                 .get(&source_dest)
                                 .ok_or(ShortestPathNotFoundError(source_dest))?
                                 .clone();
+                            optimal_path.reverse();
                         }
                     }
                     defender.target_id = target_id;
@@ -284,5 +286,22 @@ impl Defenders {
             ),
             _ => panic!("Invalid Map Space Rotation"),
         }
+    }
+
+    pub fn post_simulate(&self) -> Vec<RenderDefender> {
+        let mut defender_positions = Vec::new();
+        let Defenders(defenders) = self;
+        for defender in defenders {
+            for path in defender.path_in_current_frame.iter() {
+                defender_positions.push(RenderDefender {
+                    defender_id: defender.id,
+                    x_position: path.0,
+                    y_position: path.1,
+                    is_alive: defender.is_alive,
+                    defender_type: defender.defender_type,
+                })
+            }
+        }
+        defender_positions
     }
 }

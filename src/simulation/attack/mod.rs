@@ -6,7 +6,9 @@ use diesel::PgConnection;
 
 use self::{attacker::Attacker, emp::Emps};
 
-use super::{blocks::BuildingsManager, error::KeyError, robots::RobotsManager, Simulator};
+use super::{
+    blocks::BuildingsManager, error::KeyError, robots::RobotsManager, RenderAttacker, Simulator,
+};
 
 pub mod attacker;
 mod emp;
@@ -66,5 +68,14 @@ impl AttackManager {
         )?;
 
         Ok(())
+    }
+
+    pub fn get_attacker_positions(&mut self) -> Result<Vec<RenderAttacker>> {
+        let mut attacker_positions: Vec<RenderAttacker> = Vec::new();
+        for attacker in self.attackers.values_mut() {
+            let mut render_attackers = attacker.post_simulate()?;
+            attacker_positions.append(&mut render_attackers);
+        }
+        Ok(attacker_positions)
     }
 }

@@ -29,6 +29,15 @@ pub struct RenderAttacker {
 }
 
 #[derive(Debug, Serialize)]
+pub struct RenderDefender {
+    pub defender_id: i32,
+    pub x_position: i32,
+    pub y_position: i32,
+    pub is_alive: bool,
+    pub defender_type: i32,
+}
+
+#[derive(Debug, Serialize)]
 pub struct RenderRobot {
     pub id: i32,
     pub health: i32,
@@ -41,6 +50,7 @@ pub struct RenderRobot {
 pub struct RenderSimulation {
     pub attackers: Vec<RenderAttacker>,
     pub robots: Vec<RenderRobot>,
+    pub defenders: Vec<RenderDefender>,
 }
 
 pub struct Simulator {
@@ -176,35 +186,14 @@ impl Simulator {
             })
             .collect();
 
-        let render_attackers: Result<Vec<RenderAttacker>> = attack_manager
-            .attackers
-            .values()
-            .map(|attacker| {
-                let (x_position, y_position) = attacker.get_current_position()?;
-                Ok(RenderAttacker {
-                    attacker_id: attacker.id,
-                    health: attacker.health,
-                    x_position,
-                    y_position,
-                    is_alive: attacker.is_alive,
-                    attacker_type: attacker.attacker_type,
-                    emp_id: match attacker.path.last() {
-                        Some(path) => {
-                            if path.is_emp {
-                                path.id
-                            } else {
-                                0
-                            }
-                        }
-                        None => 0,
-                    },
-                })
-            })
-            .collect();
+        let render_attackers = attack_manager.get_attacker_positions()?;
+
+        let render_defenders = defense_manager.defenders.post_simulate();
 
         Ok(RenderSimulation {
-            attackers: render_attackers?,
+            attackers: render_attackers,
             robots: render_robots,
+            defenders: render_defenders,
         })
     }
 }
