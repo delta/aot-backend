@@ -5,6 +5,7 @@ use crate::simulation::attack::{
     AttackManager,
 };
 use crate::simulation::blocks::*;
+use crate::simulation::error::KeyError;
 use anyhow::{Ok, Result};
 use diesel::prelude::*;
 use diesel::PgConnection;
@@ -18,8 +19,8 @@ pub struct Diffuser {
     pub x_position: i32,
     pub y_position: i32,
     pub is_alive: bool,
-    pub hut_x_position: i32,
-    pub hut_y_position: i32,
+    pub init_x_position: i32,
+    pub init_y_position: i32,
     pub target_emp_path_id: Option<usize>,
     pub target_emp_attacker_id: Option<i32>,
     pub diffuser_path: Vec<(i32, i32)>,
@@ -41,22 +42,30 @@ impl Diffusers {
                 ),
             );
 
+        let mut diffuser_id = 0;
         let diffusers: Vec<Diffuser> = joined_table
             .load::<(MapSpaces, (BuildingType, DiffuserType))>(conn)?
             .into_iter()
-            .map(|(map_space, (_, diffuser_type))| Diffuser {
-                id: map_space.id,
-                diffuser_type: diffuser_type.id,
-                radius: diffuser_type.radius,
-                hut_x_position: map_space.x_coordinate,
-                hut_y_position: map_space.y_coordinate,
-                x_position: map_space.x_coordinate,
-                y_position: map_space.y_coordinate,
-                is_alive: true,
-                target_emp_path_id: None,
-                target_emp_attacker_id: None,
-                speed: diffuser_type.speed,
-                diffuser_path: Vec::new(),
+            .map(|(map_space, (_, diffuser_type))| {
+                diffuser_id += 1;
+
+                let new_path: Vec<(i32, i32)> =
+                    vec![(map_space.x_coordinate, map_space.y_coordinate)];
+
+                Diffuser {
+                    id: diffuser_id,
+                    diffuser_type: diffuser_type.id,
+                    radius: diffuser_type.radius,
+                    x_position: map_space.x_coordinate,
+                    y_position: map_space.y_coordinate,
+                    is_alive: true,
+                    target_emp_path_id: None,
+                    target_emp_attacker_id: None,
+                    speed: diffuser_type.speed,
+                    diffuser_path: new_path,
+                    init_x_position: map_space.x_coordinate,
+                    init_y_position: map_space.y_coordinate,
+                }
             })
             .collect();
         Ok(Diffusers(diffusers))
@@ -89,9 +98,10 @@ impl Diffusers {
                         break;
                     } else {
                         //otherwise just move towards it
-                        let (next_x, next_y) = diffuser.diffuser_path.pop().unwrap();
-                        diffuser.x_position = next_x;
-                        diffuser.y_position = next_y;
+                        diffuser.diffuser_path.pop();
+                        let (next_x, next_y) = diffuser.diffuser_path.last().unwrap();
+                        diffuser.x_position = *next_x;
+                        diffuser.y_position = *next_y;
 
                         return Ok(());
                     }
@@ -112,52 +122,21 @@ impl Diffusers {
         //target emp is already diffused so diffuser in it's way to it's hut
         diffuser.target_emp_attacker_id = None;
         diffuser.target_emp_path_id = None;
-        let mut back_to_hut_path = shortest_paths
+        let mut back_to_initial_pos = shortest_paths
             .get(&SourceDest {
                 source_x: diffuser.x_position,
                 source_y: diffuser.y_position,
-                dest_x: diffuser.hut_x_position,
-                dest_y: diffuser.hut_y_position,
+                dest_x: diffuser.init_x_position,
+                dest_y: diffuser.init_y_position,
             })
             .unwrap()
             .clone();
 
-        back_to_hut_path.reverse();
-        back_to_hut_path.pop();
+        back_to_initial_pos.reverse();
 
-        diffuser.diffuser_path = back_to_hut_path;
+        diffuser.diffuser_path = back_to_initial_pos;
 
         Ok(())
-    }
-
-    fn get_hut_entrance(
-        diffuser: &Diffuser,
-        conn: &mut PgConnection,
-        map_id: i32,
-    ) -> Result<(i32, i32)> {
-        use crate::schema::{block_type, building_type, map_spaces};
-        let map_spaces_result = map_spaces::table
-            // .filter(map_spaces :: map_id.eq(map_id))
-            // .filter(map_spaces :: x_coordinate.eq(diffuser.hut_x_position))
-            // .filter(map_spaces :: y_coordinate.eq(diffuser.hut_y_position));
-            .filter(
-                map_spaces::map_id.eq(map_id).and(
-                    map_spaces::x_coordinate
-                        .eq(diffuser.hut_x_position)
-                        .and(map_spaces::y_coordinate.eq(diffuser.hut_y_position)),
-                ),
-            );
-
-        let join_table =
-            map_spaces_result.inner_join(building_type::table.inner_join(block_type::table));
-
-        let block_entrance: Vec<(i32, i32)> = join_table
-            .load::<(MapSpaces, (BuildingType, BlockType))>(conn)?
-            .into_iter()
-            .map(|(_, (_, block_type))| (block_type.entrance_x, block_type.entrance_y))
-            .collect();
-
-        Ok(block_entrance[0])
     }
 
     fn assign_diffuser(
@@ -165,27 +144,27 @@ impl Diffusers {
         time_emps_map: &mut HashMap<i32, HashSet<Emp>>,
         attackers: &HashMap<i32, Attacker>,
         shortest_paths: &HashMap<SourceDest, Vec<(i32, i32)>>,
-        map_id: i32,
-        conn: &mut PgConnection,
         minute: i32,
     ) -> Result<()> {
-        let (hut_entrance_x, hut_entrance_y) = Diffusers::get_hut_entrance(diffuser, conn, map_id)?;
         let mut optimal_emp: Option<Emp> = None;
         let mut optimal_emp_path: Option<Vec<(i32, i32)>> = None;
 
         for (emp_time, emps) in time_emps_map.iter() {
             for emp in emps.iter() {
-                let attacker = attackers.get(&emp.attacker_id).unwrap();
+                let attacker = attackers.get(&emp.attacker_id).ok_or(KeyError {
+                    key: emp.attacker_id,
+                    hashmap: "attackers".to_string(),
+                })?;
                 if attacker.is_planted(emp.path_id)? {
                     //this emp is visible
-                    if (diffuser.x_position == diffuser.hut_x_position)
-                        && (diffuser.y_position == diffuser.hut_y_position)
+                    if (diffuser.x_position == diffuser.init_x_position)
+                        && (diffuser.y_position == diffuser.init_y_position)
                     {
-                        //diffuser is in his hut
+                        //diffuser is in his his initial position
                         let mut new_path = shortest_paths
                             .get(&SourceDest {
-                                source_x: hut_entrance_x,
-                                source_y: hut_entrance_y,
+                                source_x: diffuser.init_x_position,
+                                source_y: diffuser.init_y_position,
                                 dest_x: emp.x_coord,
                                 dest_y: emp.y_coord,
                             })
@@ -194,7 +173,7 @@ impl Diffusers {
 
                         new_path.reverse();
 
-                        let time_taken = new_path.len() as i32;
+                        let time_taken = (new_path.len() - 1) as i32;
                         if (time_taken + minute) < *emp_time {
                             match &optimal_emp {
                                 Some(opt_emp) => {
@@ -222,9 +201,8 @@ impl Diffusers {
                             .clone();
 
                         new_path.reverse();
-                        new_path.pop();
 
-                        let time_taken = new_path.len() as i32;
+                        let time_taken = (new_path.len() - 1) as i32;
                         if (time_taken + minute) < *emp_time {
                             match &optimal_emp {
                                 Some(opt_emp) => {
@@ -252,11 +230,12 @@ impl Diffusers {
             }
             None => {
                 //diffuser  is not assigned to any emp
-                if !diffuser.diffuser_path.is_empty() {
-                    //diffuser not in hut
-                    let (next_x, next_y) = diffuser.diffuser_path.pop().unwrap();
-                    diffuser.x_position = next_x;
-                    diffuser.y_position = next_y;
+                if diffuser.diffuser_path.len() > 1 {
+                    //diffuser not in initial position
+                    diffuser.diffuser_path.pop();
+                    let (next_x, next_y) = diffuser.diffuser_path.last().unwrap();
+                    diffuser.x_position = *next_x;
+                    diffuser.y_position = *next_y;
                 }
             }
         }
@@ -269,8 +248,6 @@ impl Diffusers {
         &mut self,
         minute: i32,
         attack_manager: &mut AttackManager,
-        conn: &mut PgConnection,
-        map_id: i32,
         building_manager: BuildingsManager,
     ) -> Result<()> {
         //get list of active emps within radius
@@ -291,8 +268,6 @@ impl Diffusers {
                             time_emps_map,
                             attackers,
                             &shortest_paths,
-                            map_id,
-                            conn,
                             minute,
                         ))?;
                     }

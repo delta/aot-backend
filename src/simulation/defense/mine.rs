@@ -27,17 +27,21 @@ impl Mines {
                 mine_type::table.on(building_type::building_category.eq(BuildingCategory::Mine)),
             ));
 
+        let mut mine_id = 0;
         let mines: Vec<Mine> = joined_table
             .load::<(MapSpaces, (BuildingType, MineType))>(conn)?
             .into_iter()
-            .map(|(map_space, (_, mine_type))| Mine {
-                id: map_space.id,
-                mine_type: mine_type.id,
-                damage: mine_type.damage,
-                radius: mine_type.radius,
-                is_activated: true,
-                x_position: map_space.x_coordinate,
-                y_position: map_space.y_coordinate,
+            .map(|(map_space, (_, mine_type))| {
+                mine_id += 1;
+                Mine {
+                    id: mine_id,
+                    mine_type: mine_type.id,
+                    damage: mine_type.damage,
+                    radius: mine_type.radius,
+                    is_activated: true,
+                    x_position: map_space.x_coordinate,
+                    y_position: map_space.y_coordinate,
+                }
             })
             .collect();
 
@@ -55,7 +59,6 @@ impl Mines {
             let mine_y = mine.y_position;
 
             if mine.is_activated {
-                let mut mine_is_used = false;
                 for attacker in attackers.values_mut() {
                     let (attacker_x, attacker_y) = attacker.get_current_position()?;
                     let dist = (((mine_x - attacker_x).pow(2) + (mine_y - attacker_y).pow(2))
@@ -65,11 +68,8 @@ impl Mines {
                     if dist as i32 <= mine.radius {
                         //damage attckers
                         attacker.get_damage(mine.damage);
-                        mine_is_used = true;
+                        mine.is_activated = false;
                     }
-                }
-                if mine_is_used {
-                    mine.is_activated = false;
                 }
             }
         }
