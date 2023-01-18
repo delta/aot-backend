@@ -305,22 +305,24 @@ pub fn run_simulation(
             .simulate()
             .with_context(|| format!("Failed to simulate frame {}", frame))?;
         for attacker in simulated_frame.attackers {
-            writeln!(content, "attacker {}", attacker.attacker_id)?;
+            writeln!(content, "attacker {}", attacker.0)?;
             writeln!(content, "id,x,y,is_alive,emp_id,health,type")?;
-            let RenderAttacker {
-                x_position,
-                y_position,
-                is_alive,
-                emp_id,
-                health,
-                attacker_type,
-                attacker_id,
-            } = attacker;
-            writeln!(
-                content,
-                "{},{},{},{},{},{},{}",
-                attacker_id, x_position, y_position, is_alive, emp_id, health, attacker_type
-            )?;
+            for position in attacker.1 {
+                let RenderAttacker {
+                    x_position,
+                    y_position,
+                    is_alive,
+                    emp_id,
+                    health,
+                    attacker_type,
+                    attacker_id,
+                } = position;
+                writeln!(
+                    content,
+                    "{},{},{},{},{},{},{}",
+                    attacker_id, x_position, y_position, is_alive, emp_id, health, attacker_type
+                )?;
+            }
         }
 
         for defender in simulated_frame.defenders {

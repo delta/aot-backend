@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::api::attack::util::NewAttacker;
 use crate::constants::*;
 use crate::error::DieselError;
@@ -48,7 +50,7 @@ pub struct RenderRobot {
 
 #[derive(Debug, Serialize)]
 pub struct RenderSimulation {
-    pub attackers: Vec<RenderAttacker>,
+    pub attackers: HashMap<i32, Vec<RenderAttacker>>,
     pub robots: Vec<RenderRobot>,
     pub defenders: Vec<RenderDefender>,
 }

@@ -123,7 +123,11 @@ impl Attacker {
             })
             .collect();
         attacker_path.reverse();
-        let path_in_current_frame = Vec::new();
+        let path_in_current_frame = vec![AttackPathStats {
+            attacker_path: attacker_path[attacker_path.len() - 1],
+            health: attacker_type.max_health,
+            is_alive: true,
+        }];
         Self {
             id,
             is_alive: true,

@@ -70,11 +70,11 @@ impl AttackManager {
         Ok(())
     }
 
-    pub fn get_attacker_positions(&mut self) -> Result<Vec<RenderAttacker>> {
-        let mut attacker_positions: Vec<RenderAttacker> = Vec::new();
+    pub fn get_attacker_positions(&mut self) -> Result<HashMap<i32, Vec<RenderAttacker>>> {
+        let mut attacker_positions: HashMap<i32, Vec<RenderAttacker>> = HashMap::new();
         for attacker in self.attackers.values_mut() {
-            let mut render_attackers = attacker.post_simulate()?;
-            attacker_positions.append(&mut render_attackers);
+            let render_attackers = attacker.post_simulate()?;
+            attacker_positions.insert(attacker.id, render_attackers);
         }
         Ok(attacker_positions)
     }
