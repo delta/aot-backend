@@ -18,6 +18,7 @@ pub struct Diffuser {
     pub speed: i32,
     pub x_position: i32,
     pub y_position: i32,
+    pub path_in_current_frame: Vec<(i32, i32)>,
     pub is_alive: bool,
     pub init_x_position: i32,
     pub init_y_position: i32,
@@ -62,9 +63,10 @@ impl Diffusers {
                     target_emp_path_id: None,
                     target_emp_attacker_id: None,
                     speed: diffuser_type.speed,
-                    diffuser_path: new_path,
+                    diffuser_path: new_path.clone(),
                     init_x_position: map_space.x_coordinate,
                     init_y_position: map_space.y_coordinate,
+                    path_in_current_frame: new_path,
                 }
             })
             .collect();
@@ -86,27 +88,38 @@ impl Diffusers {
                     && (emp.attacker_id == diffuser.target_emp_attacker_id.unwrap())
                 {
                     //got the target emp
-                    if (emp.x_coord == diffuser.x_position) && (emp.y_coord == diffuser.y_position)
-                    {
-                        //chechking whether diffuser reached emp
-                        //kill the diffuser
-                        diffuser.is_alive = false;
-                        //remove the emp
-                        to_remove_emp = true;
-                        remove_emp_time = Some(*emp_time);
-                        remove_emp = Some(emp.clone());
-                        break;
-                    } else {
-                        //otherwise just move towards it
-                        diffuser.diffuser_path.pop();
-                        let (next_x, next_y) = diffuser.diffuser_path.last().unwrap();
-                        diffuser.x_position = *next_x;
-                        diffuser.y_position = *next_y;
+                    let mut step = 0;
+                    diffuser.path_in_current_frame = Vec::new();
+                    loop {
+                        let (curr_x, curr_y) = *diffuser.diffuser_path.last().unwrap();
+                        diffuser.path_in_current_frame.push((curr_x, curr_y));
+                        if (emp.x_coord == curr_x) && (emp.y_coord == curr_y) {
+                            diffuser.is_alive = false;
+                            //remove the emp
+                            to_remove_emp = true;
+                            remove_emp_time = Some(*emp_time);
+                            remove_emp = Some(emp.clone());
+                            break;
+                        }
 
+                        step += 1;
+
+                        if step > diffuser.speed {
+                            break;
+                        }
+                        diffuser.diffuser_path.pop();
+                    }
+
+                    diffuser.path_in_current_frame.reverse();
+
+                    if !to_remove_emp {
                         return Ok(());
                     }
+
+                    break;
                 }
             }
+
             if to_remove_emp {
                 break;
             }
@@ -119,13 +132,16 @@ impl Diffusers {
             return Ok(());
         }
 
-        //target emp is already diffused so diffuser in it's way to it's hut
+        //target emp is already diffused so diffuser in it's way to it's intial position
+        let (curr_x, curr_y) = diffuser.diffuser_path.last().unwrap();
+
         diffuser.target_emp_attacker_id = None;
         diffuser.target_emp_path_id = None;
+
         let mut back_to_initial_pos = shortest_paths
             .get(&SourceDest {
-                source_x: diffuser.x_position,
-                source_y: diffuser.y_position,
+                source_x: *curr_x,
+                source_y: *curr_y,
                 dest_x: diffuser.init_x_position,
                 dest_y: diffuser.init_y_position,
             })
@@ -133,7 +149,7 @@ impl Diffusers {
             .clone();
 
         back_to_initial_pos.reverse();
-
+        diffuser.path_in_current_frame = vec![(*curr_x, *curr_y)];
         diffuser.diffuser_path = back_to_initial_pos;
 
         Ok(())
@@ -149,6 +165,8 @@ impl Diffusers {
         let mut optimal_emp: Option<Emp> = None;
         let mut optimal_emp_path: Option<Vec<(i32, i32)>> = None;
 
+        let (curr_x, curr_y) = *diffuser.diffuser_path.last().unwrap();
+
         for (emp_time, emps) in time_emps_map.iter() {
             for emp in emps.iter() {
                 let attacker = attackers.get(&emp.attacker_id).ok_or(KeyError {
@@ -157,8 +175,7 @@ impl Diffusers {
                 })?;
                 if attacker.is_planted(emp.path_id)? {
                     //this emp is visible
-                    if (diffuser.x_position == diffuser.init_x_position)
-                        && (diffuser.y_position == diffuser.init_y_position)
+                    if (curr_x == diffuser.init_x_position) && (curr_y == diffuser.init_y_position)
                     {
                         //diffuser is in his his initial position
                         let mut new_path = shortest_paths
@@ -230,13 +247,30 @@ impl Diffusers {
             }
             None => {
                 //diffuser  is not assigned to any emp
-                if diffuser.diffuser_path.len() > 1 {
-                    //diffuser not in initial position
+                diffuser.path_in_current_frame = Vec::new();
+                let mut step = 0;
+                loop {
+                    let (curr_x, curr_y) = diffuser.diffuser_path.last().unwrap();
+                    diffuser.path_in_current_frame.push((*curr_x, *curr_y));
+
+                    if (*curr_x == diffuser.init_x_position)
+                        && (*curr_y == diffuser.init_y_position)
+                    {
+                        //reached the initial position
+                        diffuser.path_in_current_frame.reverse();
+                        return Ok(());
+                    }
+
+                    step += 1;
+
+                    if step > diffuser.speed {
+                        break;
+                    }
                     diffuser.diffuser_path.pop();
-                    let (next_x, next_y) = diffuser.diffuser_path.last().unwrap();
-                    diffuser.x_position = *next_x;
-                    diffuser.y_position = *next_y;
                 }
+
+                diffuser.path_in_current_frame.reverse();
+                return Ok(());
             }
         }
 
