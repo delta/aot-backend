@@ -44,9 +44,9 @@ impl AttackManager {
         })
     }
 
-    pub fn update_attackers_position(&mut self) {
+    pub fn update_attackers_position(&mut self, frames_passed: i32) {
         for (_, attacker) in self.attackers.iter_mut() {
-            attacker.update_position()
+            attacker.update_position(frames_passed)
         }
     }
 
@@ -56,9 +56,7 @@ impl AttackManager {
         robots_manager: &mut RobotsManager,
         buildings_manager: &mut BuildingsManager,
     ) -> Result<()> {
-        if Simulator::attacker_allowed(frames_passed) {
-            self.update_attackers_position();
-        }
+        self.update_attackers_position(frames_passed);
         let minute = Simulator::get_minute(frames_passed);
         self.emps.simulate(
             minute,

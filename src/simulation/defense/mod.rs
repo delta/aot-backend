@@ -9,7 +9,6 @@ pub mod defender;
 pub mod diffuser;
 pub mod mine;
 
-#[allow(dead_code)]
 pub struct DefenseManager {
     pub defenders: Defenders,
 }

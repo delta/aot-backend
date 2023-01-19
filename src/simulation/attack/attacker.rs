@@ -1,6 +1,6 @@
 use crate::models::*;
 use crate::simulation::error::EmptyAttackerPathError;
-use crate::simulation::RenderAttacker;
+use crate::simulation::{RenderAttacker, Simulator};
 use anyhow::Result;
 
 pub struct AttackPathStats {
@@ -21,8 +21,16 @@ pub struct Attacker {
 }
 
 impl Attacker {
-    pub fn update_position(&mut self) {
+    pub fn update_position(&mut self, frames_passed: i32) {
         self.path_in_current_frame = Vec::new();
+        if !Simulator::attacker_allowed(frames_passed) {
+            self.path_in_current_frame.push(AttackPathStats {
+                attacker_path: self.path[self.path.len() - 1],
+                health: self.health,
+                is_alive: self.is_alive,
+            });
+            return;
+        }
         if self.is_alive && self.path.len() > 1 {
             if self.path.len() > self.speed as usize {
                 self.path_in_current_frame = self
@@ -84,9 +92,18 @@ impl Attacker {
 
     pub fn post_simulate(&mut self) -> Result<Vec<RenderAttacker>> {
         let mut render_attacker: Vec<RenderAttacker> = Vec::new();
-        for attacker_path_stats in self.path_in_current_frame.iter().rev() {
-            self.is_alive = attacker_path_stats.is_alive;
-            self.health = attacker_path_stats.health;
+        if self.path_in_current_frame.is_empty() {
+            self.path_in_current_frame.push(AttackPathStats {
+                attacker_path: self.path[self.path.len() - 1],
+                health: self.health,
+                is_alive: self.is_alive,
+            })
+        }
+        while self.path_in_current_frame.len() > 1
+            && self.path_in_current_frame.last().unwrap().is_alive
+        {
+            self.path_in_current_frame.pop();
+            let attacker_path_stats = self.path_in_current_frame.last().unwrap();
             render_attacker.push(RenderAttacker {
                 attacker_id: self.id,
                 health: attacker_path_stats.health,
@@ -100,11 +117,35 @@ impl Attacker {
                     0
                 },
             });
-            if !attacker_path_stats.is_alive {
-                break;
-            }
         }
 
+        while render_attacker.len() < self.speed as usize {
+            let attacker_path_stats = self.path_in_current_frame.last().unwrap();
+            render_attacker.push(RenderAttacker {
+                attacker_id: self.id,
+                health: attacker_path_stats.health,
+                x_position: attacker_path_stats.attacker_path.x_coord,
+                y_position: attacker_path_stats.attacker_path.y_coord,
+                is_alive: attacker_path_stats.is_alive,
+                attacker_type: self.attacker_type,
+                emp_id: if attacker_path_stats.attacker_path.is_emp {
+                    attacker_path_stats.attacker_path.id
+                } else {
+                    0
+                },
+            });
+        }
+
+        let destination = self.path_in_current_frame.last().unwrap();
+        self.health = destination.health;
+        self.is_alive = destination.is_alive;
+
+        self.path_in_current_frame.remove(0);
+
+        while !self.path_in_current_frame.is_empty() {
+            let attacker_path_stats = self.path_in_current_frame.remove(0);
+            self.path.push(attacker_path_stats.attacker_path)
+        }
         Ok(render_attacker)
     }
 
@@ -123,11 +164,7 @@ impl Attacker {
             })
             .collect();
         attacker_path.reverse();
-        let path_in_current_frame = vec![AttackPathStats {
-            attacker_path: attacker_path[attacker_path.len() - 1],
-            health: attacker_type.max_health,
-            is_alive: true,
-        }];
+        let path_in_current_frame = Vec::new();
         Self {
             id,
             is_alive: true,

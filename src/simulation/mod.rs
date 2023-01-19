@@ -19,7 +19,7 @@ pub mod defense;
 pub mod error;
 pub mod robots;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone, Copy)]
 pub struct RenderAttacker {
     pub attacker_id: i32,
     pub health: i32,
