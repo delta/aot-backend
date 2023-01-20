@@ -3,6 +3,7 @@ use crate::simulation::error::EmptyAttackerPathError;
 use crate::simulation::{RenderAttacker, Simulator};
 use anyhow::Result;
 
+#[derive(Debug)]
 pub struct AttackPathStats {
     pub attacker_path: AttackerPath,
     pub health: i32,
@@ -22,7 +23,7 @@ pub struct Attacker {
 
 impl Attacker {
     pub fn update_position(&mut self, frames_passed: i32) {
-        self.path_in_current_frame = Vec::new();
+        self.path_in_current_frame.clear();
         if !Simulator::attacker_allowed(frames_passed) {
             self.path_in_current_frame.push(AttackPathStats {
                 attacker_path: self.path[self.path.len() - 1],
@@ -74,8 +75,11 @@ impl Attacker {
     }
 
     pub fn get_current_position(&self) -> Result<(i32, i32)> {
-        match self.path.last() {
-            Some(attacker_path) => Ok((attacker_path.x_coord, attacker_path.y_coord)),
+        match self.path_in_current_frame.last() {
+            Some(attacker_path_stats) => Ok((
+                attacker_path_stats.attacker_path.x_coord,
+                attacker_path_stats.attacker_path.y_coord,
+            )),
             None => Err(EmptyAttackerPathError.into()),
         }
     }

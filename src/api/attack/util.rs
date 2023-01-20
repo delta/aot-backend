@@ -259,7 +259,7 @@ pub fn run_simulation(
         let attacker_path = &attacker.attacker_path;
         let attacker_type = &attacker.attacker_type;
         writeln!(content, "attacker_path")?;
-        writeln!(content, "id,y,x,is_emp")?;
+        writeln!(content, "id,y,x,is_emp,type")?;
         attacker_path
             .iter()
             .enumerate()
@@ -299,11 +299,23 @@ pub fn run_simulation(
     let mut simulator =
         Simulator::new(game_id, &attackers, conn).with_context(|| "Failed to create simulator")?;
 
+    let defenders_positions = simulator.get_defender_position();
+
+    for position in defenders_positions {
+        writeln!(content, "defender {}", position.defender_id)?;
+        writeln!(content, "id,x,y")?;
+        let RenderDefender {
+            defender_id,
+            x_position,
+            y_position,
+            ..
+        } = position;
+        writeln!(content, "{},{},{}", defender_id, x_position, y_position)?;
+    }
+
     for frame in 1..=NO_OF_FRAMES {
         writeln!(content, "frame {}", frame)?;
-        let simulated_frame = simulator
-            .simulate()
-            .with_context(|| format!("Failed to simulate frame {}", frame))?;
+        let simulated_frame = simulator.simulate()?;
         for attacker in simulated_frame.attackers {
             writeln!(content, "attacker {}", attacker.0)?;
             writeln!(content, "id,x,y,is_alive,emp_id,health,type")?;
@@ -325,21 +337,23 @@ pub fn run_simulation(
             }
         }
 
-        for defender in simulated_frame.defenders {
-            writeln!(content, "defender {}", defender.defender_id)?;
-            writeln!(content, "id,x,y,is_alive,type")?;
-            let RenderDefender {
-                defender_id,
-                x_position,
-                y_position,
-                is_alive,
-                defender_type,
-            } = defender;
-            writeln!(
-                content,
-                "{},{},{},{},{}",
-                defender_id, x_position, y_position, is_alive, defender_type
-            )?;
+        for (defender_id, defender) in simulated_frame.defenders {
+            writeln!(content, "defender {}", defender_id)?;
+            writeln!(content, "id,x,y,type,is_alive")?;
+            for position in defender {
+                let RenderDefender {
+                    defender_id,
+                    x_position,
+                    y_position,
+                    defender_type,
+                    is_alive,
+                } = position;
+                writeln!(
+                    content,
+                    "{},{},{},{},{}",
+                    defender_id, x_position, y_position, defender_type, is_alive
+                )?;
+            }
         }
 
         writeln!(content, "robots")?;

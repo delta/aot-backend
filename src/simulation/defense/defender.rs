@@ -1,4 +1,5 @@
 use std::cmp::Ordering;
+use std::collections::HashMap;
 
 use crate::error::DieselError;
 use crate::models::BlockType;
@@ -16,6 +17,13 @@ use crate::util::function;
 use anyhow::{Ok, Result};
 use diesel::prelude::*;
 
+#[derive(Debug)]
+pub struct DefenderPathStats {
+    pub x_coord: i32,
+    pub y_coord: i32,
+    pub is_alive: bool,
+}
+
 pub struct Defender {
     pub id: i32,
     pub defender_type: i32,
@@ -25,11 +33,12 @@ pub struct Defender {
     pub is_alive: bool,
     pub target_id: Option<i32>,
     pub path: Vec<(i32, i32)>,
-    pub path_in_current_frame: Vec<(i32, i32)>,
+    pub path_in_current_frame: Vec<DefenderPathStats>,
 }
 
 pub struct Defenders(Vec<Defender>);
 
+#[derive(Debug)]
 pub enum MovementType {
     Attacker,
     Defender,
@@ -58,6 +67,7 @@ impl Defenders {
         for (defender_id, (map_space, (_, block_type, defender_type))) in result.iter().enumerate()
         {
             let (hut_x, hut_y) = Self::get_absolute_entrance(map_space, block_type);
+            log::info!("{}{}", hut_x, hut_y);
             let path = vec![(hut_x, hut_y)];
             defenders.push(Defender {
                 id: defender_id as i32 + 1,
@@ -88,7 +98,7 @@ impl Defenders {
                 .cmp(&(defender_2.path.len() / (defender_2.speed as usize)))
         });
         for defender in defenders.iter_mut() {
-            defender.path_in_current_frame = Vec::new();
+            defender.path_in_current_frame.clear();
             if defender.is_alive {
                 if let Some(attacker_id) = defender.target_id {
                     let attacker = attackers.get_mut(&attacker_id).ok_or(KeyError {
@@ -117,9 +127,11 @@ impl Defenders {
                     }
                 } else {
                     let (defender_pos_x, defender_pos_y) = defender.path[defender.path.len() - 1];
-                    defender
-                        .path_in_current_frame
-                        .push((defender_pos_x, defender_pos_y));
+                    defender.path_in_current_frame.push(DefenderPathStats {
+                        x_coord: defender_pos_x,
+                        y_coord: defender_pos_y,
+                        is_alive: defender.is_alive,
+                    });
                     let mut target_id: Option<i32> = None;
                     let mut optimal_path: Vec<(i32, i32)> = Vec::new();
                     let mut optimal_distance = i32::MAX;
@@ -131,10 +143,10 @@ impl Defenders {
                             continue;
                         }
                         let source_dest = SourceDest {
-                            source_x: defender_pos_x,
-                            source_y: defender_pos_y,
-                            dest_x: attacker_pos_x,
-                            dest_y: attacker_pos_x,
+                            source_x: attacker_pos_x,
+                            source_y: attacker_pos_y,
+                            dest_x: defender_pos_x,
+                            dest_y: defender_pos_y,
                         };
                         if distance < optimal_distance && attacker.is_alive {
                             optimal_distance = distance;
@@ -143,7 +155,6 @@ impl Defenders {
                                 .get(&source_dest)
                                 .ok_or(ShortestPathNotFoundError(source_dest))?
                                 .clone();
-                            optimal_path.reverse();
                         }
                     }
                     defender.target_id = target_id;
@@ -176,14 +187,20 @@ impl Defenders {
                 return Ok(());
             }
             defender.path.pop();
-            defender
-                .path_in_current_frame
-                .insert(0, *defender.path.last().unwrap());
             let attacker_pos = Self::get_attacker_position(attacker, current_attacker_pos);
             let defender_pos = Self::get_defender_position(defender)?;
             if attacker_pos == defender_pos {
                 Self::damage_attacker(attacker, defender, current_attacker_pos);
             }
+            let current_pos = *defender.path.last().unwrap();
+            defender.path_in_current_frame.insert(
+                0,
+                DefenderPathStats {
+                    x_coord: current_pos.0,
+                    y_coord: current_pos.1,
+                    is_alive: defender.is_alive,
+                },
+            );
         }
         Ok(())
     }
@@ -199,7 +216,7 @@ impl Defenders {
             *current_attacker_pos -= 1;
             let (attacker_x, attacker_y) =
                 Self::get_attacker_position(attacker, current_attacker_pos);
-            if defender.path.len() > 1 {
+            if defender.path.len() > 1 && defender.is_alive {
                 if defender.path[1].0 == attacker_x && defender.path[1].1 == attacker_y {
                     defender.path.remove(0);
                 } else {
@@ -208,6 +225,7 @@ impl Defenders {
                 let attacker_pos = Self::get_attacker_position(attacker, current_attacker_pos);
                 let defender_pos = Self::get_defender_position(defender)?;
                 if attacker_pos == defender_pos {
+                    log::info!("att{:?}", defender_pos);
                     Self::damage_attacker(attacker, defender, current_attacker_pos);
                 }
             }
@@ -288,20 +306,56 @@ impl Defenders {
         }
     }
 
-    pub fn post_simulate(&self) -> Vec<RenderDefender> {
-        let mut defender_positions = Vec::new();
+    pub fn post_simulate(&mut self) -> HashMap<i32, Vec<RenderDefender>> {
+        let mut render_defenders = HashMap::new();
         let Defenders(defenders) = self;
         for defender in defenders {
-            for path in defender.path_in_current_frame.iter() {
+            let mut defender_positions = Vec::new();
+            if defender.path_in_current_frame.is_empty() {
+                let destination = defender.path.last().unwrap();
+                defender.path_in_current_frame.push(DefenderPathStats {
+                    x_coord: destination.0,
+                    y_coord: destination.1,
+                    is_alive: defender.is_alive,
+                })
+            }
+            for path in defender.path_in_current_frame.iter().rev() {
                 defender_positions.push(RenderDefender {
                     defender_id: defender.id,
-                    x_position: path.0,
-                    y_position: path.1,
-                    is_alive: defender.is_alive,
+                    x_position: path.x_coord,
+                    y_position: path.y_coord,
+                    is_alive: path.is_alive,
                     defender_type: defender.defender_type,
                 })
             }
+            while defender_positions.len() < defender.speed as usize {
+                let path = &defender.path_in_current_frame[0];
+                defender_positions.push(RenderDefender {
+                    defender_id: defender.id,
+                    x_position: path.x_coord,
+                    y_position: path.y_coord,
+                    is_alive: path.is_alive,
+                    defender_type: defender.defender_type,
+                })
+            }
+            render_defenders.insert(defender.id, defender_positions);
         }
-        defender_positions
+        render_defenders
+    }
+
+    pub fn get_defender_initial_position(&self) -> Vec<RenderDefender> {
+        let mut render_positions = Vec::new();
+        let Defenders(defenders) = self;
+        for defender in defenders {
+            let starting_position = defender.path.last().unwrap();
+            render_positions.push(RenderDefender {
+                defender_id: defender.id,
+                x_position: starting_position.0,
+                y_position: starting_position.1,
+                is_alive: true,
+                defender_type: defender.defender_type,
+            })
+        }
+        render_positions
     }
 }

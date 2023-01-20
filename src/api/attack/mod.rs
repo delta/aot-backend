@@ -89,12 +89,9 @@ async fn create_attack(
         let sim_result = util::run_simulation(game_id, attackers, &mut conn);
         match sim_result {
             Ok(file_content) => Ok(file_content),
-            Err(_) => {
+            Err(err) => {
                 remove_game(game_id, &mut conn)?;
-                Err(anyhow::anyhow!(
-                    "Failed to run simulation for game {}",
-                    game_id
-                ))
+                Err(anyhow::anyhow!(err.to_string()))
             }
         }
     })

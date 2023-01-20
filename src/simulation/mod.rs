@@ -30,7 +30,7 @@ pub struct RenderAttacker {
     pub attacker_type: i32,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone, Copy)]
 pub struct RenderDefender {
     pub defender_id: i32,
     pub x_position: i32,
@@ -52,7 +52,7 @@ pub struct RenderRobot {
 pub struct RenderSimulation {
     pub attackers: HashMap<i32, Vec<RenderAttacker>>,
     pub robots: Vec<RenderRobot>,
-    pub defenders: Vec<RenderDefender>,
+    pub defenders: HashMap<i32, Vec<RenderDefender>>,
 }
 
 pub struct Simulator {
@@ -150,6 +150,12 @@ impl Simulator {
         let attack_score = damage_done + HEALTH * no_of_robots_destroyed;
         let defend_score = max_score - attack_score;
         (attack_score, defend_score)
+    }
+
+    pub fn get_defender_position(&self) -> Vec<RenderDefender> {
+        self.defense_manager
+            .defenders
+            .get_defender_initial_position()
     }
 
     pub fn simulate(&mut self) -> Result<RenderSimulation> {
