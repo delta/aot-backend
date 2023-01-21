@@ -28,7 +28,7 @@ pub struct NewAttackType<'a> {
     pub attack_damage: &'a i32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct AttackerPath {
     pub id: usize,
     pub y_coord: i32,

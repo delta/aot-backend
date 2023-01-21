@@ -67,7 +67,7 @@ impl Mines {
                     //check if there is any attacker within the range
                     if dist as i32 <= mine.radius {
                         //damage attckers
-                        attacker.get_damage(mine.damage);
+                        attacker.get_damage(mine.damage, attacker.path_in_current_frame.len() - 1);
                         mine.is_activated = false;
                     }
                 }

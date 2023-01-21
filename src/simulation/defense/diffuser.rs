@@ -282,26 +282,26 @@ impl Diffusers {
         &mut self,
         minute: i32,
         attack_manager: &mut AttackManager,
-        building_manager: BuildingsManager,
+        building_manager: &mut BuildingsManager,
     ) -> Result<()> {
         //get list of active emps within radius
         let Diffusers(diffusers) = self;
         let Emps(time_emps_map) = &mut attack_manager.emps;
         let attackers = &attack_manager.attackers;
-        let shortest_paths = building_manager.shortest_paths;
+        let shortest_paths = &building_manager.shortest_paths;
 
         for diffuser in diffusers.iter_mut() {
             if diffuser.is_alive {
                 match diffuser.target_emp_path_id {
                     Some(_) => {
-                        (Diffusers::simulate_diffuser(diffuser, time_emps_map, &shortest_paths))?;
+                        (Diffusers::simulate_diffuser(diffuser, time_emps_map, shortest_paths))?;
                     }
                     None => {
                         (Diffusers::assign_diffuser(
                             diffuser,
                             time_emps_map,
                             attackers,
-                            &shortest_paths,
+                            shortest_paths,
                             minute,
                         ))?;
                     }

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use self::attack::AttackManager;
 use crate::api::attack::util::NewAttacker;
 use crate::constants::*;
 use crate::error::DieselError;
@@ -8,10 +9,9 @@ use crate::util::function;
 use anyhow::Result;
 use blocks::BuildingsManager;
 use diesel::prelude::*;
+use diesel::PgConnection;
 use robots::RobotsManager;
 use serde::Serialize;
-
-use self::attack::AttackManager;
 
 pub mod attack;
 pub mod blocks;
@@ -176,7 +176,9 @@ impl Simulator {
         //Simulate Emps and attackers
         attack_manager.simulate_attack(frames_passed, robots_manager, buildings_manager)?;
 
-        defense_manager.simulate(attack_manager, buildings_manager)?;
+        let minute = Simulator::get_minute(frames_passed);
+
+        defense_manager.simulate(attack_manager, buildings_manager, minute)?;
 
         if Self::is_hour(frames_passed) {
             buildings_manager.update_building_weights(Self::get_hour(frames_passed))?;
