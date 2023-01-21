@@ -315,7 +315,9 @@ pub fn run_simulation(
 
     for frame in 1..=NO_OF_FRAMES {
         writeln!(content, "frame {}", frame)?;
-        let simulated_frame = simulator.simulate()?;
+        let simulated_frame = simulator
+            .simulate()
+            .with_context(|| format!("Failed to simulate frame {}", frame))?;
         for attacker in simulated_frame.attackers {
             writeln!(content, "attacker {}", attacker.0)?;
             writeln!(content, "id,x,y,is_alive,emp_id,health,type")?;

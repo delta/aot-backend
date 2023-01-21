@@ -33,30 +33,22 @@ impl Attacker {
             return;
         }
         if self.is_alive && self.path.len() > 1 {
+            let mut split_at_index: usize = 1;
             if self.path.len() > self.speed as usize {
-                self.path_in_current_frame = self
-                    .path
-                    .split_off(self.path.len() - self.speed as usize)
-                    .into_iter()
-                    .map(|attacker_path| AttackPathStats {
-                        attacker_path,
-                        health: self.health,
-                        is_alive: self.is_alive,
-                    })
-                    .collect();
-            } else {
-                self.path_in_current_frame = self
-                    .path
-                    .split_off(1)
-                    .into_iter()
-                    .map(|attacker_path| AttackPathStats {
-                        attacker_path,
-                        health: self.health,
-                        is_alive: self.is_alive,
-                    })
-                    .collect();
+                split_at_index = self.path.len() - self.speed as usize;
             }
+            self.path_in_current_frame = self
+                .path
+                .split_off(split_at_index)
+                .into_iter()
+                .map(|attacker_path| AttackPathStats {
+                    attacker_path,
+                    health: self.health,
+                    is_alive: self.is_alive,
+                })
+                .collect();
         }
+        // Insert the Destination into the path in current Frame
         self.path_in_current_frame.insert(
             0,
             AttackPathStats {
@@ -91,6 +83,7 @@ impl Attacker {
         }
     }
 
+    // Generate the response from simulating current frame for attacker
     pub fn post_simulate(&mut self) -> Result<Vec<RenderAttacker>> {
         let mut render_attacker: Vec<RenderAttacker> = Vec::new();
         if self.path_in_current_frame.is_empty() {
@@ -136,7 +129,7 @@ impl Attacker {
                 },
             });
         }
-
+        // Store the stats from current frame into attacker
         let destination = self.path_in_current_frame.last().unwrap();
         self.health = destination.health;
         self.is_alive = destination.is_alive;

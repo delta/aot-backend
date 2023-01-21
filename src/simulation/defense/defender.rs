@@ -66,8 +66,7 @@ impl Defenders {
 
         for (defender_id, (map_space, (_, block_type, defender_type))) in result.iter().enumerate()
         {
-            let (hut_x, hut_y) = Self::get_absolute_entrance(map_space, block_type);
-            log::info!("{}{}", hut_x, hut_y);
+            let (hut_x, hut_y) = BuildingsManager::get_absolute_entrance(map_space, block_type)?;
             let path = vec![(hut_x, hut_y)];
             defenders.push(Defender {
                 id: defender_id as i32 + 1,
@@ -93,6 +92,7 @@ impl Defenders {
         let attackers = &mut attacker_manager.attackers;
         let shortest_paths = &building_manager.shortest_paths;
 
+        // Sorted so that the defender closer to the attacker damages first
         defenders.sort_by(|defender_1, defender_2| {
             (defender_1.path.len() / (defender_1.speed as usize))
                 .cmp(&(defender_2.path.len() / (defender_2.speed as usize)))
@@ -225,7 +225,6 @@ impl Defenders {
                 let attacker_pos = Self::get_attacker_position(attacker, current_attacker_pos);
                 let defender_pos = Self::get_defender_position(defender)?;
                 if attacker_pos == defender_pos {
-                    log::info!("att{:?}", defender_pos);
                     Self::damage_attacker(attacker, defender, current_attacker_pos);
                 }
             }
@@ -282,28 +281,6 @@ impl Defenders {
             }
         }
         movement_sequence
-    }
-
-    fn get_absolute_entrance(map_space: &MapSpaces, block_type: &BlockType) -> (i32, i32) {
-        match map_space.rotation {
-            0 => (
-                map_space.x_coordinate + block_type.entrance_x,
-                map_space.y_coordinate + block_type.entrance_y,
-            ),
-            90 => (
-                map_space.x_coordinate - block_type.entrance_y,
-                map_space.y_coordinate + block_type.entrance_x,
-            ),
-            180 => (
-                map_space.x_coordinate - block_type.entrance_x,
-                map_space.y_coordinate - block_type.entrance_y,
-            ),
-            270 => (
-                map_space.x_coordinate + block_type.entrance_y,
-                map_space.y_coordinate - block_type.entrance_x,
-            ),
-            _ => panic!("Invalid Map Space Rotation"),
-        }
     }
 
     pub fn post_simulate(&mut self) -> HashMap<i32, Vec<RenderDefender>> {

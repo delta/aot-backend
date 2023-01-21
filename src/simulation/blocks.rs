@@ -160,7 +160,10 @@ impl BuildingsManager {
     }
 
     // get absolute entrance location (x, y) in map with map_space and block_type
-    fn get_absolute_entrance(map_space: &MapSpaces, block_type: &BlockType) -> Result<(i32, i32)> {
+    pub fn get_absolute_entrance(
+        map_space: &MapSpaces,
+        block_type: &BlockType,
+    ) -> Result<(i32, i32)> {
         match map_space.rotation {
             0 => Ok((
                 map_space.x_coordinate + block_type.entrance_x,
