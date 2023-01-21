@@ -74,7 +74,7 @@ impl Defenders {
                 defender_type: defender_type.id,
                 radius: defender_type.radius,
                 speed: defender_type.speed,
-                damage: defender_type.radius,
+                damage: defender_type.damage,
                 is_alive: true,
                 target_id: None,
                 path,

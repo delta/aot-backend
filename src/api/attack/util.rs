@@ -339,7 +339,7 @@ pub fn run_simulation(
 
         for (defender_id, defender) in simulated_frame.defenders {
             writeln!(content, "defender {}", defender_id)?;
-            writeln!(content, "id,x,y,type,is_alive")?;
+            writeln!(content, "id,is_alive,x,y,type")?;
             for position in defender {
                 let RenderDefender {
                     defender_id,
@@ -351,7 +351,7 @@ pub fn run_simulation(
                 writeln!(
                     content,
                     "{},{},{},{},{}",
-                    defender_id, x_position, y_position, defender_type, is_alive
+                    defender_id, is_alive, x_position, y_position, defender_type
                 )?;
             }
         }

@@ -75,11 +75,8 @@ impl Attacker {
     }
 
     pub fn get_current_position(&self) -> Result<(i32, i32)> {
-        match self.path_in_current_frame.last() {
-            Some(attacker_path_stats) => Ok((
-                attacker_path_stats.attacker_path.x_coord,
-                attacker_path_stats.attacker_path.y_coord,
-            )),
+        match self.path.last() {
+            Some(attacker_path) => Ok((attacker_path.x_coord, attacker_path.y_coord)),
             None => Err(EmptyAttackerPathError.into()),
         }
     }
