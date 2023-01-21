@@ -1,24 +1,31 @@
-use self::{defender::Defender, diffuser::Diffuser, mine::Mine};
+use diesel::PgConnection;
+
+use self::defender::Defenders;
+
+use super::{attack::AttackManager, blocks::BuildingsManager};
+use anyhow::{Ok, Result};
 
 pub mod defender;
 pub mod diffuser;
 pub mod mine;
 
-#[allow(dead_code)]
 pub struct DefenseManager {
-    pub defenders: Vec<Defender>,
-    pub diffusers: Vec<Diffuser>,
-    pub mine: Vec<Mine>,
+    pub defenders: Defenders,
 }
 
 impl DefenseManager {
-    // #[allow(dead_code)]
-    // pub fn new() -> Self {
-    //     todo!()
-    // }
+    pub fn new(conn: &mut PgConnection, map_id: i32) -> Result<Self> {
+        let defenders = Defenders::new(conn, map_id)?;
+        Ok(Self { defenders })
+    }
 
-    #[allow(dead_code)]
-    pub fn simulate() {
-        todo!()
+    pub fn simulate(
+        &mut self,
+        attacker_manager: &mut AttackManager,
+        building_manager: &mut BuildingsManager,
+    ) -> Result<()> {
+        self.defenders
+            .simulate(attacker_manager, building_manager)?;
+        Ok(())
     }
 }

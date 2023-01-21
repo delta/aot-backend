@@ -1,6 +1,9 @@
+use std::collections::HashMap;
+
 use crate::api::attack::util::NewAttacker;
 use crate::constants::*;
 use crate::error::DieselError;
+use crate::simulation::defense::DefenseManager;
 use crate::util::function;
 use anyhow::Result;
 use blocks::BuildingsManager;
@@ -16,7 +19,7 @@ pub mod defense;
 pub mod error;
 pub mod robots;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone, Copy)]
 pub struct RenderAttacker {
     pub attacker_id: i32,
     pub health: i32,
@@ -25,6 +28,15 @@ pub struct RenderAttacker {
     pub is_alive: bool,
     pub emp_id: usize,
     pub attacker_type: i32,
+}
+
+#[derive(Debug, Serialize, Clone, Copy)]
+pub struct RenderDefender {
+    pub defender_id: i32,
+    pub x_position: i32,
+    pub y_position: i32,
+    pub is_alive: bool,
+    pub defender_type: i32,
 }
 
 #[derive(Debug, Serialize)]
@@ -38,8 +50,9 @@ pub struct RenderRobot {
 
 #[derive(Debug, Serialize)]
 pub struct RenderSimulation {
-    pub attackers: Vec<RenderAttacker>,
+    pub attackers: HashMap<i32, Vec<RenderAttacker>>,
     pub robots: Vec<RenderRobot>,
+    pub defenders: HashMap<i32, Vec<RenderDefender>>,
 }
 
 pub struct Simulator {
@@ -47,6 +60,7 @@ pub struct Simulator {
     robots_manager: RobotsManager,
     attack_manager: AttackManager,
     frames_passed: i32,
+    defense_manager: DefenseManager,
     pub no_of_robots: i32,
     pub rating_factor: f32,
 }
@@ -82,6 +96,7 @@ impl Simulator {
         let buildings_manager = BuildingsManager::new(conn, map_id)?;
         let robots_manager = RobotsManager::new(&buildings_manager, no_of_robots)?;
         let attack_manager = AttackManager::new(conn, attackers)?;
+        let defense_manager = DefenseManager::new(conn, map_id)?;
 
         Ok(Simulator {
             buildings_manager,
@@ -90,6 +105,7 @@ impl Simulator {
             frames_passed: 0,
             no_of_robots,
             rating_factor,
+            defense_manager,
         })
     }
 
@@ -136,12 +152,19 @@ impl Simulator {
         (attack_score, defend_score)
     }
 
+    pub fn get_defender_position(&self) -> Vec<RenderDefender> {
+        self.defense_manager
+            .defenders
+            .get_defender_initial_position()
+    }
+
     pub fn simulate(&mut self) -> Result<RenderSimulation> {
         let Simulator {
             buildings_manager,
             robots_manager,
             attack_manager,
             frames_passed,
+            defense_manager,
             ..
         } = self;
         *frames_passed += 1;
@@ -152,6 +175,8 @@ impl Simulator {
 
         //Simulate Emps and attackers
         attack_manager.simulate_attack(frames_passed, robots_manager, buildings_manager)?;
+
+        defense_manager.simulate(attack_manager, buildings_manager)?;
 
         if Self::is_hour(frames_passed) {
             buildings_manager.update_building_weights(Self::get_hour(frames_passed))?;
@@ -169,35 +194,14 @@ impl Simulator {
             })
             .collect();
 
-        let render_attackers: Result<Vec<RenderAttacker>> = attack_manager
-            .attackers
-            .values()
-            .map(|attacker| {
-                let (x_position, y_position) = attacker.get_current_position()?;
-                Ok(RenderAttacker {
-                    attacker_id: attacker.id,
-                    health: attacker.health,
-                    x_position,
-                    y_position,
-                    is_alive: attacker.is_alive,
-                    attacker_type: attacker.attacker_type,
-                    emp_id: match attacker.path.last() {
-                        Some(path) => {
-                            if path.is_emp {
-                                path.id
-                            } else {
-                                0
-                            }
-                        }
-                        None => 0,
-                    },
-                })
-            })
-            .collect();
+        let render_attackers = attack_manager.get_attacker_positions()?;
+
+        let render_defenders = defense_manager.defenders.post_simulate();
 
         Ok(RenderSimulation {
-            attackers: render_attackers?,
+            attackers: render_attackers,
             robots: render_robots,
+            defenders: render_defenders,
         })
     }
 }

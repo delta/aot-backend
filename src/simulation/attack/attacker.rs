@@ -1,6 +1,14 @@
 use crate::models::*;
 use crate::simulation::error::EmptyAttackerPathError;
+use crate::simulation::{RenderAttacker, Simulator};
 use anyhow::Result;
+
+#[derive(Debug)]
+pub struct AttackPathStats {
+    pub attacker_path: AttackerPath,
+    pub health: i32,
+    pub is_alive: bool,
+}
 
 pub struct Attacker {
     pub id: i32,
@@ -10,17 +18,45 @@ pub struct Attacker {
     pub health: i32,
     pub speed: i32,
     pub attacker_type: i32,
+    pub path_in_current_frame: Vec<AttackPathStats>,
 }
 
 impl Attacker {
-    pub fn update_position(&mut self) {
-        if self.is_alive && self.path.len() > 1 {
-            if self.path.len() > self.speed as usize {
-                self.path.truncate(self.path.len() - self.speed as usize);
-            } else {
-                self.path.truncate(1);
-            }
+    pub fn update_position(&mut self, frames_passed: i32) {
+        self.path_in_current_frame.clear();
+        if !Simulator::attacker_allowed(frames_passed) {
+            self.path_in_current_frame.push(AttackPathStats {
+                attacker_path: self.path[self.path.len() - 1],
+                health: self.health,
+                is_alive: self.is_alive,
+            });
+            return;
         }
+        if self.is_alive && self.path.len() > 1 {
+            let mut split_at_index: usize = 1;
+            if self.path.len() > self.speed as usize {
+                split_at_index = self.path.len() - self.speed as usize;
+            }
+            self.path_in_current_frame = self
+                .path
+                .split_off(split_at_index)
+                .into_iter()
+                .map(|attacker_path| AttackPathStats {
+                    attacker_path,
+                    health: self.health,
+                    is_alive: self.is_alive,
+                })
+                .collect();
+        }
+        // Insert the Destination into the path in current Frame
+        self.path_in_current_frame.insert(
+            0,
+            AttackPathStats {
+                attacker_path: self.path[self.path.len() - 1],
+                health: self.health,
+                is_alive: self.is_alive,
+            },
+        )
     }
 
     pub fn is_planted(&self, path_id: usize) -> Result<bool> {
@@ -37,12 +73,74 @@ impl Attacker {
         }
     }
 
-    pub fn get_damage(&mut self, damage: i32) {
-        self.health -= damage;
-        if self.health <= 0 {
-            self.is_alive = false;
-            self.health = 0;
+    pub fn get_damage(&mut self, damage: i32, current_attacker_pos: usize) {
+        for position in 0..=current_attacker_pos {
+            self.path_in_current_frame[position].health -= damage;
+            if self.path_in_current_frame[position].health <= 0 {
+                self.path_in_current_frame[position].is_alive = false;
+                self.path_in_current_frame[position].health = 0
+            }
         }
+    }
+
+    // Generate the response from simulating current frame for attacker
+    pub fn post_simulate(&mut self) -> Result<Vec<RenderAttacker>> {
+        let mut render_attacker: Vec<RenderAttacker> = Vec::new();
+        if self.path_in_current_frame.is_empty() {
+            self.path_in_current_frame.push(AttackPathStats {
+                attacker_path: self.path[self.path.len() - 1],
+                health: self.health,
+                is_alive: self.is_alive,
+            })
+        }
+        while self.path_in_current_frame.len() > 1
+            && self.path_in_current_frame.last().unwrap().is_alive
+        {
+            self.path_in_current_frame.pop();
+            let attacker_path_stats = self.path_in_current_frame.last().unwrap();
+            render_attacker.push(RenderAttacker {
+                attacker_id: self.id,
+                health: attacker_path_stats.health,
+                x_position: attacker_path_stats.attacker_path.x_coord,
+                y_position: attacker_path_stats.attacker_path.y_coord,
+                is_alive: attacker_path_stats.is_alive,
+                attacker_type: self.attacker_type,
+                emp_id: if attacker_path_stats.attacker_path.is_emp {
+                    attacker_path_stats.attacker_path.id
+                } else {
+                    0
+                },
+            });
+        }
+
+        while render_attacker.len() < self.speed as usize {
+            let attacker_path_stats = self.path_in_current_frame.last().unwrap();
+            render_attacker.push(RenderAttacker {
+                attacker_id: self.id,
+                health: attacker_path_stats.health,
+                x_position: attacker_path_stats.attacker_path.x_coord,
+                y_position: attacker_path_stats.attacker_path.y_coord,
+                is_alive: attacker_path_stats.is_alive,
+                attacker_type: self.attacker_type,
+                emp_id: if attacker_path_stats.attacker_path.is_emp {
+                    attacker_path_stats.attacker_path.id
+                } else {
+                    0
+                },
+            });
+        }
+        // Store the stats from current frame into attacker
+        let destination = self.path_in_current_frame.last().unwrap();
+        self.health = destination.health;
+        self.is_alive = destination.is_alive;
+
+        self.path_in_current_frame.remove(0);
+
+        while !self.path_in_current_frame.is_empty() {
+            let attacker_path_stats = self.path_in_current_frame.remove(0);
+            self.path.push(attacker_path_stats.attacker_path)
+        }
+        Ok(render_attacker)
     }
 
     pub fn new(path: &[NewAttackerPath], attacker_type: &AttackerType, id: i32) -> Self {
@@ -60,6 +158,7 @@ impl Attacker {
             })
             .collect();
         attacker_path.reverse();
+        let path_in_current_frame = Vec::new();
         Self {
             id,
             is_alive: true,
@@ -68,6 +167,7 @@ impl Attacker {
             health: attacker_type.max_health,
             speed: attacker_type.speed,
             attacker_type: attacker_type.id,
+            path_in_current_frame,
         }
     }
 }

@@ -112,7 +112,8 @@ impl Emps {
                     for (_, attacker) in attackers.iter_mut() {
                         let (attacker_pos_x, attacker_pos_y) = attacker.get_current_position()?;
                         if x == attacker_pos_x && y == attacker_pos_y {
-                            attacker.get_damage(emp.damage);
+                            attacker
+                                .get_damage(emp.damage, attacker.path_in_current_frame.len() - 1);
                         }
                     }
 

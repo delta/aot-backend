@@ -6,9 +6,11 @@ use diesel::PgConnection;
 
 use self::{attacker::Attacker, emp::Emps};
 
-use super::{blocks::BuildingsManager, error::KeyError, robots::RobotsManager, Simulator};
+use super::{
+    blocks::BuildingsManager, error::KeyError, robots::RobotsManager, RenderAttacker, Simulator,
+};
 
-mod attacker;
+pub mod attacker;
 mod emp;
 
 pub struct AttackManager {
@@ -42,9 +44,9 @@ impl AttackManager {
         })
     }
 
-    pub fn update_attackers_position(&mut self) {
+    pub fn update_attackers_position(&mut self, frames_passed: i32) {
         for (_, attacker) in self.attackers.iter_mut() {
-            attacker.update_position()
+            attacker.update_position(frames_passed);
         }
     }
 
@@ -54,9 +56,7 @@ impl AttackManager {
         robots_manager: &mut RobotsManager,
         buildings_manager: &mut BuildingsManager,
     ) -> Result<()> {
-        if Simulator::attacker_allowed(frames_passed) {
-            self.update_attackers_position();
-        }
+        self.update_attackers_position(frames_passed);
         let minute = Simulator::get_minute(frames_passed);
         self.emps.simulate(
             minute,
@@ -66,5 +66,14 @@ impl AttackManager {
         )?;
 
         Ok(())
+    }
+
+    pub fn get_attacker_positions(&mut self) -> Result<HashMap<i32, Vec<RenderAttacker>>> {
+        let mut attacker_positions: HashMap<i32, Vec<RenderAttacker>> = HashMap::new();
+        for attacker in self.attackers.values_mut() {
+            let render_attackers = attacker.post_simulate()?;
+            attacker_positions.insert(attacker.id, render_attackers);
+        }
+        Ok(attacker_positions)
     }
 }

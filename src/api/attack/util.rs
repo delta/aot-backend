@@ -5,8 +5,8 @@ use crate::error::DieselError;
 use crate::models::{
     AttackerType, Game, LevelsFixture, MapLayout, NewAttackerPath, NewGame, NewSimulationLog,
 };
-use crate::simulation::Simulator;
 use crate::simulation::{RenderAttacker, RenderRobot};
+use crate::simulation::{RenderDefender, Simulator};
 use crate::util::function;
 use anyhow::{Context, Result};
 use chrono::{Local, NaiveTime};
@@ -259,7 +259,7 @@ pub fn run_simulation(
         let attacker_path = &attacker.attacker_path;
         let attacker_type = &attacker.attacker_type;
         writeln!(content, "attacker_path")?;
-        writeln!(content, "id,y,x,is_emp")?;
+        writeln!(content, "id,y,x,is_emp,type")?;
         attacker_path
             .iter()
             .enumerate()
@@ -299,28 +299,63 @@ pub fn run_simulation(
     let mut simulator =
         Simulator::new(game_id, &attackers, conn).with_context(|| "Failed to create simulator")?;
 
+    let defenders_positions = simulator.get_defender_position();
+
+    for position in defenders_positions {
+        writeln!(content, "defender {}", position.defender_id)?;
+        writeln!(content, "id,x,y")?;
+        let RenderDefender {
+            defender_id,
+            x_position,
+            y_position,
+            ..
+        } = position;
+        writeln!(content, "{},{},{}", defender_id, x_position, y_position)?;
+    }
+
     for frame in 1..=NO_OF_FRAMES {
         writeln!(content, "frame {}", frame)?;
         let simulated_frame = simulator
             .simulate()
             .with_context(|| format!("Failed to simulate frame {}", frame))?;
         for attacker in simulated_frame.attackers {
-            writeln!(content, "attacker {}", attacker.attacker_id)?;
+            writeln!(content, "attacker {}", attacker.0)?;
             writeln!(content, "id,x,y,is_alive,emp_id,health,type")?;
-            let RenderAttacker {
-                x_position,
-                y_position,
-                is_alive,
-                emp_id,
-                health,
-                attacker_type,
-                attacker_id,
-            } = attacker;
-            writeln!(
-                content,
-                "{},{},{},{},{},{},{}",
-                attacker_id, x_position, y_position, is_alive, emp_id, health, attacker_type
-            )?;
+            for position in attacker.1 {
+                let RenderAttacker {
+                    x_position,
+                    y_position,
+                    is_alive,
+                    emp_id,
+                    health,
+                    attacker_type,
+                    attacker_id,
+                } = position;
+                writeln!(
+                    content,
+                    "{},{},{},{},{},{},{}",
+                    attacker_id, x_position, y_position, is_alive, emp_id, health, attacker_type
+                )?;
+            }
+        }
+
+        for (defender_id, defender) in simulated_frame.defenders {
+            writeln!(content, "defender {}", defender_id)?;
+            writeln!(content, "id,is_alive,x,y,type")?;
+            for position in defender {
+                let RenderDefender {
+                    defender_id,
+                    x_position,
+                    y_position,
+                    defender_type,
+                    is_alive,
+                } = position;
+                writeln!(
+                    content,
+                    "{},{},{},{},{}",
+                    defender_id, is_alive, x_position, y_position, defender_type
+                )?;
+            }
         }
 
         writeln!(content, "robots")?;
