@@ -46,6 +46,8 @@ pub struct RenderDiffuser {
     pub y_position: i32,
     pub is_alive: bool,
     pub diffuser_type: i32,
+    pub emp_path_id: i32,
+    pub emp_attacker_id: i32,
 }
 
 #[derive(Debug, Serialize, Clone, Copy)]

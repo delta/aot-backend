@@ -34,7 +34,7 @@ impl Mines {
             .into_iter()
             .enumerate()
             .map(|(mine_id, (map_space, (_, mine_type)))| Mine {
-                id: mine_id as i32,
+                id: (mine_id as i32) + 1,
                 mine_type: mine_type.id,
                 damage: mine_type.damage,
                 radius: mine_type.radius,

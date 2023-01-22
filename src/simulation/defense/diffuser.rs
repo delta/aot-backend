@@ -4,8 +4,9 @@ use crate::simulation::attack::{
     emp::{Emp, Emps},
     AttackManager,
 };
+use crate::simulation::blocks::SourceDest;
 use crate::simulation::blocks::*;
-use crate::simulation::error::KeyError;
+use crate::simulation::error::{KeyError, ShortestPathNotFoundError};
 use crate::simulation::RenderDiffuser;
 use anyhow::{Ok, Result};
 use diesel::prelude::*;
@@ -13,7 +14,7 @@ use diesel::PgConnection;
 use std::collections::{HashMap, HashSet};
 
 #[derive(Clone)]
-pub struct DiffuserPathStatus {
+pub struct DiffuserPathStats {
     pub x_position: i32,
     pub y_position: i32,
     pub is_alive: bool,
@@ -26,7 +27,7 @@ pub struct Diffuser {
     pub diffuser_type: i32,
     pub radius: i32,
     pub speed: i32,
-    pub path_in_current_frame: Vec<DiffuserPathStatus>,
+    pub path_in_current_frame: Vec<DiffuserPathStats>,
     pub is_alive: bool,
     pub init_x_position: i32,
     pub init_y_position: i32,
@@ -35,11 +36,9 @@ pub struct Diffuser {
     pub diffuser_path: Vec<(i32, i32)>,
 }
 
-#[allow(dead_code)]
 pub struct Diffusers(Vec<Diffuser>);
 
 impl Diffusers {
-    #[allow(dead_code)]
     pub fn new(conn: &mut PgConnection, map_id: i32) -> Result<Self> {
         use crate::schema::{building_type, diffuser_type, map_spaces};
         let joined_table = map_spaces::table
@@ -56,7 +55,7 @@ impl Diffusers {
             .into_iter()
             .enumerate()
             .map(|(diffuser_id, (map_space, (_, diffuser_type)))| Diffuser {
-                id: diffuser_id as i32,
+                id: (diffuser_id as i32) + 1,
                 diffuser_type: diffuser_type.id,
                 radius: diffuser_type.radius,
                 is_alive: true,
@@ -66,7 +65,7 @@ impl Diffusers {
                 diffuser_path: vec![(map_space.x_coordinate, map_space.y_coordinate)],
                 init_x_position: map_space.x_coordinate,
                 init_y_position: map_space.y_coordinate,
-                path_in_current_frame: vec![DiffuserPathStatus {
+                path_in_current_frame: vec![DiffuserPathStats {
                     x_position: map_space.x_coordinate,
                     y_position: map_space.y_coordinate,
                     is_alive: true,
@@ -88,107 +87,153 @@ impl Diffusers {
         let mut remove_emp_time: Option<i32> = None;
         let mut remove_emp: Option<Emp> = None;
 
-        for (emp_time, emps) in time_emps_map.iter() {
-            for emp in emps.iter() {
-                if (emp.path_id == diffuser.target_emp_path_id.unwrap())
-                    && (emp.attacker_id == diffuser.target_emp_attacker_id.unwrap())
-                {
-                    //got the target emp
-                    let mut step = 0;
-                    diffuser.path_in_current_frame = Vec::new();
-                    loop {
-                        let (curr_x, curr_y) = *diffuser.diffuser_path.last().unwrap();
+        match diffuser.target_emp_path_id {
+            Some(_) => {
+                for (emp_time, emps) in time_emps_map.iter() {
+                    for emp in emps.iter() {
+                        if (emp.path_id == diffuser.target_emp_path_id.unwrap())
+                            && (emp.attacker_id == diffuser.target_emp_attacker_id.unwrap())
+                        {
+                            //got the target emp
+                            let mut step = 0;
+                            diffuser.path_in_current_frame = Vec::new();
+                            loop {
+                                let (curr_x, curr_y) = *diffuser.diffuser_path.last().unwrap();
 
-                        if (emp.x_coord == curr_x) && (emp.y_coord == curr_y) {
-                            diffuser.is_alive = false;
-                            diffuser.path_in_current_frame.push(DiffuserPathStatus {
-                                x_position: curr_x,
-                                y_position: curr_y,
-                                is_alive: false,
-                                emp_attacker_id: Some(diffuser.target_emp_attacker_id.unwrap()),
-                                emp_path_id: Some(diffuser.target_emp_path_id.unwrap()),
-                            });
-                            //remove the emp
-                            to_remove_emp = true;
-                            remove_emp_time = Some(*emp_time);
-                            remove_emp = Some(emp.clone());
+                                if (emp.x_coord == curr_x) && (emp.y_coord == curr_y) {
+                                    diffuser.is_alive = false;
+                                    diffuser.path_in_current_frame.push(DiffuserPathStats {
+                                        x_position: curr_x,
+                                        y_position: curr_y,
+                                        is_alive: false,
+                                        emp_attacker_id: Some(
+                                            diffuser.target_emp_attacker_id.unwrap(),
+                                        ),
+                                        emp_path_id: Some(diffuser.target_emp_path_id.unwrap()),
+                                    });
+                                    //remove the emp
+                                    to_remove_emp = true;
+                                    remove_emp_time = Some(*emp_time);
+                                    remove_emp = Some(emp.clone());
+                                    break;
+                                }
+
+                                diffuser.path_in_current_frame.push(DiffuserPathStats {
+                                    x_position: curr_x,
+                                    y_position: curr_y,
+                                    is_alive: true,
+                                    emp_attacker_id: Some(diffuser.target_emp_attacker_id.unwrap()),
+                                    emp_path_id: Some(diffuser.target_emp_path_id.unwrap()),
+                                });
+
+                                step += 1;
+
+                                if step > diffuser.speed {
+                                    break;
+                                }
+                                diffuser.diffuser_path.pop();
+                            }
+
+                            diffuser.path_in_current_frame.reverse();
+
+                            if !to_remove_emp {
+                                return Ok(());
+                            }
+
                             break;
                         }
+                    }
 
-                        diffuser.path_in_current_frame.push(DiffuserPathStatus {
+                    if to_remove_emp {
+                        break;
+                    }
+                }
+
+                //remove empdiffuser.diffuser_path = new_path;
+                if to_remove_emp {
+                    let emps = time_emps_map.get_mut(&remove_emp_time.unwrap()).unwrap();
+                    let remove_emp_ref = remove_emp.unwrap();
+                    emps.remove(&remove_emp_ref);
+                    let attacker = attackers.get_mut(&remove_emp_ref.attacker_id);
+
+                    if let Some(att) = attacker {
+                        let attacker_path = &mut att.path;
+                        for path in attacker_path {
+                            if path.id == remove_emp_ref.path_id {
+                                path.is_emp = false;
+                            }
+                        }
+                    }
+
+                    return Ok(());
+                }
+
+                //target emp is already diffused so diffuser in it's way to it's intial position
+                let (curr_x, curr_y) = diffuser.diffuser_path.last().unwrap();
+
+                diffuser.target_emp_attacker_id = None;
+                diffuser.target_emp_path_id = None;
+
+                let source_dest = SourceDest {
+                    source_x: diffuser.init_x_position,
+                    source_y: diffuser.init_y_position,
+                    dest_x: *curr_x,
+                    dest_y: *curr_y,
+                };
+
+                let back_to_initial_pos = shortest_paths
+                    .get(&source_dest)
+                    .ok_or(ShortestPathNotFoundError(source_dest))?
+                    .clone();
+
+                diffuser.path_in_current_frame = vec![DiffuserPathStats {
+                    x_position: *curr_x,
+                    y_position: *curr_y,
+                    is_alive: true,
+                    emp_attacker_id: None,
+                    emp_path_id: None,
+                }];
+                diffuser.diffuser_path = back_to_initial_pos;
+            }
+            None => {
+                let mut step = 0;
+                diffuser.path_in_current_frame = Vec::new();
+                loop {
+                    let (curr_x, curr_y) = *diffuser.diffuser_path.last().unwrap();
+
+                    if (diffuser.init_x_position == curr_x) && (diffuser.init_y_position == curr_y)
+                    {
+                        diffuser.path_in_current_frame.push(DiffuserPathStats {
                             x_position: curr_x,
                             y_position: curr_y,
                             is_alive: true,
-                            emp_attacker_id: Some(diffuser.target_emp_attacker_id.unwrap()),
-                            emp_path_id: Some(diffuser.target_emp_path_id.unwrap()),
+                            emp_attacker_id: None,
+                            emp_path_id: None,
                         });
 
-                        step += 1;
-
-                        if step > diffuser.speed {
-                            break;
-                        }
-                        diffuser.diffuser_path.pop();
+                        //remove the emp
+                        break;
                     }
 
-                    diffuser.path_in_current_frame.reverse();
+                    diffuser.path_in_current_frame.push(DiffuserPathStats {
+                        x_position: curr_x,
+                        y_position: curr_y,
+                        is_alive: true,
+                        emp_attacker_id: None,
+                        emp_path_id: None,
+                    });
 
-                    if !to_remove_emp {
-                        return Ok(());
+                    step += 1;
+
+                    if step > diffuser.speed {
+                        break;
                     }
-
-                    break;
+                    diffuser.diffuser_path.pop();
                 }
-            }
 
-            if to_remove_emp {
-                break;
+                diffuser.path_in_current_frame.reverse();
             }
         }
-
-        //remove empdiffuser.diffuser_path = new_path;
-        if to_remove_emp {
-            let emps = time_emps_map.get_mut(&remove_emp_time.unwrap()).unwrap();
-            let remove_emp_ref = remove_emp.unwrap();
-            emps.remove(&remove_emp_ref);
-            let attacker = attackers.get_mut(&remove_emp_ref.attacker_id);
-
-            if let Some(att) = attacker {
-                let attacker_path = &mut att.path;
-                for path in attacker_path {
-                    if path.id == remove_emp_ref.path_id {
-                        path.is_emp = false;
-                    }
-                }
-            }
-
-            return Ok(());
-        }
-
-        //target emp is already diffused so diffuser in it's way to it's intial position
-        let (curr_x, curr_y) = diffuser.diffuser_path.last().unwrap();
-
-        diffuser.target_emp_attacker_id = None;
-        diffuser.target_emp_path_id = None;
-
-        let back_to_initial_pos = shortest_paths
-            .get(&SourceDest {
-                source_x: diffuser.init_x_position,
-                source_y: diffuser.init_y_position,
-                dest_x: *curr_x,
-                dest_y: *curr_y,
-            })
-            .unwrap()
-            .clone();
-
-        diffuser.path_in_current_frame = vec![DiffuserPathStatus {
-            x_position: *curr_x,
-            y_position: *curr_y,
-            is_alive: true,
-            emp_attacker_id: None,
-            emp_path_id: None,
-        }];
-        diffuser.diffuser_path = back_to_initial_pos;
 
         Ok(())
     }
@@ -213,63 +258,32 @@ impl Diffusers {
                 })?;
                 if attacker.is_planted(emp.path_id)? {
                     //this emp is visible
-                    if (curr_x == diffuser.init_x_position) && (curr_y == diffuser.init_y_position)
-                    {
-                        //diffuser is in his his initial position
-                        let new_path = shortest_paths
-                            .get(&SourceDest {
-                                source_x: emp.x_coord,
-                                source_y: emp.y_coord,
-                                dest_x: diffuser.init_x_position,
-                                dest_y: diffuser.init_y_position,
-                            })
-                            .unwrap()
-                            .clone();
+                    //diffuser is in his his initial position
+                    let source_dest = SourceDest {
+                        source_x: emp.x_coord,
+                        source_y: emp.y_coord,
+                        dest_x: diffuser.init_x_position,
+                        dest_y: diffuser.init_y_position,
+                    };
+                    let new_path = shortest_paths
+                        .get(&source_dest)
+                        .ok_or(ShortestPathNotFoundError(source_dest))?
+                        .clone();
 
-                        let dist_pow_2 =
-                            (emp.x_coord - curr_x).pow(2) + (emp.y_coord - curr_y).pow(2);
-                        let time_taken = (new_path.len() - 1) as i32;
-                        if ((time_taken + minute) < *emp_time)
-                            && (dist_pow_2 <= diffuser.radius.pow(2))
-                        {
-                            match &optimal_emp {
-                                Some(opt_emp) => {
-                                    if opt_emp.damage < emp.damage {
-                                        optimal_emp = Some(emp.clone());
-                                        optimal_emp_path = Some(new_path);
-                                    }
-                                }
-                                None => {
+                    let dist_pow_2 = (emp.x_coord - curr_x).pow(2) + (emp.y_coord - curr_y).pow(2);
+                    let time_taken = (new_path.len() - 1) as i32;
+                    if ((time_taken + minute) < *emp_time) && (dist_pow_2 <= diffuser.radius.pow(2))
+                    {
+                        match &optimal_emp {
+                            Some(opt_emp) => {
+                                if opt_emp.damage < emp.damage {
                                     optimal_emp = Some(emp.clone());
                                     optimal_emp_path = Some(new_path);
                                 }
                             }
-                        }
-                    } else {
-                        //diffuser not in initial position
-                        let new_path = shortest_paths
-                            .get(&SourceDest {
-                                source_x: emp.x_coord,
-                                source_y: emp.y_coord,
-                                dest_x: curr_x,
-                                dest_y: curr_y,
-                            })
-                            .unwrap()
-                            .clone();
-
-                        let time_taken = (new_path.len() - 1) as i32;
-                        if (time_taken + minute) < *emp_time {
-                            match &optimal_emp {
-                                Some(opt_emp) => {
-                                    if emp.damage > opt_emp.damage {
-                                        optimal_emp = Some(emp.clone());
-                                        optimal_emp_path = Some(new_path);
-                                    }
-                                }
-                                None => {
-                                    optimal_emp = Some(emp.clone());
-                                    optimal_emp_path = Some(new_path);
-                                }
+                            None => {
+                                optimal_emp = Some(emp.clone());
+                                optimal_emp_path = Some(new_path);
                             }
                         }
                     }
@@ -277,56 +291,22 @@ impl Diffusers {
             }
         }
 
-        match optimal_emp {
-            Some(emp) => {
-                diffuser.diffuser_path = optimal_emp_path.unwrap();
-                diffuser.target_emp_path_id = Some(emp.path_id);
-                diffuser.target_emp_attacker_id = Some(emp.attacker_id);
-                diffuser.path_in_current_frame = vec![DiffuserPathStatus {
-                    x_position: curr_x,
-                    y_position: curr_y,
-                    is_alive: true,
-                    emp_attacker_id: Some(emp.attacker_id),
-                    emp_path_id: Some(emp.path_id),
-                }];
-            }
-            None => {
-                //diffuser  is not assigned to any emp
-                diffuser.path_in_current_frame = Vec::new();
-                let mut step = 0;
-                loop {
-                    diffuser.path_in_current_frame.push(DiffuserPathStatus {
-                        x_position: curr_x,
-                        y_position: curr_y,
-                        is_alive: true,
-                        emp_path_id: None,
-                        emp_attacker_id: None,
-                    });
-
-                    if (curr_x == diffuser.init_x_position) && (curr_y == diffuser.init_y_position)
-                    {
-                        //reached the initial position
-                        diffuser.path_in_current_frame.reverse();
-                        return Ok(());
-                    }
-
-                    step += 1;
-
-                    if step > diffuser.speed {
-                        break;
-                    }
-                    diffuser.diffuser_path.pop();
-                }
-
-                diffuser.path_in_current_frame.reverse();
-                return Ok(());
-            }
-        }
+        if let Some(emp) = optimal_emp {
+            diffuser.diffuser_path = optimal_emp_path.unwrap();
+            diffuser.target_emp_path_id = Some(emp.path_id);
+            diffuser.target_emp_attacker_id = Some(emp.attacker_id);
+            diffuser.path_in_current_frame = vec![DiffuserPathStats {
+                x_position: curr_x,
+                y_position: curr_y,
+                is_alive: true,
+                emp_attacker_id: Some(emp.attacker_id),
+                emp_path_id: Some(emp.path_id),
+            }];
+        };
 
         Ok(())
     }
 
-    #[allow(dead_code)]
     pub fn simulate(
         &mut self,
         minute: i32,
@@ -343,26 +323,35 @@ impl Diffusers {
             if diffuser.is_alive {
                 match diffuser.target_emp_path_id {
                     Some(_) => {
-                        (Diffusers::simulate_diffuser(
+                        Diffusers::simulate_diffuser(
                             diffuser,
                             time_emps_map,
                             shortest_paths,
                             attackers,
-                        ))?;
+                        )?;
                     }
                     None => {
-                        (Diffusers::assign_diffuser(
-                            diffuser,
-                            time_emps_map,
-                            attackers,
-                            shortest_paths,
-                            minute,
-                        ))?;
+                        if diffuser.diffuser_path.len() > 1 {
+                            Diffusers::simulate_diffuser(
+                                diffuser,
+                                time_emps_map,
+                                shortest_paths,
+                                attackers,
+                            )?;
+                        } else {
+                            Diffusers::assign_diffuser(
+                                diffuser,
+                                time_emps_map,
+                                attackers,
+                                shortest_paths,
+                                minute,
+                            )?;
+                        }
                     }
                 }
             } else {
                 let (curr_x, curr_y) = *diffuser.diffuser_path.last().unwrap();
-                diffuser.path_in_current_frame = vec![DiffuserPathStatus {
+                diffuser.path_in_current_frame = vec![DiffuserPathStats {
                     x_position: curr_x,
                     y_position: curr_y,
                     is_alive: false,
@@ -386,22 +375,44 @@ impl Diffusers {
 
             if curr_status.is_alive {
                 for path in paths.iter() {
+                    let mut emp_path_id: i32 = -1;
+                    let mut emp_attacker_id: i32 = -1;
+                    if let Some(path_id) = path.emp_path_id {
+                        emp_path_id = path_id as i32;
+                    };
+
+                    if let Some(att_id) = path.emp_attacker_id {
+                        emp_attacker_id = att_id;
+                    }
                     diffuser_positions.push(RenderDiffuser {
                         diffuser_id: diffuser.id,
                         x_position: path.x_position,
                         y_position: path.y_position,
                         is_alive: path.is_alive,
                         diffuser_type: diffuser.diffuser_type,
+                        emp_path_id,
+                        emp_attacker_id,
                     });
                 }
 
                 if diffuser_positions.is_empty() {
+                    let mut emp_path_id: i32 = -1;
+                    let mut emp_attacker_id: i32 = -1;
+                    if let Some(path_id) = curr_status.emp_path_id {
+                        emp_path_id = path_id as i32;
+                    };
+
+                    if let Some(att_id) = curr_status.emp_attacker_id {
+                        emp_attacker_id = att_id;
+                    }
                     diffuser_positions.push(RenderDiffuser {
                         diffuser_id: diffuser.id,
                         x_position: curr_status.x_position,
                         y_position: curr_status.y_position,
                         is_alive: curr_status.is_alive,
                         diffuser_type: diffuser.diffuser_type,
+                        emp_path_id,
+                        emp_attacker_id,
                     });
                 }
 
@@ -410,12 +421,23 @@ impl Diffusers {
                 }
             } else {
                 while diffuser_positions.len() < diffuser.speed as usize {
+                    let mut emp_path_id: i32 = -1;
+                    let mut emp_attacker_id: i32 = -1;
+                    if let Some(path_id) = curr_status.emp_path_id {
+                        emp_path_id = path_id as i32;
+                    };
+
+                    if let Some(att_id) = curr_status.emp_attacker_id {
+                        emp_attacker_id = att_id;
+                    }
                     diffuser_positions.push(RenderDiffuser {
                         diffuser_id: diffuser.id,
                         x_position: curr_status.x_position,
                         y_position: curr_status.y_position,
                         is_alive: false,
                         diffuser_type: diffuser.diffuser_type,
+                        emp_path_id,
+                        emp_attacker_id,
                     });
                 }
             }
