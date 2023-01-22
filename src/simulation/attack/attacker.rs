@@ -3,7 +3,7 @@ use crate::simulation::error::EmptyAttackerPathError;
 use crate::simulation::{RenderAttacker, Simulator};
 use anyhow::Result;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct AttackPathStats {
     pub attacker_path: AttackerPath,
     pub health: i32,

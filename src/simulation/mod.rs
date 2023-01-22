@@ -39,6 +39,24 @@ pub struct RenderDefender {
     pub defender_type: i32,
 }
 
+#[derive(Debug, Serialize, Clone, Copy)]
+pub struct RenderDiffuser {
+    pub diffuser_id: i32,
+    pub x_position: i32,
+    pub y_position: i32,
+    pub is_alive: bool,
+    pub diffuser_type: i32,
+}
+
+#[derive(Debug, Serialize, Clone, Copy)]
+pub struct RenderMine {
+    pub mine_id: i32,
+    pub x_position: i32,
+    pub y_position: i32,
+    pub mine_type: i32,
+    pub is_activated: bool,
+}
+
 #[derive(Debug, Serialize)]
 pub struct RenderRobot {
     pub id: i32,
@@ -53,6 +71,8 @@ pub struct RenderSimulation {
     pub attackers: HashMap<i32, Vec<RenderAttacker>>,
     pub robots: Vec<RenderRobot>,
     pub defenders: HashMap<i32, Vec<RenderDefender>>,
+    pub diffusers: HashMap<i32, Vec<RenderDiffuser>>,
+    pub mines: HashMap<i32, RenderMine>,
 }
 
 pub struct Simulator {
@@ -200,10 +220,15 @@ impl Simulator {
 
         let render_defenders = defense_manager.defenders.post_simulate();
 
+        let render_diffusers = defense_manager.diffusers.post_simulate();
+
+        let render_mines = defense_manager.mines.post_simulate();
         Ok(RenderSimulation {
             attackers: render_attackers,
             robots: render_robots,
             defenders: render_defenders,
+            diffusers: render_diffusers,
+            mines: render_mines,
         })
     }
 }

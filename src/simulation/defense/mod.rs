@@ -16,7 +16,6 @@ pub struct DefenseManager {
 }
 
 impl DefenseManager {
-    #[allow(dead_code)]
     pub fn new(conn: &mut PgConnection, map_id: i32) -> Result<Self> {
         let defenders = Defenders::new(conn, map_id)?;
         let diffusers = Diffusers::new(conn, map_id)?;
@@ -29,7 +28,6 @@ impl DefenseManager {
         })
     }
 
-    #[allow(dead_code)]
     pub fn simulate(
         &mut self,
         attacker_manager: &mut AttackManager,

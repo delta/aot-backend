@@ -1,5 +1,8 @@
+use std::collections::HashMap;
+
 use crate::models::*;
 use crate::simulation::attack::AttackManager;
+use crate::simulation::RenderMine;
 use anyhow::{Ok, Result};
 use diesel::prelude::*;
 use diesel::PgConnection;
@@ -17,7 +20,6 @@ pub struct Mine {
 pub struct Mines(Vec<Mine>);
 
 impl Mines {
-    #[allow(dead_code)]
     pub fn new(conn: &mut PgConnection, map_id: i32) -> Result<Self> {
         use crate::schema::{building_type, map_spaces, mine_type};
 
@@ -27,28 +29,24 @@ impl Mines {
                 mine_type::table.on(building_type::building_category.eq(BuildingCategory::Mine)),
             ));
 
-        let mut mine_id = 0;
         let mines: Vec<Mine> = joined_table
             .load::<(MapSpaces, (BuildingType, MineType))>(conn)?
             .into_iter()
-            .map(|(map_space, (_, mine_type))| {
-                mine_id += 1;
-                Mine {
-                    id: mine_id,
-                    mine_type: mine_type.id,
-                    damage: mine_type.damage,
-                    radius: mine_type.radius,
-                    is_activated: true,
-                    x_position: map_space.x_coordinate,
-                    y_position: map_space.y_coordinate,
-                }
+            .enumerate()
+            .map(|(mine_id, (map_space, (_, mine_type)))| Mine {
+                id: mine_id as i32,
+                mine_type: mine_type.id,
+                damage: mine_type.damage,
+                radius: mine_type.radius,
+                is_activated: true,
+                x_position: map_space.x_coordinate,
+                y_position: map_space.y_coordinate,
             })
             .collect();
 
         Ok(Mines(mines))
     }
 
-    #[allow(dead_code)]
     pub fn simulate(&mut self, attack_manager: &mut AttackManager) -> Result<()> {
         //get pos of attckers
         let Mines(mines) = self;
@@ -60,20 +58,46 @@ impl Mines {
 
             if mine.is_activated {
                 for attacker in attackers.values_mut() {
-                    let (attacker_x, attacker_y) = attacker.get_current_position()?;
-                    let dist = (((mine_x - attacker_x).pow(2) + (mine_y - attacker_y).pow(2))
-                        as f32)
-                        .sqrt();
-                    //check if there is any attacker within the range
-                    if dist as i32 <= mine.radius {
-                        //damage attckers
-                        attacker.get_damage(mine.damage, attacker.path_in_current_frame.len() - 1);
-                        mine.is_activated = false;
+                    let attacker_path = attacker.path_in_current_frame.clone();
+                    for (position, attacker_path_stats) in attacker_path.iter().rev().enumerate() {
+                        let (attacker_x, attacker_y) = (
+                            attacker_path_stats.attacker_path.x_coord,
+                            attacker_path_stats.attacker_path.y_coord,
+                        );
+                        let dist = (mine_x - attacker_x).pow(2) + (mine_y - attacker_y).pow(2);
+                        //check if there is any attacker within the range
+                        if dist <= mine.radius.pow(2) {
+                            //damage attckers
+                            attacker.get_damage(mine.damage, attacker_path.len() - position - 1);
+                            mine.is_activated = false;
+                            break;
+                        }
                     }
                 }
             }
         }
 
         Ok(())
+    }
+
+    pub fn post_simulate(&mut self) -> HashMap<i32, RenderMine> {
+        let mut render_mines = HashMap::new();
+
+        let Mines(mines) = self;
+
+        for mine in mines.iter() {
+            render_mines.insert(
+                mine.id,
+                RenderMine {
+                    mine_id: mine.id,
+                    x_position: mine.x_position,
+                    y_position: mine.y_position,
+                    mine_type: mine.mine_type,
+                    is_activated: mine.is_activated,
+                },
+            );
+        }
+
+        render_mines
     }
 }

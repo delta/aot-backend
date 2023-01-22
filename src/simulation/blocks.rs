@@ -64,7 +64,7 @@ impl BuildingsManager {
             })?)
     }
 
-    pub fn get_road_map_spaces(conn: &mut PgConnection, map_id: i32) -> Result<Vec<MapSpaces>> {
+    fn get_road_map_spaces(conn: &mut PgConnection, map_id: i32) -> Result<Vec<MapSpaces>> {
         use crate::schema::{block_type, building_type, map_spaces};
 
         Ok(map_spaces::table
