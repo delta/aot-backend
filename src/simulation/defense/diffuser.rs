@@ -295,6 +295,7 @@ impl Diffusers {
             diffuser.diffuser_path = optimal_emp_path.unwrap();
             diffuser.target_emp_path_id = Some(emp.path_id);
             diffuser.target_emp_attacker_id = Some(emp.attacker_id);
+            log::info!("{},{}", emp.path_id, emp.attacker_id);
             diffuser.path_in_current_frame = vec![DiffuserPathStats {
                 x_position: curr_x,
                 y_position: curr_y,

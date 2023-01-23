@@ -141,7 +141,7 @@ pub fn run_shortest_paths(conn: &mut PgConnection, input_map_layout_id: i32) {
     let mut shortest_paths = vec![];
     for i in &mapspaces_list {
         for j in &mapspaces_list {
-            if get_block_id(&j.building_type, &buildings_block_map) != ROAD_ID {
+            if j.building_type != ROAD_ID {
                 let (start_absolute_entrance_x, start_absolute_entrance_y) =
                     get_absolute_coordinates(
                         i.rotation,

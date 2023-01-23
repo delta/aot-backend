@@ -5,7 +5,7 @@ use crate::error::DieselError;
 use crate::models::{
     AttackerType, Game, LevelsFixture, MapLayout, NewAttackerPath, NewGame, NewSimulationLog,
 };
-use crate::simulation::{RenderAttacker, RenderRobot};
+use crate::simulation::{RenderAttacker, RenderDiffuser, RenderRobot};
 use crate::simulation::{RenderDefender, Simulator};
 use crate::util::function;
 use anyhow::{Context, Result};
@@ -354,6 +354,33 @@ pub fn run_simulation(
                     content,
                     "{},{},{},{},{}",
                     defender_id, is_alive, x_position, y_position, defender_type
+                )?;
+            }
+        }
+
+        for (diffuser_id, diffuser) in simulated_frame.diffusers {
+            writeln!(content, "diffuser {}", diffuser_id)?;
+            writeln!(content, "id,is_alive,x,y,type,emp_id,attacker_id")?;
+            for position in diffuser {
+                let RenderDiffuser {
+                    diffuser_id,
+                    x_position,
+                    y_position,
+                    is_alive,
+                    diffuser_type,
+                    emp_attacker_id,
+                    emp_path_id,
+                } = position;
+                writeln!(
+                    content,
+                    "{},{},{},{},{},{},{}",
+                    diffuser_id,
+                    is_alive,
+                    x_position,
+                    y_position,
+                    diffuser_type,
+                    emp_path_id,
+                    emp_attacker_id
                 )?;
             }
         }
