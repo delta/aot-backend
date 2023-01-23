@@ -313,6 +313,32 @@ pub fn run_simulation(
         writeln!(content, "{},{},{}", defender_id, x_position, y_position)?;
     }
 
+    let diffuser_positions = simulator.get_diffuser_position();
+
+    for position in diffuser_positions {
+        let RenderDiffuser {
+            diffuser_id,
+            x_position,
+            y_position,
+            is_alive,
+            diffuser_type,
+            emp_attacker_id,
+            emp_path_id,
+        } = position;
+        writeln!(content, "diffuser {}", position.diffuser_id)?;
+        writeln!(
+            content,
+            "{},{},{},{},{},{},{}",
+            diffuser_id,
+            is_alive,
+            x_position,
+            y_position,
+            diffuser_type,
+            emp_path_id,
+            emp_attacker_id
+        )?;
+    }
+
     for frame in 1..=NO_OF_FRAMES {
         writeln!(content, "frame {}", frame)?;
         let simulated_frame = simulator
@@ -367,20 +393,12 @@ pub fn run_simulation(
                     x_position,
                     y_position,
                     is_alive,
-                    diffuser_type,
-                    emp_attacker_id,
-                    emp_path_id,
+                    ..
                 } = position;
                 writeln!(
                     content,
-                    "{},{},{},{},{},{},{}",
-                    diffuser_id,
-                    is_alive,
-                    x_position,
-                    y_position,
-                    diffuser_type,
-                    emp_path_id,
-                    emp_attacker_id
+                    "{},{},{},{}",
+                    diffuser_id, is_alive, x_position, y_position,
                 )?;
             }
         }

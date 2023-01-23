@@ -43,12 +43,7 @@ impl Diffusers {
         use crate::schema::{building_type, diffuser_type, map_spaces};
         let joined_table = map_spaces::table
             .filter(map_spaces::map_id.eq(map_id))
-            .inner_join(
-                building_type::table.inner_join(
-                    diffuser_type::table
-                        .on(building_type::building_category.eq(BuildingCategory::Diffuser)),
-                ),
-            );
+            .inner_join(building_type::table.inner_join(diffuser_type::table));
 
         let diffusers: Vec<Diffuser> = joined_table
             .load::<(MapSpaces, (BuildingType, DiffuserType))>(conn)?
@@ -362,6 +357,23 @@ impl Diffusers {
             }
         }
         Ok(())
+    }
+
+    pub fn get_diffuser_initial_position(&self) -> Vec<RenderDiffuser> {
+        let mut render_positions = Vec::new();
+        let Diffusers(defenders) = self;
+        for diffuser in defenders {
+            render_positions.push(RenderDiffuser {
+                diffuser_id: diffuser.id,
+                x_position: diffuser.init_x_position,
+                y_position: diffuser.init_y_position,
+                is_alive: diffuser.is_alive,
+                diffuser_type: diffuser.diffuser_type,
+                emp_path_id: -1,
+                emp_attacker_id: -1,
+            })
+        }
+        render_positions
     }
 
     pub fn post_simulate(&mut self) -> HashMap<i32, Vec<RenderDiffuser>> {

@@ -180,6 +180,12 @@ impl Simulator {
             .get_defender_initial_position()
     }
 
+    pub fn get_diffuser_position(&self) -> Vec<RenderDiffuser> {
+        self.defense_manager
+            .diffusers
+            .get_diffuser_initial_position()
+    }
+
     pub fn simulate(&mut self) -> Result<RenderSimulation> {
         let Simulator {
             buildings_manager,
