@@ -83,11 +83,12 @@ impl Diffusers {
         let mut remove_emp: Option<Emp> = None;
 
         match diffuser.target_emp_path_id {
-            Some(_) => {
+            Some(target_emp_path_id) => {
+                let target_emp_attacker_id = diffuser.target_emp_attacker_id.unwrap();
                 for (emp_time, emps) in time_emps_map.iter() {
                     for emp in emps.iter() {
-                        if (emp.path_id == diffuser.target_emp_path_id.unwrap())
-                            && (emp.attacker_id == diffuser.target_emp_attacker_id.unwrap())
+                        if (emp.path_id == target_emp_path_id)
+                            && (emp.attacker_id == target_emp_attacker_id)
                         {
                             //got the target emp
                             let mut step = 0;
@@ -101,10 +102,8 @@ impl Diffusers {
                                         x_position: curr_x,
                                         y_position: curr_y,
                                         is_alive: false,
-                                        emp_attacker_id: Some(
-                                            diffuser.target_emp_attacker_id.unwrap(),
-                                        ),
-                                        emp_path_id: Some(diffuser.target_emp_path_id.unwrap()),
+                                        emp_attacker_id: Some(target_emp_attacker_id),
+                                        emp_path_id: Some(target_emp_path_id),
                                     });
                                     //remove the emp
                                     to_remove_emp = true;
@@ -117,8 +116,8 @@ impl Diffusers {
                                     x_position: curr_x,
                                     y_position: curr_y,
                                     is_alive: true,
-                                    emp_attacker_id: Some(diffuser.target_emp_attacker_id.unwrap()),
-                                    emp_path_id: Some(diffuser.target_emp_path_id.unwrap()),
+                                    emp_attacker_id: Some(target_emp_attacker_id),
+                                    emp_path_id: Some(target_emp_path_id),
                                 });
 
                                 step += 1;
@@ -170,16 +169,18 @@ impl Diffusers {
                 diffuser.target_emp_path_id = None;
 
                 let source_dest = SourceDest {
-                    source_x: diffuser.init_x_position,
-                    source_y: diffuser.init_y_position,
-                    dest_x: *curr_x,
-                    dest_y: *curr_y,
+                    source_x: *curr_x,
+                    source_y: *curr_y,
+                    dest_x: diffuser.init_x_position,
+                    dest_y: diffuser.init_y_position,
                 };
 
-                let back_to_initial_pos = shortest_paths
+                let mut back_to_initial_pos = shortest_paths
                     .get(&source_dest)
                     .ok_or(ShortestPathNotFoundError(source_dest))?
                     .clone();
+
+                back_to_initial_pos.reverse();
 
                 diffuser.path_in_current_frame = vec![DiffuserPathStats {
                     x_position: *curr_x,
@@ -253,7 +254,7 @@ impl Diffusers {
                 })?;
                 if attacker.is_planted(emp.path_id)? {
                     //this emp is visible
-                    //diffuser is in his his initial position
+                    //diffuser is in his   his initial position
                     let source_dest = SourceDest {
                         source_x: emp.x_coord,
                         source_y: emp.y_coord,
@@ -266,7 +267,8 @@ impl Diffusers {
                         .clone();
 
                     let dist_pow_2 = (emp.x_coord - curr_x).pow(2) + (emp.y_coord - curr_y).pow(2);
-                    let time_taken = (new_path.len() - 1) as i32;
+                    let time_taken =
+                        (((new_path.len() - 1) as f32) / (diffuser.speed as f32)) as i32;
                     if ((time_taken + minute) < *emp_time) && (dist_pow_2 <= diffuser.radius.pow(2))
                     {
                         match &optimal_emp {
