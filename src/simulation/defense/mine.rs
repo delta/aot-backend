@@ -100,4 +100,21 @@ impl Mines {
 
         render_mines
     }
+
+    pub fn get_intial_mines(&self) -> Vec<RenderMine> {
+        let Mines(mines) = self;
+
+        let mut initial_mines = Vec::new();
+        for mine in mines.iter() {
+            initial_mines.push(RenderMine {
+                mine_id: mine.id,
+                x_position: mine.x_position,
+                y_position: mine.y_position,
+                mine_type: mine.mine_type,
+                is_activated: false,
+            });
+        }
+
+        initial_mines
+    }
 }

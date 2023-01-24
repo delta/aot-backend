@@ -5,7 +5,7 @@ use crate::error::DieselError;
 use crate::models::{
     AttackerType, Game, LevelsFixture, MapLayout, NewAttackerPath, NewGame, NewSimulationLog,
 };
-use crate::simulation::{RenderAttacker, RenderDiffuser, RenderRobot};
+use crate::simulation::{RenderAttacker, RenderDiffuser, RenderMine, RenderRobot};
 use crate::simulation::{RenderDefender, Simulator};
 use crate::util::function;
 use anyhow::{Context, Result};
@@ -332,6 +332,25 @@ pub fn run_simulation(
         )?;
     }
 
+    let mines = simulator.get_mines();
+
+    for mine in mines {
+        let RenderMine {
+            mine_id,
+            x_position,
+            y_position,
+            is_activated,
+            mine_type,
+        } = mine;
+        writeln!(content, "mine {}", mine_id)?;
+        writeln!(content, "id,is_activated,x,y,mine_type")?;
+        writeln!(
+            content,
+            "{},{},{},{},{}",
+            mine_id, is_activated, x_position, y_position, mine_type
+        )?;
+    }
+
     for frame in 1..=NO_OF_FRAMES {
         writeln!(content, "frame {}", frame)?;
         let simulated_frame = simulator
@@ -402,6 +421,16 @@ pub fn run_simulation(
                     emp_attacker_id
                 )?;
             }
+        }
+
+        for (mine_id, mine) in simulated_frame.mines {
+            writeln!(content, "mine {}", mine_id)?;
+            writeln!(content, "id,is_activated,x,y,mine_type")?;
+            writeln!(
+                content,
+                "{},{},{},{},{}",
+                mine.mine_id, mine.is_activated, mine.x_position, mine.y_position, mine.mine_type,
+            )?;
         }
 
         writeln!(content, "robots")?;

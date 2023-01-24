@@ -186,6 +186,10 @@ impl Simulator {
             .get_diffuser_initial_position()
     }
 
+    pub fn get_mines(&self) -> Vec<RenderMine> {
+        self.defense_manager.mines.get_intial_mines()
+    }
+
     pub fn simulate(&mut self) -> Result<RenderSimulation> {
         let Simulator {
             buildings_manager,
