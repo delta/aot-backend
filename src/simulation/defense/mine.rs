@@ -25,9 +25,7 @@ impl Mines {
 
         let joined_table = map_spaces::table
             .filter(map_spaces::map_id.eq(map_id))
-            .inner_join(building_type::table.inner_join(
-                mine_type::table.on(building_type::building_category.eq(BuildingCategory::Mine)),
-            ));
+            .inner_join(building_type::table.inner_join(mine_type::table));
 
         let mines: Vec<Mine> = joined_table
             .load::<(MapSpaces, (BuildingType, MineType))>(conn)?
@@ -111,7 +109,7 @@ impl Mines {
                 x_position: mine.x_position,
                 y_position: mine.y_position,
                 mine_type: mine.mine_type,
-                is_activated: false,
+                is_activated: mine.is_activated,
             });
         }
 

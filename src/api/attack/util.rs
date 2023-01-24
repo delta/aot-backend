@@ -425,11 +425,11 @@ pub fn run_simulation(
 
         for (mine_id, mine) in simulated_frame.mines {
             writeln!(content, "mine {}", mine_id)?;
-            writeln!(content, "id,is_activated,x,y,mine_type")?;
+            writeln!(content, "id,is_activated,mine_type")?;
             writeln!(
                 content,
-                "{},{},{},{},{}",
-                mine.mine_id, mine.is_activated, mine.x_position, mine.y_position, mine.mine_type,
+                "{},{},{}",
+                mine.mine_id, mine.is_activated, mine.mine_type,
             )?;
         }
 
