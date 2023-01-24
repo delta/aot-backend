@@ -300,7 +300,17 @@ impl Diffusers {
                 emp_attacker_id: Some(emp.attacker_id),
                 emp_path_id: Some(emp.path_id),
             }];
+
+            return Ok(());
         };
+
+        diffuser.path_in_current_frame = vec![DiffuserPathStats {
+            x_position: curr_x,
+            y_position: curr_y,
+            is_alive: true,
+            emp_attacker_id: None,
+            emp_path_id: None,
+        }];
 
         Ok(())
     }
@@ -457,6 +467,7 @@ impl Diffusers {
                 }
             }
 
+            diffuser_positions.reverse();
             render_diffusers.insert(diffuser.id, diffuser_positions);
         }
 
