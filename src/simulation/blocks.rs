@@ -123,7 +123,7 @@ impl BuildingsManager {
     }
 
     // get all shortest paths with string pathlist converted to vector of i32 tuples
-    pub fn get_shortest_paths(
+    fn get_shortest_paths(
         conn: &mut PgConnection,
         map_id: i32,
     ) -> Result<HashMap<SourceDest, Vec<(i32, i32)>>> {
