@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use self::attack::AttackManager;
 use crate::api::attack::util::NewAttacker;
 use crate::constants::*;
 use crate::error::DieselError;
@@ -8,10 +9,9 @@ use crate::util::function;
 use anyhow::Result;
 use blocks::BuildingsManager;
 use diesel::prelude::*;
+use diesel::PgConnection;
 use robots::RobotsManager;
 use serde::Serialize;
-
-use self::attack::AttackManager;
 
 pub mod attack;
 pub mod blocks;
@@ -39,6 +39,26 @@ pub struct RenderDefender {
     pub defender_type: i32,
 }
 
+#[derive(Debug, Serialize, Clone, Copy)]
+pub struct RenderDiffuser {
+    pub diffuser_id: i32,
+    pub x_position: i32,
+    pub y_position: i32,
+    pub is_alive: bool,
+    pub diffuser_type: i32,
+    pub emp_path_id: i32,
+    pub emp_attacker_id: i32,
+}
+
+#[derive(Debug, Serialize, Clone, Copy)]
+pub struct RenderMine {
+    pub mine_id: i32,
+    pub x_position: i32,
+    pub y_position: i32,
+    pub mine_type: i32,
+    pub is_activated: bool,
+}
+
 #[derive(Debug, Serialize)]
 pub struct RenderRobot {
     pub id: i32,
@@ -53,6 +73,8 @@ pub struct RenderSimulation {
     pub attackers: HashMap<i32, Vec<RenderAttacker>>,
     pub robots: Vec<RenderRobot>,
     pub defenders: HashMap<i32, Vec<RenderDefender>>,
+    pub diffusers: HashMap<i32, Vec<RenderDiffuser>>,
+    pub mines: HashMap<i32, RenderMine>,
 }
 
 pub struct Simulator {
@@ -158,6 +180,16 @@ impl Simulator {
             .get_defender_initial_position()
     }
 
+    pub fn get_diffuser_position(&self) -> Vec<RenderDiffuser> {
+        self.defense_manager
+            .diffusers
+            .get_diffuser_initial_position()
+    }
+
+    pub fn get_mines(&self) -> Vec<RenderMine> {
+        self.defense_manager.mines.get_intial_mines()
+    }
+
     pub fn simulate(&mut self) -> Result<RenderSimulation> {
         let Simulator {
             buildings_manager,
@@ -176,7 +208,9 @@ impl Simulator {
         //Simulate Emps and attackers
         attack_manager.simulate_attack(frames_passed, robots_manager, buildings_manager)?;
 
-        defense_manager.simulate(attack_manager, buildings_manager)?;
+        let minute = Simulator::get_minute(frames_passed);
+
+        defense_manager.simulate(attack_manager, buildings_manager, minute)?;
 
         if Self::is_hour(frames_passed) {
             buildings_manager.update_building_weights(Self::get_hour(frames_passed))?;
@@ -198,10 +232,15 @@ impl Simulator {
 
         let render_defenders = defense_manager.defenders.post_simulate();
 
+        let render_diffusers = defense_manager.diffusers.post_simulate();
+
+        let render_mines = defense_manager.mines.post_simulate();
         Ok(RenderSimulation {
             attackers: render_attackers,
             robots: render_robots,
             defenders: render_defenders,
+            diffusers: render_diffusers,
+            mines: render_mines,
         })
     }
 }

@@ -12,17 +12,17 @@ use std::collections::{HashMap, HashSet};
 
 use super::attacker::Attacker;
 
-#[derive(Debug, Eq, Hash, PartialEq)]
+#[derive(Debug, Eq, Hash, PartialEq, Clone)]
 pub struct Emp {
-    path_id: usize,
-    x_coord: i32,
-    y_coord: i32,
-    radius: i32,
-    damage: i32,
-    attacker_id: i32,
+    pub path_id: usize,
+    pub x_coord: i32,
+    pub y_coord: i32,
+    pub radius: i32,
+    pub damage: i32,
+    pub attacker_id: i32,
 }
 
-pub struct Emps(HashMap<i32, HashSet<Emp>>);
+pub struct Emps(pub HashMap<i32, HashSet<Emp>>);
 
 impl Emps {
     // Returns a hashmap of Emp with time as key

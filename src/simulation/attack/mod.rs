@@ -11,7 +11,7 @@ use super::{
 };
 
 pub mod attacker;
-mod emp;
+pub mod emp;
 
 pub struct AttackManager {
     pub attackers: HashMap<i32, Attacker>,

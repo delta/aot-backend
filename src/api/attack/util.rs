@@ -5,7 +5,7 @@ use crate::error::DieselError;
 use crate::models::{
     AttackerType, Game, LevelsFixture, MapLayout, NewAttackerPath, NewGame, NewSimulationLog,
 };
-use crate::simulation::{RenderAttacker, RenderRobot};
+use crate::simulation::{RenderAttacker, RenderDiffuser, RenderMine, RenderRobot};
 use crate::simulation::{RenderDefender, Simulator};
 use crate::util::function;
 use anyhow::{Context, Result};
@@ -313,6 +313,44 @@ pub fn run_simulation(
         writeln!(content, "{},{},{}", defender_id, x_position, y_position)?;
     }
 
+    let diffuser_positions = simulator.get_diffuser_position();
+
+    for position in diffuser_positions {
+        let RenderDiffuser {
+            diffuser_id,
+            x_position,
+            y_position,
+            is_alive,
+            ..
+        } = position;
+        writeln!(content, "diffuser {}", diffuser_id)?;
+        writeln!(content, "id,is_alive,x,y")?;
+        writeln!(
+            content,
+            "{},{},{},{}",
+            diffuser_id, is_alive, x_position, y_position,
+        )?;
+    }
+
+    let mines = simulator.get_mines();
+
+    for mine in mines {
+        let RenderMine {
+            mine_id,
+            x_position,
+            y_position,
+            is_activated,
+            mine_type,
+        } = mine;
+        writeln!(content, "mine {}", mine_id)?;
+        writeln!(content, "id,is_activated,x,y,mine_type")?;
+        writeln!(
+            content,
+            "{},{},{},{},{}",
+            mine_id, is_activated, x_position, y_position, mine_type
+        )?;
+    }
+
     for frame in 1..=NO_OF_FRAMES {
         writeln!(content, "frame {}", frame)?;
         let simulated_frame = simulator
@@ -356,6 +394,43 @@ pub fn run_simulation(
                     defender_id, is_alive, x_position, y_position, defender_type
                 )?;
             }
+        }
+
+        for (diffuser_id, diffuser) in simulated_frame.diffusers {
+            writeln!(content, "diffuser {}", diffuser_id)?;
+            writeln!(content, "id,is_alive,x,y,type,emp_id,attacker_id")?;
+            for defender_position in diffuser {
+                let RenderDiffuser {
+                    diffuser_id,
+                    x_position,
+                    y_position,
+                    is_alive,
+                    diffuser_type,
+                    emp_attacker_id,
+                    emp_path_id,
+                } = defender_position;
+                writeln!(
+                    content,
+                    "{},{},{},{},{},{},{}",
+                    diffuser_id,
+                    is_alive,
+                    x_position,
+                    y_position,
+                    diffuser_type,
+                    emp_path_id,
+                    emp_attacker_id
+                )?;
+            }
+        }
+
+        for (mine_id, mine) in simulated_frame.mines {
+            writeln!(content, "mine {}", mine_id)?;
+            writeln!(content, "id,is_activated,mine_type")?;
+            writeln!(
+                content,
+                "{},{},{}",
+                mine.mine_id, mine.is_activated, mine.mine_type,
+            )?;
         }
 
         writeln!(content, "robots")?;
