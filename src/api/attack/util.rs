@@ -343,11 +343,11 @@ pub fn run_simulation(
             mine_type,
         } = mine;
         writeln!(content, "mine {}", mine_id)?;
-        writeln!(content, "id,is_activated,x,y,mine_type")?;
+        writeln!(content, "id,x,is_activated,y,mine_type")?;
         writeln!(
             content,
             "{},{},{},{},{}",
-            mine_id, is_activated, x_position, y_position, mine_type
+            mine_id, x_position, is_activated, y_position, mine_type
         )?;
     }
 

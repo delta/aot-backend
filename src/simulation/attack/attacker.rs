@@ -22,7 +22,7 @@ pub struct Attacker {
 }
 
 impl Attacker {
-    pub fn update_position(&mut self, frames_passed: i32) {
+    pub fn move_attacker(&mut self, frames_passed: i32) {
         self.path_in_current_frame.clear();
         if !Simulator::attacker_allowed(frames_passed) {
             self.path_in_current_frame.push(AttackPathStats {
@@ -62,13 +62,6 @@ impl Attacker {
     pub fn is_planted(&self, path_id: usize) -> Result<bool> {
         match self.path.last() {
             Some(attacker_path) => Ok(attacker_path.id >= path_id),
-            None => Err(EmptyAttackerPathError.into()),
-        }
-    }
-
-    pub fn get_current_position(&self) -> Result<(i32, i32)> {
-        match self.path.last() {
-            Some(attacker_path) => Ok((attacker_path.x_coord, attacker_path.y_coord)),
             None => Err(EmptyAttackerPathError.into()),
         }
     }

@@ -110,10 +110,19 @@ impl Emps {
 
                     // attackers is in the imapact of EMP
                     for (_, attacker) in attackers.iter_mut() {
-                        let (attacker_pos_x, attacker_pos_y) = attacker.get_current_position()?;
-                        if x == attacker_pos_x && y == attacker_pos_y {
-                            attacker
-                                .get_damage(emp.damage, attacker.path_in_current_frame.len() - 1);
+                        let attacker_path = attacker.path_in_current_frame.clone();
+                        for (position, attacker_path_stats) in
+                            attacker_path.iter().rev().enumerate()
+                        {
+                            if x == attacker_path_stats.attacker_path.x_coord
+                                && y == attacker_path_stats.attacker_path.y_coord
+                            {
+                                attacker.get_damage(
+                                    emp.damage,
+                                    attacker.path_in_current_frame.len() - 1 - position,
+                                );
+                                break;
+                            }
                         }
                     }
 
