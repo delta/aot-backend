@@ -2,7 +2,7 @@ use diesel::PgConnection;
 
 use self::{defender::Defenders, diffuser::Diffusers, mine::Mines};
 
-use super::{attack::AttackManager, blocks::BuildingsManager};
+use super::{attack::AttackManager, blocks::BuildingsManager, Simulator};
 use anyhow::{Ok, Result};
 
 pub mod defender;
@@ -32,8 +32,12 @@ impl DefenseManager {
         &mut self,
         attacker_manager: &mut AttackManager,
         building_manager: &mut BuildingsManager,
-        minute: i32,
+        frames_passed: i32,
     ) -> Result<()> {
+        if !Simulator::attacker_allowed(frames_passed) {
+            return Ok(());
+        }
+        let minute = Simulator::get_minute(frames_passed);
         self.mines.simulate(attacker_manager)?;
         self.diffusers
             .simulate(minute, attacker_manager, building_manager)?;

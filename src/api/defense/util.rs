@@ -1,6 +1,7 @@
 /// CRUD functions
 use super::MapSpacesEntry;
 use crate::api;
+use crate::api::defense::shortest_path::run_shortest_paths;
 use crate::api::util::GameHistoryEntry;
 use crate::constants::{DEFENSE_END_TIME, DEFENSE_START_TIME};
 use crate::models::*;
@@ -504,4 +505,23 @@ pub fn fetch_attacker_types(conn: &mut PgConnection) -> Result<Vec<AttackerType>
             function: function!(),
             error: err,
         })?)
+}
+
+pub fn calculate_shortest_paths(
+    conn: &mut PgConnection,
+    map_id: i32,
+    blocks: &Vec<BlockType>,
+) -> Result<()> {
+    use crate::schema::shortest_path::dsl::*;
+
+    diesel::delete(shortest_path.filter(base_id.eq(map_id)))
+        .execute(conn)
+        .map_err(|err| DieselError {
+            table: "shortest_path",
+            function: function!(),
+            error: err,
+        })?;
+    run_shortest_paths(conn, map_id, blocks)?;
+
+    Ok(())
 }

@@ -8,6 +8,7 @@ use actix_web::{Responder, Result};
 use serde::Deserialize;
 use std::collections::HashMap;
 
+mod shortest_path;
 mod util;
 mod validate;
 
@@ -174,6 +175,7 @@ async fn confirm_base_details(
     web::block(move || {
         let mut conn = pool.get()?;
         util::put_base_details(&map_spaces, &map, &mut conn)?;
+        util::calculate_shortest_paths(&mut conn, map.id, &blocks)?;
         util::set_map_valid(&mut conn, map.id)
     })
     .await?

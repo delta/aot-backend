@@ -1,17 +1,16 @@
+use crate::constants::*;
+use crate::error::DieselError;
+use crate::models::*;
+use crate::schema::{block_type, building_type, map_spaces, shortest_path};
+use crate::util::function;
 use anyhow::Result;
-use aot_backend::constants::*;
-use aot_backend::models::*;
-use aot_backend::schema::{block_type, building_type, map_spaces, shortest_path};
-use aot_backend::util;
 use array2d::Array2D;
 use diesel::prelude::*;
 use diesel::RunQueryDsl;
 use diesel::{PgConnection, QueryDsl};
 use petgraph::algo::astar;
 use petgraph::Graph;
-use rayon::prelude::*;
 use std::collections::HashMap;
-use std::env;
 
 const NO_BLOCK: i32 = -1;
 
@@ -35,7 +34,12 @@ fn get_blocks(conn: &mut PgConnection) -> Result<HashMap<i32, BlockType>> {
     Ok(building_type::table
         .inner_join(block_type::table)
         .select((building_type::id, block_type::all_columns))
-        .load::<(i32, BlockType)>(conn)?
+        .load::<(i32, BlockType)>(conn)
+        .map_err(|err| DieselError {
+            table: "buildin_type",
+            function: function!(),
+            error: err,
+        })?
         .into_iter()
         .map(|(id, block)| (id, block))
         .collect())
@@ -46,19 +50,22 @@ fn get_block_id(building_id: &i32, building_map: &HashMap<i32, BlockType>) -> i3
 }
 
 //running shortest path simulation
-pub fn run_shortest_paths(conn: &mut PgConnection, input_map_layout_id: i32) {
+pub fn run_shortest_paths(
+    conn: &mut PgConnection,
+    input_map_layout_id: i32,
+    blocks_list: &Vec<BlockType>,
+) -> Result<()> {
     // reading map_spaces
     let mapspaces_list = map_spaces::table
         .filter(map_spaces::map_id.eq(input_map_layout_id))
         .load::<MapSpaces>(conn)
-        .expect("Couldn't get spaces");
+        .map_err(|err| DieselError {
+            table: "map_spaces",
+            function: function!(),
+            error: err,
+        })?;
 
-    // reading blocks_list
-    let blocks_list = block_type::table
-        .load::<BlockType>(conn)
-        .expect("Couldn't get road id");
-
-    let buildings_block_map = get_blocks(conn).expect("Couldn't get blocks");
+    let buildings_block_map = get_blocks(conn)?;
 
     // initialising map for types of blocks
     let mut map = HashMap::new();
@@ -210,46 +217,11 @@ pub fn run_shortest_paths(conn: &mut PgConnection, input_map_layout_id: i32) {
         diesel::insert_into(shortest_path::table)
             .values(chunk)
             .execute(conn)
-            .expect("Error saving shortest path.");
+            .map_err(|err| DieselError {
+                table: "shortest_path",
+                function: function!(),
+                error: err,
+            })?;
     }
-}
-
-fn main() {
-    let args: Vec<String> = env::args().collect();
-    if args.len() != 2 {
-        panic!("Usage: calculate_shortest_paths [LEVEL_ID]");
-    }
-    let level_id: i32 = args[1].parse().expect("Enter a valid level_id");
-
-    let pool = util::get_pg_conn_pool();
-    let mut conn = pool.get().unwrap();
-
-    use aot_backend::schema::map_layout;
-
-    let map_ids = map_layout::table
-        .filter(map_layout::level_id.eq(level_id))
-        .filter(map_layout::is_valid.eq(true))
-        .select(map_layout::id)
-        .load::<i32>(&mut conn)
-        .expect("Couldn't get map_ids for given level");
-
-    println!("Deleting old shortest_path entries\n");
-    diesel::delete(shortest_path::table)
-        .execute(&mut conn)
-        .expect("Couldn't delete entries from shortest_path table");
-
-    println!("Calculating shortest paths for level {}\n", level_id);
-    map_ids.par_iter().enumerate().for_each(|(pos, map_id)| {
-        println!(
-            "({}/{}) Calculating shortest paths for map_id: {}..",
-            pos + 1,
-            map_ids.len(),
-            map_id
-        );
-        run_shortest_paths(&mut pool.get().unwrap(), *map_id);
-    });
-    println!(
-        "\nCalculated shortest paths for level {} successfully!",
-        level_id
-    );
+    Ok(())
 }

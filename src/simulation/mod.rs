@@ -208,9 +208,7 @@ impl Simulator {
         //Simulate Emps and attackers
         attack_manager.simulate_attack(frames_passed, robots_manager, buildings_manager)?;
 
-        let minute = Simulator::get_minute(frames_passed);
-
-        defense_manager.simulate(attack_manager, buildings_manager, minute)?;
+        defense_manager.simulate(attack_manager, buildings_manager, frames_passed)?;
 
         if Self::is_hour(frames_passed) {
             buildings_manager.update_building_weights(Self::get_hour(frames_passed))?;
