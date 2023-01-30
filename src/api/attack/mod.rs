@@ -72,16 +72,15 @@ async fn create_attack(
         return Err(ErrorBadRequest("Attack not allowed"));
     }
 
-    if !validate::is_attack_valid(
+    validate::is_attack_valid(
         &new_attack,
         valid_road_paths,
         valid_emp_ids,
         &level.no_of_bombs,
         &level.no_of_attackers,
         &attacker_types,
-    ) {
-        return Err(ErrorBadRequest("Invalid attack path"));
-    }
+    )
+    .map_err(ErrorBadRequest)?;
 
     let file_content = web::block(move || {
         let mut conn = pool.get()?;

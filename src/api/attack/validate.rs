@@ -1,5 +1,6 @@
 use super::util::NewAttack;
 use crate::{constants::*, models::AttackerType};
+use anyhow::Result;
 
 use std::collections::{HashMap, HashSet};
 
@@ -10,12 +11,12 @@ pub fn is_attack_valid(
     no_of_bombs: &i32,
     no_of_attackers: &i32,
     attacker_types: &HashMap<i32, AttackerType>,
-) -> bool {
+) -> Result<()> {
     if new_attack.attackers.is_empty()
         || new_attack.attackers.len() != new_attack.no_of_attackers as usize
         || new_attack.no_of_attackers > *no_of_attackers
     {
-        return false;
+        return Err(anyhow::anyhow!("Invalid count of attackers"));
     }
     let mut total_attack_bomb_count = 0;
     for current_attacker in new_attack.attackers.iter() {
@@ -24,7 +25,7 @@ pub fn is_attack_valid(
             let attacker_path = &current_attacker.attacker_path;
             let mut attack_bomb_count = 0;
             if attacker_path.is_empty() {
-                return false;
+                return Err(anyhow::anyhow!("Attacker path cannot be empty"));
             }
             for i in 0..attacker_path.len() {
                 let current_path = &attacker_path[i];
@@ -35,20 +36,20 @@ pub fn is_attack_valid(
                     {
                         // check if emp_id is valid
                         if !valid_emp_ids.contains(&emp_type) {
-                            return false;
+                            return Err(anyhow::anyhow!("Invalid Emp type"));
                         }
                         // check if emp_time is valid
                         let game_minutes =
                             GAME_MINUTES_PER_FRAME * (i as i32 + ATTACKER_RESTRICTED_FRAMES);
                         if emp_time < game_minutes {
-                            return false;
+                            return Err(anyhow::anyhow!("Invalid Emp Time"));
                         }
                     } else {
-                        return false;
+                        return Err(anyhow::anyhow!("Invalid Emp path"));
                     }
                 }
                 if !valid_road_paths.contains(&(current_path.x_coord, current_path.y_coord)) {
-                    return false;
+                    return Err(anyhow::anyhow!("Attacker can move only through Road"));
                 }
                 if i > 0 {
                     let previous_path = &attacker_path[i - 1];
@@ -56,24 +57,24 @@ pub fn is_attack_valid(
                         + (previous_path.y_coord - current_path.y_coord).abs();
                     // attacker should move every frame
                     if path_difference != 1 {
-                        return false;
+                        return Err(anyhow::anyhow!("Invalid Attacker Path Sequence"));
                     }
                 }
             }
 
             //check Max_no_of_bombs For individual attackers
             if attack_bomb_count > attacker_type.amt_of_emps {
-                return false;
+                return Err(anyhow::anyhow!("Amount Of Emp xxceeds for an attacker"));
             }
             total_attack_bomb_count += attack_bomb_count;
         } else {
-            return false;
+            return Err(anyhow::anyhow!("Invalid Attacker Type"));
         }
     }
 
     if total_attack_bomb_count > *no_of_bombs {
-        return false;
+        return Err(anyhow::anyhow!("Total Amount Of emps used exceeds"));
     }
 
-    true
+    Ok(())
 }
