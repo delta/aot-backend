@@ -376,6 +376,16 @@ pub fn run_simulation(
                 )?;
             }
         }
+        writeln!(content, "building_stats")?;
+        writeln!(content, "map_space_id,population")?;
+
+        for building_stat in simulated_frame.buildings {
+            writeln!(
+                content,
+                "{},{}",
+                building_stat.mapsace_id, building_stat.population
+            )?;
+        }
 
         for (defender_id, defender) in simulated_frame.defenders {
             writeln!(content, "defender {}", defender_id)?;

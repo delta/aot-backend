@@ -75,6 +75,13 @@ pub struct RenderSimulation {
     pub defenders: HashMap<i32, Vec<RenderDefender>>,
     pub diffusers: HashMap<i32, Vec<RenderDiffuser>>,
     pub mines: HashMap<i32, RenderMine>,
+    pub buildings: Vec<BuildingStats>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct BuildingStats {
+    pub mapsace_id: i32,
+    pub population: i32,
 }
 
 pub struct Simulator {
@@ -232,13 +239,17 @@ impl Simulator {
 
         let render_diffusers = defense_manager.diffusers.post_simulate();
 
+        let building_stats = buildings_manager.get_building_stats();
+
         let render_mines = defense_manager.mines.post_simulate();
+
         Ok(RenderSimulation {
             attackers: render_attackers,
             robots: render_robots,
             defenders: render_defenders,
             diffusers: render_diffusers,
             mines: render_mines,
+            buildings: building_stats,
         })
     }
 }

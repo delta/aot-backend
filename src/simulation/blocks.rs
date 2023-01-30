@@ -3,6 +3,7 @@ use crate::error::DieselError;
 use crate::models::{BlockType, MapSpaces, ShortestPath};
 use crate::simulation::error::*;
 use crate::simulation::robots::robot::Robot;
+use crate::simulation::BuildingStats;
 use crate::util::function;
 use anyhow::{Context, Result};
 use diesel::prelude::*;
@@ -435,5 +436,15 @@ impl BuildingsManager {
             })?;
         }
         Ok(())
+    }
+
+    pub fn get_building_stats(&self) -> Vec<BuildingStats> {
+        self.buildings
+            .values()
+            .map(|building| BuildingStats {
+                mapsace_id: building.map_space.id,
+                population: building.population,
+            })
+            .collect()
     }
 }
