@@ -310,7 +310,7 @@ pub fn run_simulation(
             y_position,
             ..
         } = position;
-        writeln!(content, "{},{},{}", defender_id, x_position, y_position)?;
+        writeln!(content, "{defender_id},{x_position},{y_position}")?;
     }
 
     let diffuser_positions = simulator.get_diffuser_position();
@@ -323,12 +323,11 @@ pub fn run_simulation(
             is_alive,
             ..
         } = position;
-        writeln!(content, "diffuser {}", diffuser_id)?;
+        writeln!(content, "diffuser {diffuser_id}")?;
         writeln!(content, "id,is_alive,x,y")?;
         writeln!(
             content,
-            "{},{},{},{}",
-            diffuser_id, is_alive, x_position, y_position,
+            "{diffuser_id},{is_alive},{x_position},{y_position}"
         )?;
     }
 
@@ -342,20 +341,19 @@ pub fn run_simulation(
             is_activated,
             mine_type,
         } = mine;
-        writeln!(content, "mine {}", mine_id)?;
+        writeln!(content, "mine {mine_id}")?;
         writeln!(content, "id,x,is_activated,y,mine_type")?;
         writeln!(
             content,
-            "{},{},{},{},{}",
-            mine_id, x_position, is_activated, y_position, mine_type
+            "{mine_id},{x_position},{is_activated},{y_position},{mine_type}"
         )?;
     }
 
     for frame in 1..=NO_OF_FRAMES {
-        writeln!(content, "frame {}", frame)?;
+        writeln!(content, "frame {frame}")?;
         let simulated_frame = simulator
             .simulate()
-            .with_context(|| format!("Failed to simulate frame {}", frame))?;
+            .with_context(|| format!("Failed to simulate frame {frame}"))?;
         for attacker in simulated_frame.attackers {
             writeln!(content, "attacker {}", attacker.0)?;
             writeln!(content, "id,x,y,is_alive,emp_id,health,type")?;
@@ -371,8 +369,7 @@ pub fn run_simulation(
                 } = position;
                 writeln!(
                     content,
-                    "{},{},{},{},{},{},{}",
-                    attacker_id, x_position, y_position, is_alive, emp_id, health, attacker_type
+                    "{attacker_id},{x_position},{y_position},{is_alive},{emp_id},{health},{attacker_type}"
                 )?;
             }
         }
@@ -388,7 +385,7 @@ pub fn run_simulation(
         }
 
         for (defender_id, defender) in simulated_frame.defenders {
-            writeln!(content, "defender {}", defender_id)?;
+            writeln!(content, "defender {defender_id}")?;
             writeln!(content, "id,is_alive,x,y,type")?;
             for position in defender {
                 let RenderDefender {
@@ -400,14 +397,13 @@ pub fn run_simulation(
                 } = position;
                 writeln!(
                     content,
-                    "{},{},{},{},{}",
-                    defender_id, is_alive, x_position, y_position, defender_type
+                    "{defender_id},{is_alive},{x_position},{y_position},{defender_type}"
                 )?;
             }
         }
 
         for (diffuser_id, diffuser) in simulated_frame.diffusers {
-            writeln!(content, "diffuser {}", diffuser_id)?;
+            writeln!(content, "diffuser {diffuser_id}")?;
             writeln!(content, "id,is_alive,x,y,type,emp_id,attacker_id")?;
             for defender_position in diffuser {
                 let RenderDiffuser {
@@ -421,20 +417,14 @@ pub fn run_simulation(
                 } = defender_position;
                 writeln!(
                     content,
-                    "{},{},{},{},{},{},{}",
-                    diffuser_id,
-                    is_alive,
-                    x_position,
-                    y_position,
-                    diffuser_type,
-                    emp_path_id,
-                    emp_attacker_id
+                    "{diffuser_id},{is_alive},{x_position},{y_position},{diffuser_type},{emp_path_id},{emp_attacker_id}"
+
                 )?;
             }
         }
 
         for (mine_id, mine) in simulated_frame.mines {
-            writeln!(content, "mine {}", mine_id)?;
+            writeln!(content, "mine {mine_id}")?;
             writeln!(content, "id,is_activated,mine_type")?;
             writeln!(
                 content,
@@ -455,8 +445,7 @@ pub fn run_simulation(
             } = robot;
             writeln!(
                 content,
-                "{},{},{},{},{}",
-                id, health, x_position, y_position, in_building
+                "{id},{health},{x_position},{y_position},{in_building}"
             )?;
         }
     }
@@ -485,18 +474,10 @@ pub fn run_simulation(
                 error: err,
             })?;
     writeln!(content, "Result")?;
-    writeln!(content, "Attack score: {}", attack_score)?;
-    writeln!(content, "Defend score: {}", defend_score)?;
-    writeln!(
-        content,
-        "Attacker rating change: {}",
-        attacker_rating_change
-    )?;
-    writeln!(
-        content,
-        "Defender rating change: {}",
-        defender_rating_change
-    )?;
+    writeln!(content, "Attack score: {attack_score}")?;
+    writeln!(content, "Defend score: {defend_score}")?;
+    writeln!(content, "Attacker rating change: {attacker_rating_change}")?;
+    writeln!(content, "Defender rating change: {defender_rating_change}")?;
 
     insert_simulation_log(game_id, &content, conn)?;
 
