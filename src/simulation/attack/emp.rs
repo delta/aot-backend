@@ -2,6 +2,7 @@ use crate::constants::*;
 use crate::error::DieselError;
 use crate::models::AttackType;
 use crate::simulation::blocks::{Building, BuildingsManager};
+use crate::simulation::defense::DefenseManager;
 use crate::simulation::error::*;
 use crate::simulation::robots::RobotsManager;
 use crate::util::function;
@@ -76,6 +77,7 @@ impl Emps {
         minute: i32,
         robots_manager: &mut RobotsManager,
         buildings_manager: &mut BuildingsManager,
+        defense_manager: &mut DefenseManager,
         attackers: &mut HashMap<i32, Attacker>,
     ) -> Result<()> {
         let Emps(emps) = self;
@@ -107,6 +109,9 @@ impl Emps {
                     if distance > radius.pow(2) {
                         continue;
                     }
+
+                    defense_manager.defenders.get_damage(x, y);
+                    defense_manager.diffusers.get_damage(x, y);
 
                     // attackers is in the imapact of EMP
                     for (_, attacker) in attackers.iter_mut() {

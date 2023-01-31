@@ -437,4 +437,15 @@ impl Defenders {
         }
         render_positions
     }
+
+    pub fn get_damage(&mut self, x_position: i32, y_position: i32) {
+        let Defenders(defenders) = self;
+
+        for defender in defenders {
+            let (defender_x, defender_y) = defender.path.last().unwrap();
+            if *defender_x == x_position && *defender_y == y_position {
+                defender.is_alive = false;
+            }
+        }
+    }
 }

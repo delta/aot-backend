@@ -45,6 +45,7 @@ pub struct RenderDiffuser {
     pub x_position: i32,
     pub y_position: i32,
     pub is_alive: bool,
+    pub is_diffuse: bool,
     pub diffuser_type: i32,
     pub emp_path_id: i32,
     pub emp_attacker_id: i32,
@@ -213,7 +214,12 @@ impl Simulator {
         robots_manager.move_robots(buildings_manager)?;
 
         //Simulate Emps and attackers
-        attack_manager.simulate_attack(frames_passed, robots_manager, buildings_manager)?;
+        attack_manager.simulate_attack(
+            frames_passed,
+            robots_manager,
+            buildings_manager,
+            defense_manager,
+        )?;
 
         defense_manager.simulate(attack_manager, buildings_manager, frames_passed)?;
 

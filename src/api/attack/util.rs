@@ -260,20 +260,15 @@ pub fn run_simulation(
         let attacker_type = &attacker.attacker_type;
         writeln!(content, "attacker_path")?;
         writeln!(content, "id,y,x,is_emp,type")?;
-        attacker_path
-            .iter()
-            .enumerate()
-            .try_for_each(|(id, path)| {
-                writeln!(
-                    content,
-                    "{},{},{},{},{}",
-                    id + 1,
-                    path.y_coord,
-                    path.x_coord,
-                    path.is_emp,
-                    attacker_type,
-                )
-            })?;
+        writeln!(
+            content,
+            "{},{},{},{},{}",
+            attacker_id,
+            attacker_path[0].y_coord,
+            attacker_path[0].x_coord,
+            attacker_path[0].is_emp,
+            attacker_type,
+        )?;
         writeln!(content, "emps")?;
         writeln!(content, "id,time,type,attacker_id")?;
         attacker_path
@@ -404,7 +399,10 @@ pub fn run_simulation(
 
         for (diffuser_id, diffuser) in simulated_frame.diffusers {
             writeln!(content, "diffuser {diffuser_id}")?;
-            writeln!(content, "id,is_alive,x,y,type,emp_id,attacker_id")?;
+            writeln!(
+                content,
+                "id,is_alive,x,y,type,emp_id,attacker_id,is_diffuse"
+            )?;
             for defender_position in diffuser {
                 let RenderDiffuser {
                     diffuser_id,
@@ -414,10 +412,11 @@ pub fn run_simulation(
                     diffuser_type,
                     emp_attacker_id,
                     emp_path_id,
+                    is_diffuse,
                 } = defender_position;
                 writeln!(
                     content,
-                    "{diffuser_id},{is_alive},{x_position},{y_position},{diffuser_type},{emp_path_id},{emp_attacker_id}"
+                    "{diffuser_id},{is_alive},{x_position},{y_position},{diffuser_type},{emp_path_id},{emp_attacker_id},{is_diffuse}"
 
                 )?;
             }
