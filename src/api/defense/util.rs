@@ -3,7 +3,7 @@ use super::MapSpacesEntry;
 use crate::api;
 use crate::api::defense::shortest_path::run_shortest_paths;
 use crate::api::util::GameHistoryEntry;
-use crate::constants::{DEFENSE_END_TIME, DEFENSE_START_TIME};
+use crate::constants::{DEFENSE_END_TIME, DEFENSE_START_TIME, ROAD_ID};
 use crate::models::*;
 use crate::util::function;
 use crate::{api::util::GameHistoryResponse, error::DieselError};
@@ -165,6 +165,76 @@ pub fn get_details_from_map_layout(
             function: function!(),
             error: err,
         })?;
+    let blocks = fetch_building_blocks(conn)?;
+    let levels_fixture = levels_fixture::table
+        .find(map.level_id)
+        .first::<LevelsFixture>(conn)
+        .map_err(|err| DieselError {
+            table: "levels_fixture",
+            function: function!(),
+            error: err,
+        })?;
+    let level_constraints = level_constraints::table
+        .filter(level_constraints::level_id.eq(map.level_id))
+        .load::<LevelConstraints>(conn)
+        .map_err(|err| DieselError {
+            table: "level_constraints",
+            function: function!(),
+            error: err,
+        })?;
+    let attack_type = attack_type::table
+        .load::<AttackType>(conn)
+        .map_err(|err| DieselError {
+            table: "attack_type",
+            function: function!(),
+            error: err,
+        })?;
+
+    let mine_types = fetch_mine_types(conn)?;
+    let defender_types = fetch_defender_types(conn)?;
+    let diffuser_types = fetch_diffuser_types(conn)?;
+    let attacker_types = fetch_attacker_types(conn)?;
+
+    Ok(DefenseResponse {
+        map_spaces,
+        blocks,
+        levels_fixture,
+        level_constraints,
+        attack_type,
+        mine_types,
+        defender_types,
+        diffuser_types,
+        attacker_types,
+    })
+}
+
+pub fn get_map_details_for_attack(
+    conn: &mut PgConnection,
+    map: MapLayout,
+) -> Result<DefenseResponse> {
+    use crate::schema::{
+        attack_type, building_type, level_constraints, levels_fixture, map_spaces,
+    };
+
+    let map_spaces = map_spaces::table
+        .inner_join(building_type::table)
+        .filter(map_spaces::map_id.eq(map.id))
+        .load::<(MapSpaces, BuildingType)>(conn)
+        .map_err(|err| DieselError {
+            table: "map_spaces",
+            function: function!(),
+            error: err,
+        })?
+        .into_iter()
+        .map(|(mut map_space, building_type)| {
+            if building_type.blk_type == ROAD_ID {
+                map_space.building_type = ROAD_ID;
+                map_space
+            } else {
+                map_space
+            }
+        })
+        .collect();
     let blocks = fetch_building_blocks(conn)?;
     let levels_fixture = levels_fixture::table
         .find(map.level_id)

@@ -71,7 +71,7 @@ async fn get_other_base_details(
 
     let response = web::block(move || {
         let mut conn = pool.get()?;
-        util::get_details_from_map_layout(&mut conn, map)
+        util::get_map_details_for_attack(&mut conn, map)
     })
     .await?
     .map_err(|err| error::handle_error(err.into()))?;
