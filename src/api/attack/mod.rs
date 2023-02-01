@@ -1,8 +1,8 @@
-use self::util::{remove_game, NewAttack};
+use self::util::{remove_game, DronePosition, NewAttack};
 use super::auth::session::AuthUser;
 use super::{error, PgPool};
 use crate::api;
-use crate::models::{AttackerType, LevelsFixture};
+use crate::models::{AttackerType, BuildingType, LevelsFixture, MapSpaces};
 use actix_web::error::ErrorBadRequest;
 use actix_web::{web, HttpResponse, Responder, Result};
 use std::collections::{HashMap, HashSet};
@@ -13,6 +13,7 @@ mod validate;
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
     cfg.service(web::resource("").route(web::post().to(create_attack)))
+        .service(web::resource("/drone").route(web::post().to(get_details_from_drone)))
         .service(web::resource("/{attacker_id}/history").route(web::get().to(attack_history)))
         .service(web::resource("/top").route(web::get().to(get_top_attacks)));
 }
@@ -127,5 +128,48 @@ async fn get_top_attacks(pool: web::Data<PgPool>, user: AuthUser) -> Result<impl
     })
     .await?
     .map_err(|err| error::handle_error(err.into()))?;
+    Ok(web::Json(response))
+}
+
+async fn get_details_from_drone(
+    drone_position: web::Json<DronePosition>,
+    pool: web::Data<PgPool>,
+    user: AuthUser,
+) -> Result<impl Responder> {
+    let user_id = user.0;
+    let drone_position = drone_position.into_inner();
+    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+    let map = web::block(move || {
+        let level = api::util::get_current_levels_fixture(&mut conn)?;
+        let map = util::get_map_id(&drone_position.defender_id, &level.id, &mut conn)?;
+        Ok(map) as anyhow::Result<Option<i32>>
+    })
+    .await?
+    .map_err(|err| error::handle_error(err.into()))?;
+
+    let map_id = if let Some(map) = map {
+        map
+    } else {
+        return Err(ErrorBadRequest("Invalid base"));
+    };
+
+    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+    let (map_spaces, drone_count) = web::block(move || {
+        let drone_count = util::get_already_used_drone_count(map_id, user_id, &mut conn)?;
+        let map_spaces = util::get_buildings(map_id, &mut conn)?;
+        Ok((map_spaces, drone_count)) as anyhow::Result<(Vec<(MapSpaces, BuildingType)>, i64)>
+    })
+    .await?
+    .map_err(|err| error::handle_error(err.into()))?;
+
+    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+    validate::is_valid_drone(&drone_position, drone_count, &map_spaces).map_err(ErrorBadRequest)?;
+
+    let response = web::block(move || {
+        util::get_defense_details(user_id, drone_position, map_id, &mut conn, &map_spaces)
+    })
+    .await?
+    .map_err(|err| error::handle_error(err.into()))?;
+
     Ok(web::Json(response))
 }

@@ -3,7 +3,7 @@ use chrono::NaiveDateTime;
 use diesel_derive_enum::DbEnum;
 use serde::{Deserialize, Serialize};
 
-#[derive(DbEnum, Debug, Serialize, Clone, PartialEq)]
+#[derive(DbEnum, Debug, Serialize, Clone, PartialEq, Copy)]
 #[DieselTypePath = "crate::schema::sql_types::BuildingCategory"]
 pub enum BuildingCategory {
     Building,
@@ -301,4 +301,22 @@ pub struct AttackerType {
     pub max_health: i32,
     pub speed: i32,
     pub amt_of_emps: i32,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = drone_usage)]
+pub struct NewDroneUsage<'a> {
+    pub attacker_id: &'a i32,
+    pub map_id: &'a i32,
+    pub drone_x: &'a i32,
+    pub drone_y: &'a i32,
+}
+
+#[derive(Queryable, Clone, Debug, Serialize)]
+pub struct DroneUsage {
+    pub id: i32,
+    pub attacker_id: i32,
+    pub map_id: i32,
+    pub drone_x: i32,
+    pub drone_y: i32,
 }
