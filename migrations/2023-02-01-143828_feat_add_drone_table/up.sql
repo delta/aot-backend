@@ -1,6 +1,6 @@
 -- Your SQL goes here
 CREATE TABLE public.drone_usage(
-    id INTEGER NOT NULL,
+    id serial NOT NULL,
     attacker_id INTEGER NOT NULL,
     map_id INTEGER NOT NULL,
     drone_x INTEGER NOT NULL,
