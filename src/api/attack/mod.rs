@@ -166,7 +166,14 @@ async fn get_details_from_drone(
     validate::is_valid_drone(&drone_position, drone_count, &map_spaces).map_err(ErrorBadRequest)?;
 
     let response = web::block(move || {
-        util::get_defense_details(user_id, drone_position, map_id, &mut conn, &map_spaces)
+        util::get_defense_details(
+            user_id,
+            drone_position,
+            map_id,
+            &mut conn,
+            &map_spaces,
+            drone_count as i32,
+        )
     })
     .await?
     .map_err(|err| error::handle_error(err.into()))?;

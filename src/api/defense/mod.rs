@@ -50,8 +50,10 @@ async fn get_user_base_details(pool: Data<PgPool>, user: AuthUser) -> Result<imp
 async fn get_other_base_details(
     defender_id: web::Path<i32>,
     pool: web::Data<PgPool>,
+    user: AuthUser,
 ) -> Result<impl Responder> {
     let defender_id = defender_id.into_inner();
+    let attacker_id = user.0;
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let defender_exists = web::block(move || util::defender_exists(defender_id, &mut conn))
         .await?
@@ -71,7 +73,7 @@ async fn get_other_base_details(
 
     let response = web::block(move || {
         let mut conn = pool.get()?;
-        util::get_map_details_for_attack(&mut conn, map)
+        util::get_map_details_for_attack(attacker_id, &mut conn, map)
     })
     .await?
     .map_err(|err| error::handle_error(err.into()))?;

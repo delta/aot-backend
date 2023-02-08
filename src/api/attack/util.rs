@@ -21,6 +21,12 @@ use std::io::Write;
 
 #[derive(Debug, Serialize)]
 pub struct DroneResponse {
+    pub defense_positions: Vec<DefensePosition>,
+    pub no_of_drones: i32,
+}
+
+#[derive(Debug, Serialize)]
+pub struct DefensePosition {
     pub y_coord: i32,
     pub x_coord: i32,
     pub building_category: BuildingCategory,
@@ -580,7 +586,8 @@ pub fn get_defense_details(
     map_id: i32,
     conn: &mut PgConnection,
     map_spaces: &[(MapSpaces, BuildingType)],
-) -> Result<Vec<DroneResponse>> {
+    drone_count: i32,
+) -> Result<DroneResponse> {
     use crate::schema::drone_usage;
     let drone_usage = NewDroneUsage {
         attacker_id: &attacker_id,
@@ -598,7 +605,7 @@ pub fn get_defense_details(
             error: err,
         })?;
 
-    let mut drone_response = Vec::new();
+    let mut defense_positions = Vec::new();
 
     for (map_space, building_type) in map_spaces.iter() {
         if !(building_type.building_category == BuildingCategory::Mine
@@ -610,12 +617,16 @@ pub fn get_defense_details(
         let (pos_x, pos_y) = (map_space.x_coordinate, map_space.y_coordinate);
         let distance = (drone_x - pos_x).pow(2) + (drone_y - pos_y).pow(2);
         if distance < DRONE_RADIUS.pow(2) {
-            drone_response.push(DroneResponse {
+            defense_positions.push(DefensePosition {
                 y_coord: pos_y,
                 x_coord: pos_x,
                 building_category: building_type.building_category,
             })
         }
     }
-    Ok(drone_response)
+
+    Ok(DroneResponse {
+        defense_positions,
+        no_of_drones: DRONE_LIMIT_PER_BASE - drone_count - 1,
+    })
 }
