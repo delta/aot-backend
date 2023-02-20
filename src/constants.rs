@@ -15,3 +15,5 @@ pub const TOTAL_ATTACKS_ON_A_BASE: i64 = 4;
 pub const ROAD_ID: i32 = 0;
 pub const INITIAL_RATING: f32 = 1000.0;
 pub const K_FACTOR: f32 = 32.0;
+pub const DRONE_RADIUS: i32 = 10;
+pub const DRONE_LIMIT_PER_BASE: i32 = 2;

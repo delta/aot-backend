@@ -38,7 +38,7 @@ impl From<r2d2::Error> for AuthError {
 #[derive(Debug, Display, Error)]
 pub enum BaseInvalidError {
     InvalidBlockType(i32),
-    #[display(fmt = "{:?}", self)]
+    #[display(fmt = "{self:?}")]
     InvalidRotation(String, i32),
     InvalidBuildingType(i32),
     OverlappingBlocks,
@@ -52,16 +52,13 @@ impl ResponseError for BaseInvalidError {
     fn error_response(&self) -> actix_web::HttpResponse {
         let response_body = match self {
             BaseInvalidError::InvalidBlockType(block_type) => {
-                format!("Invalid block type: {}", block_type)
+                format!("Invalid block type: {block_type}")
             }
             BaseInvalidError::InvalidRotation(block_type, rotation) => {
-                format!(
-                    "Invalid rotation {} for a block of type {}",
-                    rotation, block_type
-                )
+                format!("Invalid rotation {rotation} for a block of type {block_type}")
             }
             BaseInvalidError::InvalidBuildingType(building_id) => {
-                format!("City has invalid building of type {} placed", building_id)
+                format!("City has invalid building of type {building_id} placed")
             }
             BaseInvalidError::OverlappingBlocks => {
                 "City has overlapping roads or buildings".to_string()
@@ -70,16 +67,10 @@ impl ResponseError for BaseInvalidError {
                 "A road or building is placed outside of city".to_string()
             }
             BaseInvalidError::BlockCountExceeded(block_type) => {
-                format!(
-                    "You have exceeded the maximum number of building of type {}",
-                    block_type
-                )
+                format!("You have exceeded the maximum number of building of type {block_type}")
             }
             BaseInvalidError::BlocksUnused(block_type) => {
-                format!(
-                    "You have some unused {} buildings. Use all of them.",
-                    block_type
-                )
+                format!("You have some unused {block_type} buildings. Use all of them.")
             }
             BaseInvalidError::NotConnected(no_path_info) => no_path_info.to_string(),
         };

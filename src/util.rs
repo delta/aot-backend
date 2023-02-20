@@ -14,8 +14,8 @@ pub fn get_pg_conn_pool() -> Pool<ConnectionManager<PgConnection>> {
 pub fn get_redis_conn_pool() -> Pool<redis::Client> {
     dotenv::dotenv().ok();
     let redis_url = std::env::var("REDIS_URL").expect("REDIS_URL must be set");
-    let manager = redis::Client::open(format!("redis://{}", redis_url))
-        .expect("Failed to create redis client");
+    let manager =
+        redis::Client::open(format!("redis://{redis_url}")).expect("Failed to create redis client");
     Pool::builder()
         .build(manager)
         .expect("Failed to create pool.")

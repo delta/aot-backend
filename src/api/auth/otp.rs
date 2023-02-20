@@ -78,7 +78,7 @@ pub async fn send_otp(
         })
         .await?;
     if response.status().is_success() {
-        let key = format!("{}-otp", user_id);
+        let key = format!("{user_id}-otp");
         redis_conn.set(&key, otp)?;
         redis_conn.expire(&key, 120)?;
         return Ok(());
@@ -91,7 +91,7 @@ pub async fn verify_otp(
     mut redis_conn: RedisConn,
     user_id: i32,
 ) -> Result<OtpVerificationResponse> {
-    let key = format!("{}-otp", user_id);
+    let key = format!("{user_id}-otp");
     match redis_conn.exists::<&str, bool>(&key) {
         Ok(res) => {
             if res {

@@ -3,7 +3,8 @@ use crate::api::util::{GameHistoryEntry, GameHistoryResponse};
 use crate::constants::*;
 use crate::error::DieselError;
 use crate::models::{
-    AttackerType, Game, LevelsFixture, MapLayout, NewAttackerPath, NewGame, NewSimulationLog,
+    AttackerType, BuildingCategory, BuildingType, Game, LevelsFixture, MapLayout, MapSpaces,
+    NewAttackerPath, NewDroneUsage, NewGame, NewSimulationLog,
 };
 use crate::simulation::{RenderAttacker, RenderDiffuser, RenderMine, RenderRobot};
 use crate::simulation::{RenderDefender, Simulator};
@@ -18,11 +19,31 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::io::Write;
 
+#[derive(Debug, Serialize)]
+pub struct DroneResponse {
+    pub defense_positions: Vec<DefensePosition>,
+    pub no_of_drones: i32,
+}
+
+#[derive(Debug, Serialize)]
+pub struct DefensePosition {
+    pub y_coord: i32,
+    pub x_coord: i32,
+    pub building_category: BuildingCategory,
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct NewAttack {
     pub defender_id: i32,
     pub no_of_attackers: i32,
     pub attackers: Vec<NewAttacker>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct DronePosition {
+    pub y_coord: i32,
+    pub x_coord: i32,
+    pub defender_id: i32,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -260,20 +281,15 @@ pub fn run_simulation(
         let attacker_type = &attacker.attacker_type;
         writeln!(content, "attacker_path")?;
         writeln!(content, "id,y,x,is_emp,type")?;
-        attacker_path
-            .iter()
-            .enumerate()
-            .try_for_each(|(id, path)| {
-                writeln!(
-                    content,
-                    "{},{},{},{},{}",
-                    id + 1,
-                    path.y_coord,
-                    path.x_coord,
-                    path.is_emp,
-                    attacker_type,
-                )
-            })?;
+        writeln!(
+            content,
+            "{},{},{},{},{}",
+            attacker_id + 1,
+            attacker_path[0].y_coord,
+            attacker_path[0].x_coord,
+            attacker_path[0].is_emp,
+            attacker_type,
+        )?;
         writeln!(content, "emps")?;
         writeln!(content, "id,time,type,attacker_id")?;
         attacker_path
@@ -310,7 +326,7 @@ pub fn run_simulation(
             y_position,
             ..
         } = position;
-        writeln!(content, "{},{},{}", defender_id, x_position, y_position)?;
+        writeln!(content, "{defender_id},{x_position},{y_position}")?;
     }
 
     let diffuser_positions = simulator.get_diffuser_position();
@@ -323,12 +339,11 @@ pub fn run_simulation(
             is_alive,
             ..
         } = position;
-        writeln!(content, "diffuser {}", diffuser_id)?;
+        writeln!(content, "diffuser {diffuser_id}")?;
         writeln!(content, "id,is_alive,x,y")?;
         writeln!(
             content,
-            "{},{},{},{}",
-            diffuser_id, is_alive, x_position, y_position,
+            "{diffuser_id},{is_alive},{x_position},{y_position}"
         )?;
     }
 
@@ -342,20 +357,19 @@ pub fn run_simulation(
             is_activated,
             mine_type,
         } = mine;
-        writeln!(content, "mine {}", mine_id)?;
-        writeln!(content, "id,is_activated,x,y,mine_type")?;
+        writeln!(content, "mine {mine_id}")?;
+        writeln!(content, "id,x,is_activated,y,mine_type")?;
         writeln!(
             content,
-            "{},{},{},{},{}",
-            mine_id, is_activated, x_position, y_position, mine_type
+            "{mine_id},{x_position},{is_activated},{y_position},{mine_type}"
         )?;
     }
 
     for frame in 1..=NO_OF_FRAMES {
-        writeln!(content, "frame {}", frame)?;
+        writeln!(content, "frame {frame}")?;
         let simulated_frame = simulator
             .simulate()
-            .with_context(|| format!("Failed to simulate frame {}", frame))?;
+            .with_context(|| format!("Failed to simulate frame {frame}"))?;
         for attacker in simulated_frame.attackers {
             writeln!(content, "attacker {}", attacker.0)?;
             writeln!(content, "id,x,y,is_alive,emp_id,health,type")?;
@@ -371,14 +385,23 @@ pub fn run_simulation(
                 } = position;
                 writeln!(
                     content,
-                    "{},{},{},{},{},{},{}",
-                    attacker_id, x_position, y_position, is_alive, emp_id, health, attacker_type
+                    "{attacker_id},{x_position},{y_position},{is_alive},{emp_id},{health},{attacker_type}"
                 )?;
             }
         }
+        writeln!(content, "building_stats")?;
+        writeln!(content, "map_space_id,population")?;
+
+        for building_stat in simulated_frame.buildings {
+            writeln!(
+                content,
+                "{},{}",
+                building_stat.mapsace_id, building_stat.population
+            )?;
+        }
 
         for (defender_id, defender) in simulated_frame.defenders {
-            writeln!(content, "defender {}", defender_id)?;
+            writeln!(content, "defender {defender_id}")?;
             writeln!(content, "id,is_alive,x,y,type")?;
             for position in defender {
                 let RenderDefender {
@@ -390,15 +413,17 @@ pub fn run_simulation(
                 } = position;
                 writeln!(
                     content,
-                    "{},{},{},{},{}",
-                    defender_id, is_alive, x_position, y_position, defender_type
+                    "{defender_id},{is_alive},{x_position},{y_position},{defender_type}"
                 )?;
             }
         }
 
         for (diffuser_id, diffuser) in simulated_frame.diffusers {
-            writeln!(content, "diffuser {}", diffuser_id)?;
-            writeln!(content, "id,is_alive,x,y,type,emp_id,attacker_id")?;
+            writeln!(content, "diffuser {diffuser_id}")?;
+            writeln!(
+                content,
+                "id,is_alive,x,y,type,emp_id,attacker_id,is_diffuse"
+            )?;
             for defender_position in diffuser {
                 let RenderDiffuser {
                     diffuser_id,
@@ -408,23 +433,18 @@ pub fn run_simulation(
                     diffuser_type,
                     emp_attacker_id,
                     emp_path_id,
+                    is_diffuse,
                 } = defender_position;
                 writeln!(
                     content,
-                    "{},{},{},{},{},{},{}",
-                    diffuser_id,
-                    is_alive,
-                    x_position,
-                    y_position,
-                    diffuser_type,
-                    emp_path_id,
-                    emp_attacker_id
+                    "{diffuser_id},{is_alive},{x_position},{y_position},{diffuser_type},{emp_path_id},{emp_attacker_id},{is_diffuse}"
+
                 )?;
             }
         }
 
         for (mine_id, mine) in simulated_frame.mines {
-            writeln!(content, "mine {}", mine_id)?;
+            writeln!(content, "mine {mine_id}")?;
             writeln!(content, "id,is_activated,mine_type")?;
             writeln!(
                 content,
@@ -445,8 +465,7 @@ pub fn run_simulation(
             } = robot;
             writeln!(
                 content,
-                "{},{},{},{},{}",
-                id, health, x_position, y_position, in_building
+                "{id},{health},{x_position},{y_position},{in_building}"
             )?;
         }
     }
@@ -475,18 +494,10 @@ pub fn run_simulation(
                 error: err,
             })?;
     writeln!(content, "Result")?;
-    writeln!(content, "Attack score: {}", attack_score)?;
-    writeln!(content, "Defend score: {}", defend_score)?;
-    writeln!(
-        content,
-        "Attacker rating change: {}",
-        attacker_rating_change
-    )?;
-    writeln!(
-        content,
-        "Defender rating change: {}",
-        defender_rating_change
-    )?;
+    writeln!(content, "Attack score: {attack_score}")?;
+    writeln!(content, "Defend score: {defend_score}")?;
+    writeln!(content, "Attacker rating change: {attacker_rating_change}")?;
+    writeln!(content, "Defender rating change: {defender_rating_change}")?;
 
     insert_simulation_log(game_id, &content, conn)?;
 
@@ -533,4 +544,89 @@ pub fn get_attacker_types(conn: &mut PgConnection) -> Result<HashMap<i32, Attack
             )
         })
         .collect::<HashMap<i32, AttackerType>>())
+}
+
+pub fn get_buildings(
+    map_id: i32,
+    conn: &mut PgConnection,
+) -> Result<Vec<(MapSpaces, BuildingType)>> {
+    use crate::schema::{building_type, map_spaces};
+    Ok(map_spaces::table
+        .inner_join(building_type::table)
+        .filter(map_spaces::map_id.eq(map_id))
+        .load::<(MapSpaces, BuildingType)>(conn)
+        .map_err(|err| DieselError {
+            table: "map_spaces",
+            function: function!(),
+            error: err,
+        })?)
+}
+
+pub fn get_already_used_drone_count(
+    map_id: i32,
+    attacker_id: i32,
+    conn: &mut PgConnection,
+) -> Result<i64> {
+    use crate::schema::drone_usage;
+    Ok(drone_usage::table
+        .filter(drone_usage::map_id.eq(map_id))
+        .filter(drone_usage::attacker_id.eq(attacker_id))
+        .count()
+        .get_result(conn)
+        .map_err(|err| DieselError {
+            table: "drone_usage",
+            function: function!(),
+            error: err,
+        })?)
+}
+
+pub fn get_defense_details(
+    attacker_id: i32,
+    drone_position: DronePosition,
+    map_id: i32,
+    conn: &mut PgConnection,
+    map_spaces: &[(MapSpaces, BuildingType)],
+    drone_count: i32,
+) -> Result<DroneResponse> {
+    use crate::schema::drone_usage;
+    let drone_usage = NewDroneUsage {
+        attacker_id: &attacker_id,
+        map_id: &map_id,
+        drone_x: &drone_position.x_coord,
+        drone_y: &drone_position.y_coord,
+    };
+
+    diesel::insert_into(drone_usage::table)
+        .values(drone_usage)
+        .execute(conn)
+        .map_err(|err| DieselError {
+            table: "drone_usage",
+            function: function!(),
+            error: err,
+        })?;
+
+    let mut defense_positions = Vec::new();
+
+    for (map_space, building_type) in map_spaces.iter() {
+        if !(building_type.building_category == BuildingCategory::Mine
+            || building_type.building_category == BuildingCategory::Diffuser)
+        {
+            continue;
+        }
+        let (drone_x, drone_y) = (drone_position.x_coord, drone_position.y_coord);
+        let (pos_x, pos_y) = (map_space.x_coordinate, map_space.y_coordinate);
+        let distance = (drone_x - pos_x).pow(2) + (drone_y - pos_y).pow(2);
+        if distance < DRONE_RADIUS.pow(2) {
+            defense_positions.push(DefensePosition {
+                y_coord: pos_y,
+                x_coord: pos_x,
+                building_category: building_type.building_category,
+            })
+        }
+    }
+
+    Ok(DroneResponse {
+        defense_positions,
+        no_of_drones: DRONE_LIMIT_PER_BASE - drone_count - 1,
+    })
 }

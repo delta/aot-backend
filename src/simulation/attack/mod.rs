@@ -7,7 +7,8 @@ use diesel::PgConnection;
 use self::{attacker::Attacker, emp::Emps};
 
 use super::{
-    blocks::BuildingsManager, error::KeyError, robots::RobotsManager, RenderAttacker, Simulator,
+    blocks::BuildingsManager, defense::DefenseManager, error::KeyError, robots::RobotsManager,
+    RenderAttacker, Simulator,
 };
 
 pub mod attacker;
@@ -46,7 +47,7 @@ impl AttackManager {
 
     pub fn update_attackers_position(&mut self, frames_passed: i32) {
         for (_, attacker) in self.attackers.iter_mut() {
-            attacker.update_position(frames_passed);
+            attacker.move_attacker(frames_passed);
         }
     }
 
@@ -55,6 +56,7 @@ impl AttackManager {
         frames_passed: i32,
         robots_manager: &mut RobotsManager,
         buildings_manager: &mut BuildingsManager,
+        defense_manager: &mut DefenseManager,
     ) -> Result<()> {
         self.update_attackers_position(frames_passed);
         let minute = Simulator::get_minute(frames_passed);
@@ -62,6 +64,7 @@ impl AttackManager {
             minute,
             robots_manager,
             buildings_manager,
+            defense_manager,
             &mut self.attackers,
         )?;
 

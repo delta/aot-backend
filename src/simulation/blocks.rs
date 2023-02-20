@@ -3,6 +3,7 @@ use crate::error::DieselError;
 use crate::models::{BlockType, MapSpaces, ShortestPath};
 use crate::simulation::error::*;
 use crate::simulation::robots::robot::Robot;
+use crate::simulation::BuildingStats;
 use crate::util::function;
 use anyhow::{Context, Result};
 use diesel::prelude::*;
@@ -308,7 +309,7 @@ impl BuildingsManager {
                 .get(&9)
                 .ok_or(KeyError {
                     key: 9,
-                    hashmap: format!("building_types[{}].weights", blk_type),
+                    hashmap: format!("building_types[{blk_type}].weights"),
                 })?;
             buildings.insert(
                 map_space.id,
@@ -347,8 +348,7 @@ impl BuildingsManager {
     }
 
     fn choose_weighted(choices: &[i32], weights: &[f32]) -> Result<i32> {
-        let dist =
-            WeightedIndex::new(weights).with_context(|| format!("Weights: {:?}", weights))?;
+        let dist = WeightedIndex::new(weights).with_context(|| format!("Weights: {weights:?}"))?;
         let mut rng = thread_rng();
         Ok(choices[dist.sample(&mut rng)])
     }
@@ -406,8 +406,7 @@ impl BuildingsManager {
             weights.push(1);
             choices.push(road_map_space);
         }
-        let dist =
-            WeightedIndex::new(&weights).with_context(|| format!("Weights: {:?}", weights))?;
+        let dist = WeightedIndex::new(&weights).with_context(|| format!("Weights: {weights:?}"))?;
         let mut rng = thread_rng();
         for robot in robots.values_mut() {
             let initial_road_block = choices[dist.sample(&mut rng)];
@@ -431,9 +430,19 @@ impl BuildingsManager {
                 .weights;
             building.weight = *weights.get(&(hour - 1)).ok_or(KeyError {
                 key: hour - 1,
-                hashmap: format!("building_types[{}].weights", blk_type),
+                hashmap: format!("building_types[{blk_type}].weights"),
             })?;
         }
         Ok(())
+    }
+
+    pub fn get_building_stats(&self) -> Vec<BuildingStats> {
+        self.buildings
+            .values()
+            .map(|building| BuildingStats {
+                mapsace_id: building.map_space.id,
+                population: building.population,
+            })
+            .collect()
     }
 }

@@ -18,6 +18,7 @@ pub struct DiffuserPathStats {
     pub x_position: i32,
     pub y_position: i32,
     pub is_alive: bool,
+    pub is_diffuse: bool,
     pub emp_path_id: Option<usize>,
     pub emp_attacker_id: Option<i32>,
 }
@@ -29,6 +30,7 @@ pub struct Diffuser {
     pub speed: i32,
     pub path_in_current_frame: Vec<DiffuserPathStats>,
     pub is_alive: bool,
+    pub is_diffuse: bool,
     pub init_x_position: i32,
     pub init_y_position: i32,
     pub target_emp_path_id: Option<usize>,
@@ -60,6 +62,7 @@ impl Diffusers {
                 path: vec![(map_space.x_coordinate, map_space.y_coordinate)],
                 init_x_position: map_space.x_coordinate,
                 init_y_position: map_space.y_coordinate,
+                is_diffuse: false,
                 path_in_current_frame: Vec::new(),
             })
             .collect();
@@ -88,6 +91,7 @@ impl Diffusers {
 
                             if diffuser.is_alive && diffuser.path.len() == 1 {
                                 diffuser.is_alive = false;
+                                diffuser.is_diffuse = true;
                                 to_remove_emp = true;
                                 remove_emp_time = Some(*emp_time);
                                 remove_emp = Some(emp.clone());
@@ -167,6 +171,7 @@ impl Diffusers {
                     is_alive: diffuser.is_alive,
                     emp_path_id: diffuser.target_emp_path_id,
                     emp_attacker_id: diffuser.target_emp_attacker_id,
+                    is_diffuse: diffuser.is_diffuse,
                 })
                 .collect();
         }
@@ -300,6 +305,7 @@ impl Diffusers {
                 diffuser_type: diffuser.diffuser_type,
                 emp_path_id: -1,
                 emp_attacker_id: -1,
+                is_diffuse: diffuser.is_diffuse,
             })
         }
         render_positions
@@ -320,6 +326,7 @@ impl Diffusers {
                     is_alive: diffuser.is_alive,
                     emp_path_id: diffuser.target_emp_path_id,
                     emp_attacker_id: diffuser.target_emp_attacker_id,
+                    is_diffuse: diffuser.is_diffuse,
                 },
             );
 
@@ -345,6 +352,7 @@ impl Diffusers {
                     diffuser_type: diffuser.diffuser_type,
                     emp_path_id,
                     emp_attacker_id,
+                    is_diffuse: diffuser.is_diffuse,
                 })
             }
             while diffuser_positions.len() < diffuser.speed as usize {
@@ -366,11 +374,23 @@ impl Diffusers {
                     diffuser_type: diffuser.diffuser_type,
                     emp_path_id,
                     emp_attacker_id,
+                    is_diffuse: diffuser_stat.is_diffuse,
                 });
             }
             render_diffusers.insert(diffuser.id, diffuser_positions);
         }
 
         render_diffusers
+    }
+
+    pub fn get_damage(&mut self, x_position: i32, y_position: i32) {
+        let Diffusers(diffusers) = self;
+
+        for diffuser in diffusers {
+            let (diffuser_x, diffuser_y) = diffuser.path.last().unwrap();
+            if *diffuser_x == x_position && *diffuser_y == y_position {
+                diffuser.is_alive = false;
+            }
+        }
     }
 }

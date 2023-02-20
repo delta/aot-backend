@@ -2,6 +2,7 @@ use crate::constants::*;
 use crate::error::DieselError;
 use crate::models::AttackType;
 use crate::simulation::blocks::{Building, BuildingsManager};
+use crate::simulation::defense::DefenseManager;
 use crate::simulation::error::*;
 use crate::simulation::robots::RobotsManager;
 use crate::util::function;
@@ -76,6 +77,7 @@ impl Emps {
         minute: i32,
         robots_manager: &mut RobotsManager,
         buildings_manager: &mut BuildingsManager,
+        defense_manager: &mut DefenseManager,
         attackers: &mut HashMap<i32, Attacker>,
     ) -> Result<()> {
         let Emps(emps) = self;
@@ -108,12 +110,24 @@ impl Emps {
                         continue;
                     }
 
+                    defense_manager.defenders.get_damage(x, y);
+                    defense_manager.diffusers.get_damage(x, y);
+
                     // attackers is in the imapact of EMP
                     for (_, attacker) in attackers.iter_mut() {
-                        let (attacker_pos_x, attacker_pos_y) = attacker.get_current_position()?;
-                        if x == attacker_pos_x && y == attacker_pos_y {
-                            attacker
-                                .get_damage(emp.damage, attacker.path_in_current_frame.len() - 1);
+                        let attacker_path = attacker.path_in_current_frame.clone();
+                        for (position, attacker_path_stats) in
+                            attacker_path.iter().rev().enumerate()
+                        {
+                            if x == attacker_path_stats.attacker_path.x_coord
+                                && y == attacker_path_stats.attacker_path.y_coord
+                            {
+                                attacker.get_damage(
+                                    emp.damage,
+                                    attacker.path_in_current_frame.len() - 1 - position,
+                                );
+                                break;
+                            }
                         }
                     }
 

@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::collections::HashSet;
 
 use crate::error::DieselError;
 use crate::models::BlockType;
@@ -30,6 +31,8 @@ pub struct Defender {
     pub radius: i32,
     pub speed: i32,
     pub damage: i32,
+    pub hut_x: i32,
+    pub hut_y: i32,
     pub is_alive: bool,
     pub target_id: Option<i32>,
     pub path: Vec<(i32, i32)>,
@@ -43,6 +46,35 @@ pub enum MovementType {
     Attacker,
     Defender,
     AttackerAndDefender,
+}
+
+impl Defender {
+    pub fn move_defender_to_hut(&mut self) {
+        let mut split_at_index: usize = 1;
+        if self.path.len() > self.speed as usize {
+            split_at_index = self.path.len() - self.speed as usize;
+        }
+        self.path_in_current_frame = self
+            .path
+            .split_off(split_at_index)
+            .into_iter()
+            .map(|(x_coord, y_coord)| DefenderPathStats {
+                x_coord,
+                y_coord,
+                is_alive: self.is_alive,
+            })
+            .collect();
+        let (dest_x, dest_y) = self.path.last().unwrap();
+        self.path_in_current_frame.insert(
+            0,
+            DefenderPathStats {
+                x_coord: *dest_x,
+                y_coord: *dest_y,
+                is_alive: self.is_alive,
+            },
+        );
+        self.path_in_current_frame.pop();
+    }
 }
 
 impl Defenders {
@@ -78,8 +110,12 @@ impl Defenders {
                 target_id: None,
                 path,
                 path_in_current_frame: Vec::new(),
+                hut_x,
+                hut_y,
             })
         }
+        // Sorted to handle multiple defenders attack same attacker at same frame
+        defenders.sort_by(|defender_1, defender_2| (defender_2.damage).cmp(&defender_1.damage));
         Ok(Defenders(defenders))
     }
 
@@ -92,11 +128,7 @@ impl Defenders {
         let attackers = &mut attacker_manager.attackers;
         let shortest_paths = &building_manager.shortest_paths;
 
-        // Sorted so that the defender closer to the attacker damages first
-        defenders.sort_by(|defender_1, defender_2| {
-            (defender_1.path.len() / (defender_1.speed as usize))
-                .cmp(&(defender_2.path.len() / (defender_2.speed as usize)))
-        });
+        let mut defender_without_target: HashSet<i32> = HashSet::new();
         for defender in defenders.iter_mut() {
             defender.path_in_current_frame.clear();
             if defender.is_alive {
@@ -108,6 +140,36 @@ impl Defenders {
                     let movement_sequence =
                         Self::generate_movement_sequence(attacker.speed, defender.speed);
                     let mut current_attacker_pos = attacker.path_in_current_frame.len() - 1;
+                    if !attacker.path_in_current_frame[0].is_alive {
+                        Self::reassign_defender(defender, shortest_paths)?;
+                        defender.move_defender_to_hut();
+                        defender.target_id = None;
+                        let mut split_at_index: usize = 1;
+                        if defender.path.len() > defender.speed as usize {
+                            split_at_index = defender.path.len() - defender.speed as usize;
+                        }
+                        defender.path_in_current_frame = defender
+                            .path
+                            .split_off(split_at_index)
+                            .into_iter()
+                            .map(|(x_coord, y_coord)| DefenderPathStats {
+                                x_coord,
+                                y_coord,
+                                is_alive: defender.is_alive,
+                            })
+                            .collect();
+                        let (dest_x, dest_y) = defender.path.last().unwrap();
+                        defender.path_in_current_frame.insert(
+                            0,
+                            DefenderPathStats {
+                                x_coord: *dest_x,
+                                y_coord: *dest_y,
+                                is_alive: defender.is_alive,
+                            },
+                        );
+                        defender.path_in_current_frame.pop();
+                        continue;
+                    }
                     for movement in movement_sequence.iter() {
                         if !defender.is_alive {
                             break;
@@ -125,44 +187,88 @@ impl Defenders {
                             }
                         }
                     }
+                } else if defender.path.len() > 1 {
+                    defender.move_defender_to_hut();
                 } else {
-                    let (defender_pos_x, defender_pos_y) = defender.path[defender.path.len() - 1];
-                    defender.path_in_current_frame.push(DefenderPathStats {
-                        x_coord: defender_pos_x,
-                        y_coord: defender_pos_y,
-                        is_alive: defender.is_alive,
-                    });
-                    let mut target_id: Option<i32> = None;
-                    let mut optimal_path: Vec<(i32, i32)> = Vec::new();
-                    let mut optimal_distance = i32::MAX;
-                    for attacker in attackers.values() {
-                        let (attacker_pos_x, attacker_pos_y) = attacker.get_current_position()?;
-                        let distance = (attacker_pos_x - defender_pos_x).pow(2)
-                            + (attacker_pos_y - defender_pos_y).pow(2);
-                        if distance > defender.radius.pow(2) {
-                            continue;
-                        }
-                        let source_dest = SourceDest {
-                            source_x: attacker_pos_x,
-                            source_y: attacker_pos_y,
-                            dest_x: defender_pos_x,
-                            dest_y: defender_pos_y,
-                        };
-                        if distance < optimal_distance && attacker.is_alive {
-                            optimal_distance = distance;
-                            target_id = Some(attacker.id);
-                            optimal_path = shortest_paths
-                                .get(&source_dest)
-                                .ok_or(ShortestPathNotFoundError(source_dest))?
-                                .clone();
-                        }
-                    }
-                    defender.target_id = target_id;
-                    if target_id.is_some() {
-                        defender.path = optimal_path;
-                    }
+                    defender_without_target.insert(defender.id);
                 }
             }
+        }
+        for defender in defenders.iter_mut() {
+            if defender.is_alive && defender_without_target.contains(&defender.id) {
+                Self::assign_defender(defender, attackers, shortest_paths)?;
+            }
+        }
+        Ok(())
+    }
+
+    pub fn reassign_defender(
+        defender: &mut Defender,
+        shortest_paths: &HashMap<SourceDest, Vec<(i32, i32)>>,
+    ) -> Result<()> {
+        let (defender_pos_x, defender_pos_y) = defender.path[defender.path.len() - 1];
+        let source_dest = SourceDest {
+            source_x: defender_pos_x,
+            source_y: defender_pos_y,
+            dest_x: defender.hut_x,
+            dest_y: defender.hut_y,
+        };
+        defender.path = shortest_paths
+            .get(&source_dest)
+            .ok_or(ShortestPathNotFoundError(source_dest))?
+            .clone();
+        defender.path.reverse();
+        Ok(())
+    }
+
+    pub fn assign_defender(
+        defender: &mut Defender,
+        attackers: &HashMap<i32, Attacker>,
+        shortest_paths: &HashMap<SourceDest, Vec<(i32, i32)>>,
+    ) -> Result<()> {
+        let (defender_pos_x, defender_pos_y) = defender.path[defender.path.len() - 1];
+        defender.path_in_current_frame.push(DefenderPathStats {
+            x_coord: defender_pos_x,
+            y_coord: defender_pos_y,
+            is_alive: defender.is_alive,
+        });
+        let mut target_id: Option<i32> = None;
+        let mut optimal_path: Vec<(i32, i32)> = Vec::new();
+        let mut optimal_distance = i32::MAX;
+        for attacker in attackers.values() {
+            if !attacker.path_in_current_frame[0].is_alive {
+                continue;
+            }
+            for attacker_path_stat in attacker.path_in_current_frame.iter().rev() {
+                let (attacker_pos_x, attacker_pos_y) = (
+                    attacker_path_stat.attacker_path.x_coord,
+                    attacker_path_stat.attacker_path.y_coord,
+                );
+                let distance = (attacker_pos_x - defender_pos_x).pow(2)
+                    + (attacker_pos_y - defender_pos_y).pow(2);
+                if distance > defender.radius.pow(2) {
+                    continue;
+                }
+                let source_dest = SourceDest {
+                    source_x: attacker.path_in_current_frame[0].attacker_path.x_coord,
+                    source_y: attacker.path_in_current_frame[0].attacker_path.y_coord,
+                    dest_x: defender_pos_x,
+                    dest_y: defender_pos_y,
+                };
+                if distance < optimal_distance {
+                    optimal_distance = distance;
+                    target_id = Some(attacker.id);
+                    optimal_path = shortest_paths
+                        .get(&source_dest)
+                        .ok_or(ShortestPathNotFoundError(source_dest))?
+                        .clone();
+                }
+                break;
+            }
+        }
+        defender.target_id = target_id;
+        if target_id.is_some() {
+            defender.path = optimal_path;
         }
         Ok(())
     }
@@ -182,10 +288,6 @@ impl Defenders {
         current_attacker_pos: &usize,
     ) -> Result<()> {
         if defender.is_alive && defender.path.len() > 1 {
-            if !attacker.path_in_current_frame[*current_attacker_pos].is_alive {
-                defender.is_alive = false;
-                return Ok(());
-            }
             defender.path.pop();
             let attacker_pos = Self::get_attacker_position(attacker, current_attacker_pos);
             let defender_pos = Self::get_defender_position(defender)?;
@@ -334,5 +436,16 @@ impl Defenders {
             })
         }
         render_positions
+    }
+
+    pub fn get_damage(&mut self, x_position: i32, y_position: i32) {
+        let Defenders(defenders) = self;
+
+        for defender in defenders {
+            let (defender_x, defender_y) = defender.path.last().unwrap();
+            if *defender_x == x_position && *defender_y == y_position {
+                defender.is_alive = false;
+            }
+        }
     }
 }

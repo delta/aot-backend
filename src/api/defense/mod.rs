@@ -8,6 +8,7 @@ use actix_web::{Responder, Result};
 use serde::Deserialize;
 use std::collections::HashMap;
 
+mod shortest_path;
 mod util;
 mod validate;
 
@@ -49,8 +50,10 @@ async fn get_user_base_details(pool: Data<PgPool>, user: AuthUser) -> Result<imp
 async fn get_other_base_details(
     defender_id: web::Path<i32>,
     pool: web::Data<PgPool>,
+    user: AuthUser,
 ) -> Result<impl Responder> {
     let defender_id = defender_id.into_inner();
+    let attacker_id = user.0;
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let defender_exists = web::block(move || util::defender_exists(defender_id, &mut conn))
         .await?
@@ -70,7 +73,7 @@ async fn get_other_base_details(
 
     let response = web::block(move || {
         let mut conn = pool.get()?;
-        util::get_details_from_map_layout(&mut conn, map)
+        util::get_map_details_for_attack(attacker_id, &mut conn, map)
     })
     .await?
     .map_err(|err| error::handle_error(err.into()))?;
@@ -174,6 +177,7 @@ async fn confirm_base_details(
     web::block(move || {
         let mut conn = pool.get()?;
         util::put_base_details(&map_spaces, &map, &mut conn)?;
+        util::calculate_shortest_paths(&mut conn, map.id, &blocks)?;
         util::set_map_valid(&mut conn, map.id)
     })
     .await?

@@ -61,7 +61,7 @@ pub fn get_pragyan_user(
             .take(4)
             .map(char::from)
             .collect();
-        let username = &format!("{}_{}", email, random_string);
+        let username = &format!("{email}_{random_string}");
         let new_user = NewUser {
             name,
             email,
@@ -145,5 +145,5 @@ pub fn reset_password(
 
 pub fn generate_otp() -> String {
     let otp = rand::thread_rng().gen_range(0..100000);
-    format!("{:05}", otp)
+    format!("{otp:05}")
 }
