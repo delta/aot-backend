@@ -471,6 +471,7 @@ pub fn run_simulation(
     }
     //TODO: Change is_alive to no_of_attackers_alive and emps_used too
     let (attack_score, defend_score) = simulator.get_scores();
+    let attack_defence_metrics = simulator.get_attack_defence_metrics();
     let (attacker_rating_change, defender_rating_change) =
         diesel::update(game::table.find(game_id))
             .set((
@@ -487,7 +488,7 @@ pub fn run_simulation(
                 function: function!(),
                 error: err,
             })?
-            .update_rating(simulator.rating_factor, simulator.no_of_robots, conn)
+            .update_rating(attack_defence_metrics, conn)
             .map_err(|err| DieselError {
                 table: "user",
                 function: function!(),

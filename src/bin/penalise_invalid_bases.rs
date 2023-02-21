@@ -1,9 +1,11 @@
 use aot_backend::api;
-use aot_backend::constants::K_FACTOR;
+// use aot_backend::constants::K_FACTOR;
 use aot_backend::schema::{map_layout, user};
 use aot_backend::util;
 use diesel::QueryDsl;
 use diesel::{prelude::*, update};
+
+const K_FACTOR: f32 = 32.0;
 
 fn main() {
     let pool = util::get_pg_conn_pool();

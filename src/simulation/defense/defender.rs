@@ -39,7 +39,7 @@ pub struct Defender {
     pub path_in_current_frame: Vec<DefenderPathStats>,
 }
 
-pub struct Defenders(Vec<Defender>);
+pub struct Defenders(pub Vec<Defender>);
 
 #[derive(Debug)]
 pub enum MovementType {

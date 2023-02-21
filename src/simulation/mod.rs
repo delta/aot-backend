@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
 use self::attack::AttackManager;
+use self::defense::defender::Defenders;
+use self::defense::diffuser::Diffusers;
+use self::defense::mine::Mines;
 use crate::api::attack::util::NewAttacker;
 use crate::constants::*;
 use crate::error::DieselError;
@@ -173,12 +176,51 @@ impl Simulator {
         HEALTH * self.no_of_robots - sum_health
     }
 
+    pub fn get_attack_defence_metrics(&self) -> (i32, f32, f32, f32) {
+        let mut live_attackers = 0;
+        let mut used_defenders: f32 = 0.0;
+        let mut used_diffusers: f32 = 0.0;
+        let mut used_mines: f32 = 0.0;
+
+        for a in self.attack_manager.attackers.iter() {
+            if a.1.is_alive {
+                live_attackers += 1;
+            }
+        }
+        let Defenders(defenders) = &self.defense_manager.defenders;
+        for def in defenders {
+            if !def.is_alive {
+                used_defenders += 1.0;
+            }
+        }
+        let Diffusers(diffusers) = &self.defense_manager.diffusers;
+        for dif in diffusers {
+            if dif.is_diffuse {
+                used_diffusers += 1.0;
+            }
+        }
+        let Mines(mines) = &self.defense_manager.mines;
+        for min in mines {
+            if min.is_activated {
+                used_mines += 1.0;
+            }
+        }
+
+        (live_attackers, used_defenders, used_diffusers, used_mines)
+    }
+
     pub fn get_scores(&self) -> (i32, i32) {
         let damage_done = self.get_damage_done();
-        let no_of_robots_destroyed = self.get_no_of_robots_destroyed();
-        let max_score = 2 * HEALTH * self.no_of_robots;
-        let attack_score = damage_done + HEALTH * no_of_robots_destroyed;
-        let defend_score = max_score - attack_score;
+        let attack_score = if damage_done < WIN_THRESHOLD {
+            damage_done - 100
+        } else {
+            damage_done
+        };
+        let defend_score = if damage_done >= WIN_THRESHOLD {
+            -damage_done
+        } else {
+            100 - damage_done
+        };
         (attack_score, defend_score)
     }
 

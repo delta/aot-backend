@@ -38,7 +38,7 @@ pub struct Diffuser {
     pub path: Vec<(i32, i32)>,
 }
 
-pub struct Diffusers(Vec<Diffuser>);
+pub struct Diffusers(pub Vec<Diffuser>);
 
 impl Diffusers {
     pub fn new(conn: &mut PgConnection, map_id: i32) -> Result<Self> {

@@ -17,7 +17,7 @@ pub struct Mine {
     pub y_position: i32,
 }
 
-pub struct Mines(Vec<Mine>);
+pub struct Mines(pub Vec<Mine>);
 
 impl Mines {
     pub fn new(conn: &mut PgConnection, map_id: i32) -> Result<Self> {
