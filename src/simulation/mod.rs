@@ -99,22 +99,9 @@ pub struct Simulator {
 }
 
 impl Simulator {
-    pub fn new(
-        game_id: i32,
-        attackers: &Vec<NewAttacker>,
-        conn: &mut PgConnection,
-    ) -> Result<Self> {
-        use crate::schema::{game, levels_fixture, map_layout};
+    pub fn new(map_id: i32, attackers: &Vec<NewAttacker>, conn: &mut PgConnection) -> Result<Self> {
+        use crate::schema::{levels_fixture, map_layout};
 
-        let map_id = game::table
-            .filter(game::id.eq(game_id))
-            .select(game::map_layout_id)
-            .first::<i32>(conn)
-            .map_err(|err| DieselError {
-                table: "game",
-                function: function!(),
-                error: err,
-            })?;
         let (no_of_robots, rating_factor) = map_layout::table
             .inner_join(levels_fixture::table)
             .select((levels_fixture::no_of_robots, levels_fixture::rating_factor))
@@ -173,7 +160,8 @@ impl Simulator {
         for r in self.robots_manager.robots.iter() {
             sum_health += r.1.health;
         }
-        HEALTH * self.no_of_robots - sum_health
+        (((HEALTH * self.no_of_robots - sum_health) * 100) as f32
+            / (HEALTH * self.no_of_robots) as f32) as i32
     }
 
     pub fn get_attack_defence_metrics(&self) -> (i32, f32, f32, f32) {
