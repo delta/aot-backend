@@ -34,6 +34,7 @@ pub struct Defender {
     pub hut_x: i32,
     pub hut_y: i32,
     pub is_alive: bool,
+    pub damage_dealt: bool,
     pub target_id: Option<i32>,
     pub path: Vec<(i32, i32)>,
     pub path_in_current_frame: Vec<DefenderPathStats>,
@@ -107,6 +108,7 @@ impl Defenders {
                 speed: defender_type.speed,
                 damage: defender_type.damage,
                 is_alive: true,
+                damage_dealt: false,
                 target_id: None,
                 path,
                 path_in_current_frame: Vec::new(),
@@ -278,6 +280,7 @@ impl Defenders {
         defender: &mut Defender,
         current_attacker_pos: &usize,
     ) {
+        defender.damage_dealt = true;
         attacker.get_damage(defender.damage, *current_attacker_pos);
         defender.is_alive = false;
     }

@@ -182,11 +182,12 @@ diesel::table! {
         email -> Varchar,
         phone -> Varchar,
         username -> Varchar,
-        overall_rating -> Float4,
+        overall_rating -> Int4,
         is_pragyan -> Bool,
         password -> Varchar,
         is_verified -> Bool,
-        highest_rating -> Float4,
+        highest_rating -> Int4,
+        avatar -> Int4,
     }
 }
 

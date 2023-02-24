@@ -1,5 +1,5 @@
 use crate::{
-    constants::{HIGHEST_TROPHY, SCALE_FACTOR},
+    constants::{BONUS_SCALE, HIGHEST_TROPHY, SCALE_FACTOR},
     models::Game,
 };
 use diesel::prelude::*;
@@ -15,9 +15,6 @@ fn baseline_trophies(ep: f32) -> f32 {
 
 fn trophy_scale(old_ar: f32, old_dr: f32) -> (f32, f32) {
     let hi_scale = HIGHEST_TROPHY / ((old_dr - old_ar).abs() + HIGHEST_TROPHY);
-    // let lo_scale = ((old_dr - old_ar).abs() + 2_000.0) / 2_000.0;
-    // let ars: f32;
-    // let drs: f32;
     let ars = ((old_ar * hi_scale) * 0.5 / HIGHEST_TROPHY) + 0.75;
     let drs = ((old_dr * hi_scale) * 0.5 / HIGHEST_TROPHY) + 0.75;
     (ars, drs)
@@ -25,26 +22,26 @@ fn trophy_scale(old_ar: f32, old_dr: f32) -> (f32, f32) {
 
 /* change rating datatype to int */
 fn new_rating(
-    old_attacker_rating: f32,
-    old_defender_rating: f32,
+    old_attacker_rating: i32,
+    old_defender_rating: i32,
     attack_score: f32,
     defence_score: f32,
-) -> (f32, f32) {
-    let ea = expected_score(old_attacker_rating, old_defender_rating);
+) -> (i32, i32) {
+    let ea = expected_score(old_attacker_rating as f32, old_defender_rating as f32);
     let eb = 1.0 - ea;
-    let mut new_attacker_rating: f32;
-    let mut new_defender_rating: f32;
-    let (ra_scale, rd_scale) = trophy_scale(old_attacker_rating, old_defender_rating);
+    let mut new_attacker_rating: i32;
+    let mut new_defender_rating: i32;
+    let (ra_scale, rd_scale) = trophy_scale(old_attacker_rating as f32, old_defender_rating as f32);
 
     if attack_score > 0.0 {
-        new_attacker_rating = attack_score * baseline_trophies(eb) * ra_scale;
+        new_attacker_rating = (attack_score * baseline_trophies(eb) * ra_scale) as i32;
     } else {
-        new_attacker_rating = attack_score * baseline_trophies(ea) * ra_scale;
+        new_attacker_rating = (attack_score * baseline_trophies(ea) * ra_scale) as i32;
     }
     if defence_score > 0.0 {
-        new_defender_rating = defence_score * baseline_trophies(ea) * rd_scale;
+        new_defender_rating = (defence_score * baseline_trophies(ea) * rd_scale) as i32;
     } else {
-        new_defender_rating = defence_score * baseline_trophies(eb) * rd_scale;
+        new_defender_rating = (defence_score * baseline_trophies(eb) * rd_scale) as i32;
     }
 
     new_attacker_rating += old_attacker_rating;
@@ -54,12 +51,13 @@ fn new_rating(
 }
 
 fn bonus_trophies(
-    attacker_rating: f32,
-    defender_rating: f32,
-    metrics: (i32, f32, f32, f32),
-) -> (f32, f32) {
-    let mut new_attack_rating = metrics.0 as f32;
-    let mut new_defence_rating = ((metrics.1 + metrics.2 + metrics.3) / 3.0) as i32 as f32;
+    attacker_rating: i32,
+    defender_rating: i32,
+    metrics: (f32, f32, f32, f32, f32, f32, f32, f32),
+) -> (i32, i32) {
+    let mut new_attack_rating = (BONUS_SCALE * metrics.0 / metrics.4) as i32;
+    let mut new_defence_rating = (BONUS_SCALE * (metrics.1 + metrics.2 + metrics.3)
+        / (metrics.5 + metrics.6 + metrics.7)) as i32;
     new_attack_rating += attacker_rating;
     new_defence_rating += defender_rating;
 
@@ -69,9 +67,9 @@ fn bonus_trophies(
 impl Game {
     pub fn update_rating(
         &self,
-        metrics: (i32, f32, f32, f32),
+        metrics: (f32, f32, f32, f32, f32, f32, f32, f32),
         conn: &mut PgConnection,
-    ) -> Result<(f32, f32), diesel::result::Error> {
+    ) -> Result<(i32, i32), diesel::result::Error> {
         use crate::schema::user;
 
         let attack_score = self.attack_score as f32 / 100_f32;
@@ -85,11 +83,11 @@ impl Game {
         let attacker_rating = user::table
             .find(attack_id)
             .select(user::overall_rating)
-            .first::<f32>(conn)?;
+            .first::<i32>(conn)?;
         let defender_rating = user::table
             .find(defend_id)
             .select(user::overall_rating)
-            .first::<f32>(conn)?;
+            .first::<i32>(conn)?;
         let (mut new_attacker_rating, mut new_defender_rating) = new_rating(
             attacker_rating,
             defender_rating,

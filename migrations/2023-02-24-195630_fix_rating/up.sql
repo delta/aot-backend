@@ -1,0 +1,6 @@
+-- Your SQL goes here
+
+ALTER TABLE "user"
+ALTER COLUMN overall_rating TYPE INTEGER,
+ALTER COLUMN highest_rating TYPE INTEGER,
+ADD COLUMN avatar INTEGER NOT NULL DEFAULT 0;

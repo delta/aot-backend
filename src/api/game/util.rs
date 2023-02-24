@@ -26,7 +26,7 @@ pub struct LeaderboardResponse {
 pub struct LeaderboardEntry {
     pub user_id: i32,
     pub username: String,
-    pub overall_rating: f32,
+    pub overall_rating: i32,
     pub can_be_attacked: bool,
 }
 
@@ -115,7 +115,7 @@ pub fn get_leaderboard(
         .order_by(user::overall_rating.desc())
         .offset(offset)
         .limit(limit)
-        .load::<(i32, String, f32, Option<bool>)>(conn)
+        .load::<(i32, String, i32, Option<bool>)>(conn)
         .map_err(|err| DieselError {
             table: "user_join_map_layout",
             function: function!(),
