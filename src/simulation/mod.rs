@@ -189,7 +189,7 @@ impl Simulator {
         }
         let Mines(mines) = &self.defense_manager.mines;
         for min in mines {
-            if min.is_activated {
+            if !min.is_activated {
                 used_mines += 1.0;
             }
         }
