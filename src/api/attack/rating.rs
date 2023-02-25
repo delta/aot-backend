@@ -68,7 +68,7 @@ impl Game {
         &self,
         metrics: (i32, i32, i32, i32),
         conn: &mut PgConnection,
-    ) -> Result<(i32, i32), diesel::result::Error> {
+    ) -> Result<(i32, i32, i32, i32), diesel::result::Error> {
         use crate::schema::user;
 
         let attack_score = self.attack_score as f32 / 100_f32;
@@ -112,6 +112,8 @@ impl Game {
                 .execute(conn)?;
         }
         Ok((
+            new_attacker_rating,
+            new_defender_rating,
             (new_attacker_rating - attacker_rating),
             (new_defender_rating - defender_rating),
         ))

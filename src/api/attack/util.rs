@@ -480,7 +480,7 @@ pub fn run_simulation(
     //TODO: Change is_alive to no_of_attackers_alive and emps_used too
     let (attack_score, defend_score) = simulator.get_scores();
     let attack_defence_metrics = simulator.get_attack_defence_metrics();
-    let (attacker_rating_change, defender_rating_change) =
+    let (attacker_rating, defender_rating, attacker_rating_change, defender_rating_change) =
         diesel::update(game::table.find(game_id))
             .set((
                 game::damage_done.eq(simulator.get_damage_done()),
@@ -502,9 +502,11 @@ pub fn run_simulation(
                 function: function!(),
                 error: err,
             })?;
+    let damage = simulator.get_damage_done();
     writeln!(content, "Result")?;
-    writeln!(content, "Attack score: {attack_score}")?;
-    writeln!(content, "Defend score: {defend_score}")?;
+    writeln!(content, "Damage: {damage}")?;
+    writeln!(content, "New attacker rating: {attacker_rating}")?;
+    writeln!(content, "New defender rating: {defender_rating}")?;
     writeln!(content, "Attacker rating change: {attacker_rating_change}")?;
     writeln!(content, "Defender rating change: {defender_rating_change}")?;
 
@@ -734,7 +736,7 @@ pub fn run_test_base_simulation(
     //TODO: Change is_alive to no_of_attackers_alive and emps_used too
     let damage = simulator.get_damage_done();
     writeln!(content, "Result")?;
-    writeln!(content, "Damage dealt: {damage}%")?;
+    writeln!(content, "Damage: {damage}")?;
 
     Ok(content)
 }
