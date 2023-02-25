@@ -164,51 +164,37 @@ impl Simulator {
             / (HEALTH * self.no_of_robots) as f32) as i32
     }
 
-    pub fn get_attack_defence_metrics(&self) -> (f32, f32, f32, f32, f32, f32, f32, f32) {
-        let mut live_attackers = 0.0;
-        let mut used_defenders = 0.0;
-        let mut used_diffusers = 0.0;
-        let mut used_mines = 0.0;
+    pub fn get_attack_defence_metrics(&self) -> (i32, i32, i32, i32) {
+        let mut live_attackers = 0;
+        let mut used_defenders = 0;
+        let mut used_diffusers = 0;
+        let mut used_mines = 0;
 
         for a in self.attack_manager.attackers.values() {
             if a.is_alive {
-                live_attackers += 1.0;
+                live_attackers += 1;
             }
         }
         let Defenders(defenders) = &self.defense_manager.defenders;
         for def in defenders {
             if def.damage_dealt {
-                used_defenders += 1.0;
+                used_defenders += 1;
             }
         }
         let Diffusers(diffusers) = &self.defense_manager.diffusers;
         for dif in diffusers {
             if dif.is_diffuse {
-                used_diffusers += 1.0;
+                used_diffusers += 1;
             }
         }
         let Mines(mines) = &self.defense_manager.mines;
         for min in mines {
             if !min.is_activated {
-                used_mines += 1.0;
+                used_mines += 1;
             }
         }
 
-        let total_attackers = self.attack_manager.no_of_attackers as f32;
-        let total_defenders = self.defense_manager.defenders.0.len() as f32;
-        let total_diffusers = self.defense_manager.diffusers.0.len() as f32;
-        let total_mines = self.defense_manager.mines.0.len() as f32;
-
-        (
-            live_attackers,
-            used_defenders,
-            used_diffusers,
-            used_mines,
-            total_attackers,
-            total_defenders,
-            total_diffusers,
-            total_mines,
-        )
+        (live_attackers, used_defenders, used_diffusers, used_mines)
     }
 
     // return value (attack score, defence score)
