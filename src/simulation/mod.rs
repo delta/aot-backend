@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
 use self::attack::AttackManager;
+use self::defense::defender::Defenders;
+use self::defense::diffuser::Diffusers;
+use self::defense::mine::Mines;
 use crate::api::attack::util::NewAttacker;
 use crate::constants::*;
 use crate::error::DieselError;
@@ -96,22 +99,9 @@ pub struct Simulator {
 }
 
 impl Simulator {
-    pub fn new(
-        game_id: i32,
-        attackers: &Vec<NewAttacker>,
-        conn: &mut PgConnection,
-    ) -> Result<Self> {
-        use crate::schema::{game, levels_fixture, map_layout};
+    pub fn new(map_id: i32, attackers: &Vec<NewAttacker>, conn: &mut PgConnection) -> Result<Self> {
+        use crate::schema::{levels_fixture, map_layout};
 
-        let map_id = game::table
-            .filter(game::id.eq(game_id))
-            .select(game::map_layout_id)
-            .first::<i32>(conn)
-            .map_err(|err| DieselError {
-                table: "game",
-                function: function!(),
-                error: err,
-            })?;
         let (no_of_robots, rating_factor) = map_layout::table
             .inner_join(levels_fixture::table)
             .select((levels_fixture::no_of_robots, levels_fixture::rating_factor))
@@ -170,16 +160,51 @@ impl Simulator {
         for r in self.robots_manager.robots.iter() {
             sum_health += r.1.health;
         }
-        HEALTH * self.no_of_robots - sum_health
+        (((HEALTH * self.no_of_robots - sum_health) * 100) as f32
+            / (HEALTH * self.no_of_robots) as f32) as i32
     }
 
+    pub fn get_attack_defence_metrics(&self) -> (i32, i32, i32, i32) {
+        let mut live_attackers = 0;
+        let mut used_defenders = 0;
+        let mut used_diffusers = 0;
+        let mut used_mines = 0;
+
+        for a in self.attack_manager.attackers.values() {
+            if a.is_alive {
+                live_attackers += 1;
+            }
+        }
+        let Defenders(defenders) = &self.defense_manager.defenders;
+        for def in defenders {
+            if def.damage_dealt {
+                used_defenders += 1;
+            }
+        }
+        let Diffusers(diffusers) = &self.defense_manager.diffusers;
+        for dif in diffusers {
+            if dif.is_diffuse {
+                used_diffusers += 1;
+            }
+        }
+        let Mines(mines) = &self.defense_manager.mines;
+        for min in mines {
+            if !min.is_activated {
+                used_mines += 1;
+            }
+        }
+
+        (live_attackers, used_defenders, used_diffusers, used_mines)
+    }
+
+    // return value (attack score, defence score)
     pub fn get_scores(&self) -> (i32, i32) {
         let damage_done = self.get_damage_done();
-        let no_of_robots_destroyed = self.get_no_of_robots_destroyed();
-        let max_score = 2 * HEALTH * self.no_of_robots;
-        let attack_score = damage_done + HEALTH * no_of_robots_destroyed;
-        let defend_score = max_score - attack_score;
-        (attack_score, defend_score)
+        if damage_done < WIN_THRESHOLD {
+            (damage_done - 100, 100 - damage_done)
+        } else {
+            (damage_done, -damage_done)
+        }
     }
 
     pub fn get_defender_position(&self) -> Vec<RenderDefender> {

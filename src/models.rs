@@ -212,11 +212,12 @@ pub struct User {
     pub email: String,
     pub phone: String,
     pub username: String,
-    pub overall_rating: f32,
+    pub overall_rating: i32,
     pub is_pragyan: bool,
     pub password: String,
     pub is_verified: bool,
-    pub highest_rating: f32,
+    pub highest_rating: i32,
+    pub avatar: i32,
 }
 
 #[derive(Insertable, Debug)]
@@ -226,11 +227,12 @@ pub struct NewUser<'a> {
     pub email: &'a str,
     pub phone: &'a str,
     pub username: &'a str,
-    pub overall_rating: &'a f32,
+    pub overall_rating: &'a i32,
     pub is_pragyan: &'a bool,
     pub password: &'a str,
     pub is_verified: &'a bool,
-    pub highest_rating: &'a f32,
+    pub highest_rating: &'a i32,
+    pub avatar: &'a i32,
 }
 
 #[derive(Queryable, Deserialize, Serialize)]

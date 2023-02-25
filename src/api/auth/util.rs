@@ -72,6 +72,7 @@ pub fn get_pragyan_user(
             password: "",
             is_verified: &true,
             highest_rating: &INITIAL_RATING,
+            avatar: &0,
         };
         let user: User = diesel::insert_into(user::table)
             .values(&new_user)
