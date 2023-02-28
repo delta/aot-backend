@@ -176,11 +176,12 @@ pub fn is_attack_allowed(
             error: err,
         })?;
     let is_self_attack = attacker_id == defender_id;
-    Ok(total_attacks_this_level < TOTAL_ATTACKS_PER_LEVEL
+    Ok(
+        total_attacks_this_level < TOTAL_ATTACKS_PER_LEVEL
         && total_attacks_on_a_base < TOTAL_ATTACKS_ON_A_BASE
-        && !is_duplicate_attack
-        && !is_self_attack
-        && attacker.is_some())
+        // && !is_duplicate_attack
+        && !is_self_attack, // && attacker.is_some()
+    )
 }
 
 pub fn add_game(

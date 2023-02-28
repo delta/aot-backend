@@ -57,6 +57,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(
                 SessionMiddleware::builder(RedisActorSessionStore::new(&redis_url), key.clone())
                     .cookie_name("session".to_string())
+                    .cookie_secure(false)
                     .session_lifecycle(
                         PersistentSession::default()
                             .session_ttl(Duration::seconds(7 * 24 * 60 * 60)),

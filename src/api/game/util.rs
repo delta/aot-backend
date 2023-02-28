@@ -91,11 +91,16 @@ pub fn get_leaderboard(
         })?;
     let is_attack_allowed_now = attack::util::is_attack_allowed_now();
     let can_be_attacked = |defender_id: i32, map_valid: Option<bool>| {
-        *no_of_times_attacked.get(&defender_id).unwrap_or(&0) < TOTAL_ATTACKS_ON_A_BASE
+        log::info!(
+            "{},{is_attack_allowed_now},{}",
+            map_valid.unwrap_or(false),
+            attacker.is_some()
+        );
+        return *no_of_times_attacked.get(&defender_id).unwrap_or(&0) < TOTAL_ATTACKS_ON_A_BASE
             && map_valid.unwrap_or(false)
-            && !already_attacked.contains(&defender_id)
-            && is_attack_allowed_now
-            && attacker.is_some()
+            // && !already_attacked.contains(&defender_id)
+            && is_attack_allowed_now;
+        // && attacker.is_some()
     };
 
     let total_entries: i64 = user::table
