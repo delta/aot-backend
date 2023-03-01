@@ -27,6 +27,7 @@ pub struct LeaderboardEntry {
     pub user_id: i32,
     pub username: String,
     pub overall_rating: i32,
+    pub avatar: i32,
     pub can_be_attacked: bool,
 }
 
@@ -110,12 +111,13 @@ pub fn get_leaderboard(
             user::id,
             user::username,
             user::overall_rating,
+            user::avatar,
             map_layout::is_valid.nullable(),
         ))
         .order_by(user::overall_rating.desc())
         .offset(offset)
         .limit(limit)
-        .load::<(i32, String, i32, Option<bool>)>(conn)
+        .load::<(i32, String, i32, i32, Option<bool>)>(conn)
         .map_err(|err| DieselError {
             table: "user_join_map_layout",
             function: function!(),
@@ -123,10 +125,11 @@ pub fn get_leaderboard(
         })?
         .into_iter()
         .map(
-            |(user_id, username, overall_rating, map_valid)| LeaderboardEntry {
+            |(user_id, username, overall_rating, avatar, map_valid)| LeaderboardEntry {
                 user_id,
                 username,
                 overall_rating,
+                avatar,
                 can_be_attacked: can_be_attacked(user_id, map_valid),
             },
         )

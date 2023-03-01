@@ -21,6 +21,7 @@ pub struct InputUser {
     phone: String,
     username: String,
     password: String,
+    email: String,
 }
 
 async fn register(

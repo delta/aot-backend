@@ -36,6 +36,10 @@ struct LoginResponse {
     user_id: i32,
     username: String,
     name: String,
+    overall_rating: i32,
+    avatar: i32,
+    highest_rating: i32,
+    email: String,
 }
 
 #[derive(Deserialize)]
@@ -86,6 +90,10 @@ async fn login(
                     user_id: user.id,
                     username: user.username,
                     name: user.name,
+                    overall_rating: user.overall_rating,
+                    avatar: user.avatar,
+                    highest_rating: user.highest_rating,
+                    email: user.email,
                 }));
             }
             // Account not verified
@@ -103,7 +111,7 @@ async fn login(
         200 => {
             if let PragyanMessage::Success(pragyan_user) = pragyan_auth.message {
                 let name = pragyan_user.user_fullname.clone();
-                let (user_id, username) = web::block(move || {
+                let user = web::block(move || {
                     let mut conn = pg_pool.get()?;
                     let mut redis_conn = redis_pool.get()?;
                     let email = username.clone();
@@ -111,11 +119,15 @@ async fn login(
                 })
                 .await?
                 .map_err(|err| error::handle_error(err.into()))?;
-                session::set(&session, user_id, true).map_err(|err| error::handle_error(err))?;
+                session::set(&session, user.id, true).map_err(|err| error::handle_error(err))?;
                 Ok(Json(LoginResponse {
-                    user_id,
-                    username,
+                    user_id: user.id,
+                    username: user.username,
                     name: pragyan_user.user_fullname,
+                    overall_rating: user.overall_rating,
+                    avatar: user.avatar,
+                    highest_rating: user.highest_rating,
+                    email: user.email,
                 }))
             } else {
                 Err(anyhow::anyhow!(

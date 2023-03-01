@@ -63,7 +63,7 @@ pub fn add_user(
     let hashed_password = bcrypt::hash(&user.password)?;
     let new_user = NewUser {
         name: &user.name,
-        email: "",
+        email: &user.email,
         phone: &user.phone,
         username: &user.username,
         overall_rating: &INITIAL_RATING,
