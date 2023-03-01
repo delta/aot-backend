@@ -1,5 +1,6 @@
 /// CRUD functions
 use super::MapSpacesEntry;
+use crate::api::auth::LoginResponse;
 use crate::api::defense::shortest_path::run_shortest_paths;
 use crate::api::util::GameHistoryEntry;
 use crate::api::{self, attack};
@@ -64,6 +65,7 @@ pub struct DefenseResponse {
     pub mine_types: Vec<MineTypeResponse>,
     pub attacker_types: Vec<AttackerType>,
     pub no_of_drones: i32,
+    pub user: Option<LoginResponse>,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -155,6 +157,7 @@ pub fn fetch_map_layout_from_game(
 pub fn get_details_from_map_layout(
     conn: &mut PgConnection,
     map: MapLayout,
+    user: Option<User>,
 ) -> Result<DefenseResponse> {
     use crate::schema::{attack_type, level_constraints, levels_fixture, map_spaces};
 
@@ -195,6 +198,19 @@ pub fn get_details_from_map_layout(
     let defender_types = fetch_defender_types(conn)?;
     let diffuser_types = fetch_diffuser_types(conn)?;
     let attacker_types = fetch_attacker_types(conn)?;
+    let user_response = if let Some(user) = user {
+        Some(LoginResponse {
+            user_id: user.id,
+            username: user.username,
+            name: user.name,
+            overall_rating: user.overall_rating,
+            avatar: user.avatar,
+            highest_rating: user.highest_rating,
+            email: user.email,
+        })
+    } else {
+        None
+    };
 
     Ok(DefenseResponse {
         map_spaces,
@@ -207,6 +223,7 @@ pub fn get_details_from_map_layout(
         diffuser_types,
         attacker_types,
         no_of_drones: -1,
+        user: user_response,
     })
 }
 
@@ -282,6 +299,7 @@ pub fn get_map_details_for_attack(
         diffuser_types,
         attacker_types,
         no_of_drones,
+        user: None,
     })
 }
 

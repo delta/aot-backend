@@ -1,4 +1,5 @@
 use super::auth::session::AuthUser;
+use super::user::util::fetch_user;
 use super::PgPool;
 use crate::api::error;
 use crate::models::*;
@@ -38,8 +39,9 @@ async fn get_user_base_details(pool: Data<PgPool>, user: AuthUser) -> Result<imp
     let defender_id = user.0;
     let response = web::block(move || {
         let mut conn = pool.get()?;
+        let user = fetch_user(&mut conn, defender_id)?;
         let map = util::fetch_map_layout(&mut conn, &defender_id)?;
-        util::get_details_from_map_layout(&mut conn, map)
+        util::get_details_from_map_layout(&mut conn, map, user)
     })
     .await?
     .map_err(|err| error::handle_error(err.into()))?;
@@ -97,7 +99,7 @@ async fn get_game_base_details(
 
     let response = web::block(move || {
         let mut conn = pool.get()?;
-        util::get_details_from_map_layout(&mut conn, map.unwrap())
+        util::get_details_from_map_layout(&mut conn, map.unwrap(), None)
     })
     .await?
     .map_err(|err| error::handle_error(err.into()))?;

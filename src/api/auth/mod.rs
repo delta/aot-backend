@@ -32,14 +32,14 @@ struct LoginRequest {
 }
 
 #[derive(Serialize)]
-struct LoginResponse {
-    user_id: i32,
-    username: String,
-    name: String,
-    overall_rating: i32,
-    avatar: i32,
-    highest_rating: i32,
-    email: String,
+pub struct LoginResponse {
+    pub user_id: i32,
+    pub username: String,
+    pub name: String,
+    pub overall_rating: i32,
+    pub avatar: i32,
+    pub highest_rating: i32,
+    pub email: String,
 }
 
 #[derive(Deserialize)]
