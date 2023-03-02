@@ -2,7 +2,7 @@ use super::{auth::session::AuthUser, error, PgPool};
 use actix_web::{error::ErrorBadRequest, web, Responder, Result};
 use util::LeaderboardQuery;
 
-mod util;
+pub mod util;
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
     cfg.service(web::resource("/leaderboard").route(web::get().to(list_leaderboard)))

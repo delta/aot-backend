@@ -2,6 +2,9 @@
 use super::MapSpacesEntry;
 use crate::api::auth::LoginResponse;
 use crate::api::defense::shortest_path::run_shortest_paths;
+use crate::api::error::AuthError;
+use crate::api::game::util::UserDetail;
+use crate::api::user::util::fetch_user;
 use crate::api::util::GameHistoryEntry;
 use crate::api::{self, attack};
 use crate::constants::{DEFENSE_END_TIME, DEFENSE_START_TIME, DRONE_LIMIT_PER_BASE, ROAD_ID};
@@ -421,10 +424,22 @@ pub fn fetch_defense_history(
         .into_iter()
         .map(|(game, (_, levels_fixture))| {
             let is_replay_available = api::util::can_show_replay(user_id, &game, &levels_fixture);
-            let player_name = api::util::get_username(game.attack_id, conn)?;
+            let attacker = fetch_user(conn, game.attack_id)?.ok_or(AuthError::UserNotFound)?;
+            let defender = fetch_user(conn, game.defend_id)?.ok_or(AuthError::UserNotFound)?;
             Ok(GameHistoryEntry {
                 game,
-                player_name,
+                attacker: UserDetail {
+                    user_id: attacker.id,
+                    username: attacker.username,
+                    overall_rating: attacker.overall_rating,
+                    avatar: attacker.avatar,
+                },
+                defender: UserDetail {
+                    user_id: defender.id,
+                    username: defender.username,
+                    overall_rating: defender.overall_rating,
+                    avatar: defender.avatar,
+                },
                 is_replay_available,
             })
         })
@@ -449,10 +464,22 @@ pub fn fetch_top_defenses(user_id: i32, conn: &mut PgConnection) -> Result<GameH
         .into_iter()
         .map(|(game, (_, levels_fixture))| {
             let is_replay_available = api::util::can_show_replay(user_id, &game, &levels_fixture);
-            let player_name = api::util::get_username(game.defend_id, conn)?;
+            let attacker = fetch_user(conn, game.attack_id)?.ok_or(AuthError::UserNotFound)?;
+            let defender = fetch_user(conn, game.defend_id)?.ok_or(AuthError::UserNotFound)?;
             Ok(GameHistoryEntry {
                 game,
-                player_name,
+                attacker: UserDetail {
+                    user_id: attacker.id,
+                    username: attacker.username,
+                    overall_rating: attacker.overall_rating,
+                    avatar: attacker.avatar,
+                },
+                defender: UserDetail {
+                    user_id: defender.id,
+                    username: defender.username,
+                    overall_rating: defender.overall_rating,
+                    avatar: defender.avatar,
+                },
                 is_replay_available,
             })
         })
