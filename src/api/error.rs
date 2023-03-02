@@ -1,5 +1,5 @@
 use actix_web::{
-    error::{ErrorBadRequest, ErrorInternalServerError, ErrorUnauthorized},
+    error::{ErrorBadRequest, ErrorInternalServerError, ErrorNotFound, ErrorUnauthorized},
     ResponseError,
 };
 use derive_more::Display;
@@ -10,6 +10,7 @@ use thiserror::Error;
 pub enum AuthError {
     Session,
     UnVerified,
+    UserNotFound,
     Internal(Box<dyn std::error::Error + Send + Sync>),
 }
 
@@ -18,6 +19,7 @@ impl ResponseError for AuthError {
         match self {
             AuthError::Session => ErrorUnauthorized("Session Error. Please login again.").into(),
             AuthError::UnVerified => ErrorUnauthorized("Please verify your account.").into(),
+            AuthError::UserNotFound => ErrorNotFound("User Not Found").into(),
             AuthError::Internal(err) => handle_error(err.to_string().into()).into(),
         }
     }

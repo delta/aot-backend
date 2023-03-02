@@ -1,4 +1,6 @@
 use crate::api::attack;
+use crate::api::error::AuthError;
+use crate::api::user::util::fetch_user;
 use crate::api::util::{can_show_replay, get_current_levels_fixture};
 use crate::constants::TOTAL_ATTACKS_ON_A_BASE;
 use crate::error::DieselError;
@@ -23,11 +25,17 @@ pub struct LeaderboardResponse {
 }
 
 #[derive(Queryable, Deserialize, Serialize)]
-pub struct LeaderboardEntry {
+pub struct UserDetail {
     pub user_id: i32,
     pub username: String,
     pub overall_rating: i32,
     pub avatar: i32,
+}
+
+#[derive(Queryable, Deserialize, Serialize)]
+pub struct LeaderboardEntry {
+    pub attacker: UserDetail,
+    pub defender: UserDetail,
     pub can_be_attacked: bool,
 }
 
@@ -55,6 +63,7 @@ pub fn get_leaderboard(
             *hashmap.entry(defender_id).or_insert(0) += 1;
             hashmap
         });
+    let user = fetch_user(conn, user_id)?.ok_or(AuthError::UserNotFound)?;
     let already_attacked: HashSet<i32> = game::table
         .inner_join(map_layout::table)
         .select(game::defend_id)
@@ -126,10 +135,18 @@ pub fn get_leaderboard(
         .into_iter()
         .map(
             |(user_id, username, overall_rating, avatar, map_valid)| LeaderboardEntry {
-                user_id,
-                username,
-                overall_rating,
-                avatar,
+                defender: UserDetail {
+                    user_id,
+                    username,
+                    overall_rating,
+                    avatar,
+                },
+                attacker: UserDetail {
+                    user_id: user.id,
+                    username: user.username.to_string(),
+                    overall_rating: user.overall_rating,
+                    avatar: user.avatar,
+                },
                 can_be_attacked: can_be_attacked(user_id, map_valid),
             },
         )
