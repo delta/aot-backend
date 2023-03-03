@@ -82,23 +82,29 @@ async fn login(
         .await?
         .map_err(|err| error::handle_error(err.into()))?;
     if let Some(user) = user {
-        if !user.is_pragyan && bcrypt::verify(&request.password, &user.password) {
-            session::set(&session, user.id, user.is_verified)
-                .map_err(|err| error::handle_error(err))?;
-            if user.is_verified {
-                return Ok(Json(LoginResponse {
-                    user_id: user.id,
-                    username: user.username,
-                    name: user.name,
-                    overall_rating: user.overall_rating,
-                    avatar: user.avatar,
-                    highest_rating: user.highest_rating,
-                    email: user.email,
-                }));
+        if !user.is_pragyan {
+            if bcrypt::verify(&request.password, &user.password) {
+                session::set(&session, user.id, user.is_verified)
+                    .map_err(|err| error::handle_error(err))?;
+                if user.is_verified {
+                    return Ok(Json(LoginResponse {
+                        user_id: user.id,
+                        username: user.username,
+                        name: user.name,
+                        overall_rating: user.overall_rating,
+                        avatar: user.avatar,
+                        highest_rating: user.highest_rating,
+                        email: user.email,
+                    }));
+                }
+                // Account not verified
+                return Err(ErrorUnauthorized("App account not verified"));
+            } else {
+                return Err(ErrorUnauthorized("Invalid Credentials"));
             }
-            // Account not verified
-            return Err(ErrorUnauthorized("App account not verified"));
         }
+    } else {
+        return Err(ErrorUnauthorized("Invalid Credentials"));
     }
 
     let LoginRequest { username, password } = request.into_inner();

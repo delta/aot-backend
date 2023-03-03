@@ -254,7 +254,6 @@ pub struct UpdateUser {
     name: Option<String>,
     pub username: Option<String>,
     pub avatar: Option<i32>,
-    pub email: Option<String>,
 }
 
 #[derive(Queryable, Clone, Debug, Serialize)]

@@ -21,7 +21,6 @@ pub struct InputUser {
     phone: String,
     username: String,
     password: String,
-    email: String,
 }
 
 async fn register(
@@ -65,7 +64,7 @@ async fn update_user(
         let duplicate = web::block(move || util::get_duplicate_username(&mut conn, &username))
             .await?
             .map_err(|err| error::handle_error(err.into()))?;
-        if duplicate.is_some() {
+        if duplicate.is_some() && duplicate.unwrap().id != user_id {
             return Err(ErrorConflict("Username already exists"));
         }
     }

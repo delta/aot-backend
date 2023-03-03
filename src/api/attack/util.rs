@@ -258,16 +258,17 @@ pub fn fetch_attack_history(
 pub fn fetch_top_attacks(user_id: i32, conn: &mut PgConnection) -> Result<GameHistoryResponse> {
     use crate::schema::{game, levels_fixture, map_layout};
 
-    let joined_table = game::table.inner_join(map_layout::table.inner_join(levels_fixture::table));
+    let joined_table = game::table
+        .inner_join(map_layout::table.inner_join(levels_fixture::table))
+        .inner_join(user::table.on(game::defend_id.eq(user::id)));
     let games_result: Result<Vec<GameHistoryEntry>> = joined_table
         .order_by(game::attack_score.desc())
         .limit(10)
-        .load::<(Game, (MapLayout, LevelsFixture))>(conn)?
+        .load::<(Game, (MapLayout, LevelsFixture), User)>(conn)?
         .into_iter()
-        .map(|(game, (_, levels_fixture))| {
+        .map(|(game, (_, levels_fixture), defender)| {
             let is_replay_available = api::util::can_show_replay(user_id, &game, &levels_fixture);
             let attacker = fetch_user(conn, game.attack_id)?.ok_or(AuthError::UserNotFound)?;
-            let defender = fetch_user(conn, game.defend_id)?.ok_or(AuthError::UserNotFound)?;
             Ok(GameHistoryEntry {
                 game,
                 attacker: UserDetail {
