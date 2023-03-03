@@ -7,8 +7,9 @@ use crate::constants::*;
 use crate::error::DieselError;
 use crate::models::{
     AttackerType, BuildingCategory, BuildingType, Game, LevelsFixture, MapLayout, MapSpaces,
-    NewAttackerPath, NewDroneUsage, NewGame, NewSimulationLog,
+    NewAttackerPath, NewDroneUsage, NewGame, NewSimulationLog, User,
 };
+use crate::schema::user;
 use crate::simulation::{RenderAttacker, RenderDiffuser, RenderMine, RenderRobot};
 use crate::simulation::{RenderDefender, Simulator};
 use crate::util::function;
@@ -222,21 +223,21 @@ pub fn fetch_attack_history(
     conn: &mut PgConnection,
 ) -> Result<GameHistoryResponse> {
     use crate::schema::{game, levels_fixture, map_layout};
-
-    let joined_table = game::table.inner_join(map_layout::table.inner_join(levels_fixture::table));
+    let attacker = fetch_user(conn, attacker_id)?.ok_or(AuthError::UserNotFound)?;
+    let joined_table = game::table
+        .inner_join(map_layout::table.inner_join(levels_fixture::table))
+        .inner_join(user::table.on(game::defend_id.eq(user::id)));
     let games_result: Result<Vec<GameHistoryEntry>> = joined_table
         .filter(game::attack_id.eq(attacker_id))
-        .load::<(Game, (MapLayout, LevelsFixture))>(conn)?
+        .load::<(Game, (MapLayout, LevelsFixture), User)>(conn)?
         .into_iter()
-        .map(|(game, (_, levels_fixture))| {
+        .map(|(game, (_, levels_fixture), defender)| {
             let is_replay_available = api::util::can_show_replay(user_id, &game, &levels_fixture);
-            let attacker = fetch_user(conn, game.attack_id)?.ok_or(AuthError::UserNotFound)?;
-            let defender = fetch_user(conn, game.defend_id)?.ok_or(AuthError::UserNotFound)?;
             Ok(GameHistoryEntry {
                 game,
                 attacker: UserDetail {
                     user_id: attacker.id,
-                    username: attacker.username,
+                    username: attacker.username.to_string(),
                     overall_rating: attacker.overall_rating,
                     avatar: attacker.avatar,
                 },
