@@ -41,7 +41,7 @@ pub fn get_pragyan_user(
     redis_conn: &mut RedisConn,
     email: &str,
     name: &str,
-) -> Result<(i32, String)> {
+) -> Result<User> {
     // Already logged in before
     if let Some(user) = user::table
         .filter(user::email.eq(&email))
@@ -53,7 +53,7 @@ pub fn get_pragyan_user(
             error: err,
         })?
     {
-        Ok((user.id, user.username))
+        Ok(user)
     } else {
         // First login
         let random_string: String = rand::thread_rng()
@@ -83,7 +83,7 @@ pub fn get_pragyan_user(
                 error: err,
             })?;
         redis_conn.set(user.id, 0)?;
-        Ok((user.id, user.username))
+        Ok(user)
     }
 }
 

@@ -1,6 +1,10 @@
 /// CRUD functions
 use super::MapSpacesEntry;
+use crate::api::auth::LoginResponse;
 use crate::api::defense::shortest_path::run_shortest_paths;
+use crate::api::error::AuthError;
+use crate::api::game::util::UserDetail;
+use crate::api::user::util::fetch_user;
 use crate::api::util::GameHistoryEntry;
 use crate::api::{self, attack};
 use crate::constants::{DEFENSE_END_TIME, DEFENSE_START_TIME, DRONE_LIMIT_PER_BASE, ROAD_ID};
@@ -64,6 +68,7 @@ pub struct DefenseResponse {
     pub mine_types: Vec<MineTypeResponse>,
     pub attacker_types: Vec<AttackerType>,
     pub no_of_drones: i32,
+    pub user: Option<LoginResponse>,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -155,6 +160,7 @@ pub fn fetch_map_layout_from_game(
 pub fn get_details_from_map_layout(
     conn: &mut PgConnection,
     map: MapLayout,
+    user: Option<User>,
 ) -> Result<DefenseResponse> {
     use crate::schema::{attack_type, level_constraints, levels_fixture, map_spaces};
 
@@ -195,6 +201,19 @@ pub fn get_details_from_map_layout(
     let defender_types = fetch_defender_types(conn)?;
     let diffuser_types = fetch_diffuser_types(conn)?;
     let attacker_types = fetch_attacker_types(conn)?;
+    let user_response = if let Some(user) = user {
+        Some(LoginResponse {
+            user_id: user.id,
+            username: user.username,
+            name: user.name,
+            overall_rating: user.overall_rating,
+            avatar: user.avatar,
+            highest_rating: user.highest_rating,
+            email: user.email,
+        })
+    } else {
+        None
+    };
 
     Ok(DefenseResponse {
         map_spaces,
@@ -207,6 +226,7 @@ pub fn get_details_from_map_layout(
         diffuser_types,
         attacker_types,
         no_of_drones: -1,
+        user: user_response,
     })
 }
 
@@ -282,6 +302,7 @@ pub fn get_map_details_for_attack(
         diffuser_types,
         attacker_types,
         no_of_drones,
+        user: None,
     })
 }
 
@@ -403,10 +424,22 @@ pub fn fetch_defense_history(
         .into_iter()
         .map(|(game, (_, levels_fixture))| {
             let is_replay_available = api::util::can_show_replay(user_id, &game, &levels_fixture);
-            let player_name = api::util::get_username(game.attack_id, conn)?;
+            let attacker = fetch_user(conn, game.attack_id)?.ok_or(AuthError::UserNotFound)?;
+            let defender = fetch_user(conn, game.defend_id)?.ok_or(AuthError::UserNotFound)?;
             Ok(GameHistoryEntry {
                 game,
-                player_name,
+                attacker: UserDetail {
+                    user_id: attacker.id,
+                    username: attacker.username,
+                    overall_rating: attacker.overall_rating,
+                    avatar: attacker.avatar,
+                },
+                defender: UserDetail {
+                    user_id: defender.id,
+                    username: defender.username,
+                    overall_rating: defender.overall_rating,
+                    avatar: defender.avatar,
+                },
                 is_replay_available,
             })
         })
@@ -431,10 +464,22 @@ pub fn fetch_top_defenses(user_id: i32, conn: &mut PgConnection) -> Result<GameH
         .into_iter()
         .map(|(game, (_, levels_fixture))| {
             let is_replay_available = api::util::can_show_replay(user_id, &game, &levels_fixture);
-            let player_name = api::util::get_username(game.defend_id, conn)?;
+            let attacker = fetch_user(conn, game.attack_id)?.ok_or(AuthError::UserNotFound)?;
+            let defender = fetch_user(conn, game.defend_id)?.ok_or(AuthError::UserNotFound)?;
             Ok(GameHistoryEntry {
                 game,
-                player_name,
+                attacker: UserDetail {
+                    user_id: attacker.id,
+                    username: attacker.username,
+                    overall_rating: attacker.overall_rating,
+                    avatar: attacker.avatar,
+                },
+                defender: UserDetail {
+                    user_id: defender.id,
+                    username: defender.username,
+                    overall_rating: defender.overall_rating,
+                    avatar: defender.avatar,
+                },
                 is_replay_available,
             })
         })

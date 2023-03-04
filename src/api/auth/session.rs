@@ -69,12 +69,16 @@ fn get_unverified_user(session: &Session, mut conn: RedisConn) -> Result<i32, Au
         .get::<u64>("created_at")
         .map_err(|_| AuthError::Session)?
         .ok_or(AuthError::Session)?;
-    let last_pw_reset: u64 = conn.get(user_id)?;
-    if last_pw_reset < created_at {
-        Ok(user_id)
-    } else {
-        Err(AuthError::Session)
+    let last_pw_reset: Option<u64> = conn.get(user_id)?;
+    if let Some(last_pw_reset) = last_pw_reset {
+        if last_pw_reset < created_at {
+            return Ok(user_id);
+        } else {
+            return Err(AuthError::Session);
+        }
     }
+    conn.set(user_id, created_at)?;
+    Ok(user_id)
 }
 
 pub fn set(

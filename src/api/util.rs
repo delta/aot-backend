@@ -10,6 +10,8 @@ use diesel::prelude::*;
 use diesel::PgConnection;
 use serde::{Deserialize, Serialize};
 
+use super::game::util::UserDetail;
+
 #[derive(Deserialize, Serialize)]
 pub struct GameHistoryResponse {
     pub games: Vec<GameHistoryEntry>,
@@ -18,7 +20,8 @@ pub struct GameHistoryResponse {
 #[derive(Deserialize, Serialize)]
 pub struct GameHistoryEntry {
     pub game: Game,
-    pub player_name: String,
+    pub attacker: UserDetail,
+    pub defender: UserDetail,
     pub is_replay_available: bool,
 }
 
@@ -46,18 +49,4 @@ pub fn get_current_levels_fixture(conn: &mut PgConnection) -> Result<LevelsFixtu
             error: err,
         })?;
     Ok(level)
-}
-
-pub fn get_username(user_id: i32, conn: &mut PgConnection) -> Result<String> {
-    use crate::schema::user;
-    let username: String = user::table
-        .find(user_id)
-        .select(user::username)
-        .first(conn)
-        .map_err(|err| DieselError {
-            table: "user",
-            function: function!(),
-            error: err,
-        })?;
-    Ok(username)
 }

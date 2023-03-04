@@ -7,7 +7,7 @@ use actix_web::web::{self, Data, Json, Path};
 use actix_web::{Responder, Result};
 use serde::Deserialize;
 
-mod util;
+pub mod util;
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
     cfg.service(web::resource("").route(web::patch().to(update_user)))
@@ -64,7 +64,7 @@ async fn update_user(
         let duplicate = web::block(move || util::get_duplicate_username(&mut conn, &username))
             .await?
             .map_err(|err| error::handle_error(err.into()))?;
-        if duplicate.is_some() {
+        if duplicate.is_some() && duplicate.unwrap().id != user_id {
             return Err(ErrorConflict("Username already exists"));
         }
     }

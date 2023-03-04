@@ -253,6 +253,7 @@ pub struct NewSimulationLog<'a> {
 pub struct UpdateUser {
     name: Option<String>,
     pub username: Option<String>,
+    pub avatar: Option<i32>,
 }
 
 #[derive(Queryable, Clone, Debug, Serialize)]

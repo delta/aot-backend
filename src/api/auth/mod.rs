@@ -32,10 +32,14 @@ struct LoginRequest {
 }
 
 #[derive(Serialize)]
-struct LoginResponse {
-    user_id: i32,
-    username: String,
-    name: String,
+pub struct LoginResponse {
+    pub user_id: i32,
+    pub username: String,
+    pub name: String,
+    pub overall_rating: i32,
+    pub avatar: i32,
+    pub highest_rating: i32,
+    pub email: String,
 }
 
 #[derive(Deserialize)]
@@ -78,19 +82,29 @@ async fn login(
         .await?
         .map_err(|err| error::handle_error(err.into()))?;
     if let Some(user) = user {
-        if !user.is_pragyan && bcrypt::verify(&request.password, &user.password) {
-            session::set(&session, user.id, user.is_verified)
-                .map_err(|err| error::handle_error(err))?;
-            if user.is_verified {
-                return Ok(Json(LoginResponse {
-                    user_id: user.id,
-                    username: user.username,
-                    name: user.name,
-                }));
+        if !user.is_pragyan {
+            if bcrypt::verify(&request.password, &user.password) {
+                session::set(&session, user.id, user.is_verified)
+                    .map_err(|err| error::handle_error(err))?;
+                if user.is_verified {
+                    return Ok(Json(LoginResponse {
+                        user_id: user.id,
+                        username: user.username,
+                        name: user.name,
+                        overall_rating: user.overall_rating,
+                        avatar: user.avatar,
+                        highest_rating: user.highest_rating,
+                        email: user.email,
+                    }));
+                }
+                // Account not verified
+                return Err(ErrorUnauthorized("App account not verified"));
+            } else {
+                return Err(ErrorUnauthorized("Invalid Credentials"));
             }
-            // Account not verified
-            return Err(ErrorUnauthorized("App account not verified"));
         }
+    } else {
+        return Err(ErrorUnauthorized("Invalid Credentials"));
     }
 
     let LoginRequest { username, password } = request.into_inner();
@@ -103,7 +117,7 @@ async fn login(
         200 => {
             if let PragyanMessage::Success(pragyan_user) = pragyan_auth.message {
                 let name = pragyan_user.user_fullname.clone();
-                let (user_id, username) = web::block(move || {
+                let user = web::block(move || {
                     let mut conn = pg_pool.get()?;
                     let mut redis_conn = redis_pool.get()?;
                     let email = username.clone();
@@ -111,11 +125,15 @@ async fn login(
                 })
                 .await?
                 .map_err(|err| error::handle_error(err.into()))?;
-                session::set(&session, user_id, true).map_err(|err| error::handle_error(err))?;
+                session::set(&session, user.id, true).map_err(|err| error::handle_error(err))?;
                 Ok(Json(LoginResponse {
-                    user_id,
-                    username,
+                    user_id: user.id,
+                    username: user.username,
                     name: pragyan_user.user_fullname,
+                    overall_rating: user.overall_rating,
+                    avatar: user.avatar,
+                    highest_rating: user.highest_rating,
+                    email: user.email,
                 }))
             } else {
                 Err(anyhow::anyhow!(
