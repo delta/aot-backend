@@ -1,5 +1,7 @@
 services:
   server:
+    ports:
+      - ${SERVER_PORT}:8000
     volumes:
       - ./:/usr/src/aot-backend
       - /usr/src/aot-backend/target

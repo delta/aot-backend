@@ -9,8 +9,6 @@ services:
       TZ: "Asia/Calcutta"
     depends_on:
       - db
-    ports:
-      - ${SERVER_PORT}:8000
 
   db:
     image: postgres
