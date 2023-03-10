@@ -100,5 +100,5 @@ pub fn is_valid_drone(
             return Ok(());
         }
     }
-    return Err(anyhow::anyhow!("Invalid Position Of Drone"));
+    Err(anyhow::anyhow!("Invalid Position Of Drone"))
 }
