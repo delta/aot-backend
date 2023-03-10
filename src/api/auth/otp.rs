@@ -83,7 +83,7 @@ pub async fn send_otp(
         redis_conn.expire(&key, 120)?;
         return Ok(());
     }
-    return Err(anyhow::anyhow!("Error in sending OTP").into());
+    Err(anyhow::anyhow!("Error in sending OTP").into())
 }
 
 pub async fn verify_otp(

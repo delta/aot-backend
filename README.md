@@ -95,11 +95,29 @@ For docker, prefix the above command with ```docker-compose exec -T db```
 
     and fill the env variables
 
+
 2. Start the services:
 
     ```bash
-    docker-compose -f docker-compose.yaml -f docker-compose.prod.yaml up -d
+    ./prod-run.sh up
     ```
+
+	and build the images again with
+	```bash
+	./prod-run.sh up build
+	```
+
+3. Down the services:
+
+	```bash
+	./prod-run.sh down
+	```
+
+4. Logs for the services:
+
+	```bash
+	./prod-run.sh logs
+	```
 
 You can attach to containers with:
 
