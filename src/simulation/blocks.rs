@@ -239,22 +239,22 @@ impl BuildingsManager {
                     }
                 }
                 90 => {
-                    for i in x_coordinate..x_coordinate - height {
+                    for i in x_coordinate - height + 1..=x_coordinate {
                         for j in y_coordinate..y_coordinate + width {
                             building_grid[i as usize][j as usize] = map_space.id;
                         }
                     }
                 }
                 180 => {
-                    for i in x_coordinate..x_coordinate - width {
-                        for j in y_coordinate..y_coordinate - height {
+                    for i in x_coordinate - width + 1..=x_coordinate {
+                        for j in y_coordinate - height + 1..=y_coordinate {
                             building_grid[i as usize][j as usize] = map_space.id;
                         }
                     }
                 }
                 270 => {
                     for i in x_coordinate..x_coordinate + height {
-                        for j in y_coordinate..y_coordinate - width {
+                        for j in y_coordinate - width + 1..=y_coordinate {
                             building_grid[i as usize][j as usize] = map_space.id;
                         }
                     }

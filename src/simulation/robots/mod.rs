@@ -90,8 +90,7 @@ impl RobotsManager {
                 key: *robot_id,
                 hashmap: "robots".to_string(),
             })?;
-            robot.take_damage(damage);
-            if robot.health <= 0 {
+            if robot.take_damage(damage) {
                 destroyed_robots += 1;
             }
             robot.assign_destination(
