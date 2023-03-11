@@ -1,7 +1,10 @@
+.dockerignore
 logs
 target
 .git*
 Dockerfile*
+docker-compose*
 *.md
 *.sql
 *.yaml
+prod-run.sh
