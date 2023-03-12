@@ -23,7 +23,6 @@ impl Robot {
         }
         if self.health > damage {
             self.health -= damage;
-            return false;
         } else {
             self.health = 0;
         };
@@ -44,7 +43,11 @@ impl Robot {
         Ok(())
     }
 
-    fn exit_building(&self, buildings_manager: &mut BuildingsManager) -> Result<()> {
+    fn exit_building(
+        &mut self,
+        buildings_manager: &mut BuildingsManager,
+        robots_grid: &mut [Vec<HashSet<i32>>],
+    ) -> Result<()> {
         let building = buildings_manager
             .buildings
             .get_mut(&self.destination)
@@ -53,6 +56,9 @@ impl Robot {
                 hashmap: "buildings".to_string(),
             })?;
         // remove population
+        robots_grid[building.absolute_entrance_x as usize][building.absolute_entrance_y as usize]
+            .remove(&self.id);
+        self.stay_in_time = 0;
         building.population -= 1;
         Ok(())
     }
@@ -125,22 +131,31 @@ impl Robot {
         }
 
         if *stay_in_time == 0 {
-            match current_path.pop() {
-                Some((x, y)) => {
-                    robots_grid[*x_position as usize][*y_position as usize].remove(&self.id);
-                    *x_position = x;
-                    *y_position = y;
-                    robots_grid[x as usize][y as usize].insert(self.id);
-                }
-                None => {
+            if let Some((x, y)) = current_path.pop() {
+                robots_grid[*x_position as usize][*y_position as usize].remove(&self.id);
+                *x_position = x;
+                *y_position = y;
+                robots_grid[x as usize][y as usize].insert(self.id);
+                let building = buildings_manager
+                    .buildings
+                    .get_mut(&self.destination)
+                    .ok_or(KeyError {
+                        key: self.destination,
+                        hashmap: "buildings".to_string(),
+                    })?;
+                if x == building.absolute_entrance_x
+                    && y == building.absolute_entrance_y
+                    && current_path.is_empty()
+                {
                     self.enter_building(buildings_manager)?;
                 }
             }
         } else {
             *stay_in_time -= 1;
             if *stay_in_time == 0 {
-                self.exit_building(buildings_manager)?;
+                self.exit_building(buildings_manager, robots_grid)?;
                 self.assign_destination(buildings_manager, robots_destination, shortest_path_grid)?;
+                self.current_path.pop();
             }
         }
         Ok(())

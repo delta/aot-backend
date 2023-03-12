@@ -236,8 +236,6 @@ impl Simulator {
 
         let frames_passed = *frames_passed;
 
-        robots_manager.move_robots(buildings_manager)?;
-
         //Simulate Emps and attackers
         attack_manager.simulate_attack(
             frames_passed,
@@ -245,6 +243,8 @@ impl Simulator {
             buildings_manager,
             defense_manager,
         )?;
+
+        robots_manager.move_robots(buildings_manager)?;
 
         defense_manager.simulate(attack_manager, buildings_manager, frames_passed)?;
 
