@@ -12,6 +12,7 @@ anyhow = "1.0.68"
 derive_more = "0.99.17"
 chrono = { version = "0.4.23", features = ["serde"] }
 diesel = { version = "2.0.2", features = ["chrono", "postgres", "r2d2"] }
+reqwest = { version = "0.11", features = ["json"] }
 dotenv = "0.15.0"
 actix-session = { version = "0.7.2", features = ["redis-actor-session"] }
 flexi_logger = "0.24.2"

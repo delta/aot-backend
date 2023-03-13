@@ -70,7 +70,7 @@ pub fn get_pragyan_user(
             overall_rating: &INITIAL_RATING,
             is_pragyan: &true,
             password: "",
-            is_verified: &true,
+            is_verified: &false,
             highest_rating: &INITIAL_RATING,
             avatar: &0,
         };

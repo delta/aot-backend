@@ -1,7 +1,7 @@
 use crate::api::auth::util::generate_otp;
 use crate::api::RedisConn;
-use awc::Client;
 use redis::Commands;
+use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize)]
@@ -23,6 +23,7 @@ pub struct OtpRequest<'a> {
     #[serde(rename = "type")]
     pub message_type: &'a str,
     pub src: &'a str,
+    pub url: &'a str,
 }
 
 pub enum OtpVerificationResponse {
@@ -37,7 +38,8 @@ pub async fn verify_recaptcha(response: String) -> Result<bool> {
     let secret = std::env::var("RECAPTCHA_SECRET")?;
     let recaptcha_response: ReCaptchaResponse = Client::default()
         .post("https://www.google.com/recaptcha/api/siteverify")
-        .send_form(&ReCaptchaRequest { secret, response })
+        .form(&ReCaptchaRequest { secret, response })
+        .send()
         .await?
         .json()
         .await?;
@@ -51,10 +53,10 @@ pub async fn send_otp(
     is_account_verification: bool,
 ) -> Result<()> {
     let api_id = std::env::var("PLIVO_AUTH_ID")?;
+    let callback_url = std::env::var("PLIVO_CALLBACK_URL")?;
     let api_token = std::env::var("PLIVO_AUTH_TOKEN")?;
     let sender_id = std::env::var("PLIVO_SENDER_ID")?;
     let url = format!("https://api.plivo.com/v1/Account/{}/Message/", &api_id);
-    let header = format!("Basic {}", base64::encode(api_id + ":" + &api_token));
     let otp = generate_otp();
     let otp_msg = match is_account_verification {
         true => format!(
@@ -66,16 +68,19 @@ pub async fn send_otp(
             &otp
         ),
     };
+    let user_name = std::env::var("PLIVO_AUTH_ID")?;
     let response = Client::default()
         .post(&url)
-        .insert_header(("authorization", header))
-        .insert_header(("content-type", "application/json"))
-        .send_json(&OtpRequest {
+        .basic_auth(user_name, Some(api_token))
+        .header("content-type", "application/json")
+        .json(&OtpRequest {
             dst: input_phone,
             text: &otp_msg,
             src: &sender_id,
             message_type: "sms",
+            url: &callback_url,
         })
+        .send()
         .await?;
     if response.status().is_success() {
         let key = format!("{user_id}-otp");
