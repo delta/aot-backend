@@ -1,6 +1,10 @@
 FROM rust:slim as base
 WORKDIR /usr/src/aot-backend
-RUN apt-get update -y && apt-get install -y libpq-dev netcat
+RUN apt-get update -y && apt-get install -y \
+    libpq-dev \
+    netcat \
+    pkg-config \
+    libssl-dev
 RUN cargo install cargo-chef
 
 FROM base as planner
