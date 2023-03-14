@@ -203,6 +203,9 @@ impl Emps {
                     shortest_path_grid,
                     ..
                 } = robots_manager;
+                if !robots_destination.contains_key(building_id) {
+                    continue;
+                }
                 let robots_going_to_building = robots_destination
                     .get(building_id)
                     .ok_or(KeyError {
