@@ -72,6 +72,7 @@ pub fn add_user(
         is_verified: &false,
         highest_rating: &INITIAL_RATING,
         avatar: &0,
+        otps_sent: &0,
     };
     let user: User = diesel::insert_into(user::table)
         .values(&new_user)

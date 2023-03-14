@@ -3,6 +3,7 @@ use self::session::UnverifiedUser;
 use super::{PgPool, RedisPool};
 use crate::api::auth::otp::OtpVerificationResponse;
 use crate::api::error;
+use crate::constants::OTP_LIMIT;
 use actix_session::Session;
 use actix_web::error::{ErrorBadRequest, ErrorUnauthorized};
 use actix_web::web::{self, Data, Json};
@@ -177,6 +178,11 @@ async fn sendotp(
         return Err(ErrorBadRequest("User not found"));
     }
     let user = user.unwrap();
+    if user.otps_sent >= OTP_LIMIT {
+        return Err(ErrorBadRequest(
+            "OTP sent count exceeded! Please contact managers",
+        ));
+    }
 
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let phone_number = user.clone().phone;
@@ -199,6 +205,10 @@ async fn sendotp(
     otp::send_otp(&phone_number, redis_conn, user_id, true)
         .await
         .map_err(|err| error::handle_error(err))?;
+    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+    web::block(move || util::update_otp_count(&mut conn, user.id))
+        .await?
+        .map_err(|err| error::handle_error(err.into()))?;
     Ok("OTP sent successfully")
 }
 
@@ -271,6 +281,13 @@ async fn send_resetpw_otp(
         return Err(ErrorBadRequest("Invalid phone number"));
     }
 
+    let user = user.unwrap();
+    if user.otps_sent >= OTP_LIMIT {
+        return Err(ErrorBadRequest(
+            "OTP sent count exceeded! Please contact managers",
+        ));
+    }
+
     let request = request.into_inner();
 
     let is_valid_recatpcha = otp::verify_recaptcha(request.recaptcha)
@@ -281,9 +298,13 @@ async fn send_resetpw_otp(
     }
 
     let phone_number = request.phone_number;
-    otp::send_otp(&phone_number, redis_conn, user.unwrap().id, false)
+    otp::send_otp(&phone_number, redis_conn, user.id, false)
         .await
         .map_err(|err| error::handle_error(err))?;
+    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+    web::block(move || util::update_otp_count(&mut conn, user.id))
+        .await?
+        .map_err(|err| error::handle_error(err.into()))?;
     Ok("OTP sent successfully")
 }
 

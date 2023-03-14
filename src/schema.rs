@@ -188,6 +188,7 @@ diesel::table! {
         is_verified -> Bool,
         highest_rating -> Int4,
         avatar -> Int4,
+        otps_sent -> Int4,
     }
 }
 

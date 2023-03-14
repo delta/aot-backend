@@ -85,7 +85,7 @@ pub async fn send_otp(
     if response.status().is_success() {
         let key = format!("{user_id}-otp");
         redis_conn.set(&key, otp)?;
-        redis_conn.expire(&key, 120)?;
+        redis_conn.expire(&key, 600)?;
         return Ok(());
     }
     Err(anyhow::anyhow!("Error in sending OTP").into())
