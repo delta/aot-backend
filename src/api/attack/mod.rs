@@ -90,11 +90,11 @@ async fn create_attack(
         let sim_result = util::run_simulation(game_id, map_id, attackers, &mut conn);
         match sim_result {
             Ok(file_content) => Ok(file_content),
-            Err(_) => {
+            Err(err) => {
                 remove_game(game_id, &mut conn)?;
                 Err(anyhow::anyhow!(
                     "Failed to run simulation for game {}",
-                    game_id
+                    err
                 ))
             }
         }
@@ -243,7 +243,7 @@ async fn test_base(
         let sim_result = util::run_test_base_simulation(map_id, attackers, &mut conn);
         match sim_result {
             Ok(file_content) => Ok(file_content),
-            Err(_) => Err(anyhow::anyhow!("Failed to run test base simulation")),
+            Err(err) => Err(anyhow::anyhow!("Failed to run test base simulation {err}")),
         }
     })
     .await?
