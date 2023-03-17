@@ -81,7 +81,7 @@ pub fn is_defense_allowed_now() -> bool {
     let start_time = NaiveTime::parse_from_str(DEFENSE_START_TIME, "%H:%M:%S").unwrap();
     let end_time = NaiveTime::parse_from_str(DEFENSE_END_TIME, "%H:%M:%S").unwrap();
     let current_time = Local::now().naive_local().time();
-    current_time >= start_time || current_time <= end_time
+    current_time >= start_time && current_time <= end_time
 }
 
 pub fn defender_exists(defender: i32, conn: &mut PgConnection) -> Result<bool> {
