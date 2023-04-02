@@ -239,22 +239,22 @@ impl BuildingsManager {
                     }
                 }
                 90 => {
-                    for i in x_coordinate..x_coordinate - height {
+                    for i in x_coordinate - height + 1..=x_coordinate {
                         for j in y_coordinate..y_coordinate + width {
                             building_grid[i as usize][j as usize] = map_space.id;
                         }
                     }
                 }
                 180 => {
-                    for i in x_coordinate..x_coordinate - width {
-                        for j in y_coordinate..y_coordinate - height {
+                    for i in x_coordinate - width + 1..=x_coordinate {
+                        for j in y_coordinate - height + 1..=y_coordinate {
                             building_grid[i as usize][j as usize] = map_space.id;
                         }
                     }
                 }
                 270 => {
                     for i in x_coordinate..x_coordinate + height {
-                        for j in y_coordinate..y_coordinate - width {
+                        for j in y_coordinate - width + 1..=y_coordinate {
                             building_grid[i as usize][j as usize] = map_space.id;
                         }
                     }
@@ -343,7 +343,8 @@ impl BuildingsManager {
         if *population > *capacity {
             0.0
         } else {
-            (*weight as f32 / *distance as f32) * (1_f32 - (*population as f32 / *capacity as f32))
+            ((*weight * *weight) as f32 / *distance as f32)
+                * (1_f32 - (*population as f32 / *capacity as f32))
         }
     }
 

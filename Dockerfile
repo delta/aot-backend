@@ -1,6 +1,10 @@
-FROM rust:slim as base
+FROM rust:1.67.0-slim as base
 WORKDIR /usr/src/aot-backend
-RUN apt-get update -y && apt-get install -y libpq-dev netcat
+RUN apt-get update -y && apt-get install -y \
+    libpq-dev \
+    netcat \
+    pkg-config \
+    libssl-dev
 RUN cargo install diesel_cli --no-default-features --features postgres
 RUN cargo install cargo-watch
 RUN cargo install cargo-chef

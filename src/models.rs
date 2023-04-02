@@ -218,6 +218,7 @@ pub struct User {
     pub is_verified: bool,
     pub highest_rating: i32,
     pub avatar: i32,
+    pub otps_sent: i32,
 }
 
 #[derive(Insertable, Debug)]
@@ -233,6 +234,7 @@ pub struct NewUser<'a> {
     pub is_verified: &'a bool,
     pub highest_rating: &'a i32,
     pub avatar: &'a i32,
+    pub otps_sent: &'a i32,
 }
 
 #[derive(Queryable, Deserialize, Serialize)]

@@ -2,7 +2,7 @@ use super::auth::session::AuthUser;
 use super::{PgPool, RedisPool};
 use crate::api::error;
 use crate::models::UpdateUser;
-use actix_web::error::{ErrorConflict, ErrorNotFound};
+use actix_web::error::{ErrorBadRequest, ErrorConflict, ErrorNotFound};
 use actix_web::web::{self, Data, Json, Path};
 use actix_web::{Responder, Result};
 use serde::Deserialize;
@@ -32,6 +32,16 @@ async fn register(
         .get()
         .map_err(|err| error::handle_error(err.into()))?;
     let user = input_user.clone();
+    if user.username.len() < 6 {
+        return Err(ErrorBadRequest(
+            "Username should contain atleast 6 characters",
+        ));
+    }
+    if user.password.len() < 6 {
+        return Err(ErrorBadRequest(
+            "Password should contain atleast 6 characters",
+        ));
+    }
     let duplicates = web::block(move || util::get_duplicate_users(&mut conn, &user))
         .await?
         .map_err(|err| error::handle_error(err.into()))?;

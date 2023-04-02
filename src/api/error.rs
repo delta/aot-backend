@@ -45,6 +45,7 @@ pub enum BaseInvalidError {
     InvalidBuildingType(i32),
     OverlappingBlocks,
     BlockOutsideMap,
+    RoundRoad,
     BlockCountExceeded(i32),
     BlocksUnused(String),
     NotConnected(String),
@@ -75,6 +76,7 @@ impl ResponseError for BaseInvalidError {
                 format!("You have some unused {block_type} buildings. Use all of them.")
             }
             BaseInvalidError::NotConnected(no_path_info) => no_path_info.to_string(),
+            BaseInvalidError::RoundRoad => "A 4x4 Square Cannot have all as Road".to_string(),
         };
         ErrorBadRequest(response_body).into()
     }

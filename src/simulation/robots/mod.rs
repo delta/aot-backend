@@ -81,24 +81,23 @@ impl RobotsManager {
         damage: i32,
         x: i32,
         y: i32,
-        buildings_manager: &BuildingsManager,
+        buildings_manager: &mut BuildingsManager,
     ) -> Result<i32> {
-        let robot_ids = &self.robots_grid[x as usize][y as usize];
+        let robot_ids = self.robots_grid[x as usize][y as usize].clone();
         let mut destroyed_robots = 0;
-        for robot_id in robot_ids {
+        for robot_id in robot_ids.iter() {
             let robot = self.robots.get_mut(robot_id).ok_or(KeyError {
                 key: *robot_id,
                 hashmap: "robots".to_string(),
             })?;
-            robot.take_damage(damage);
-            if robot.health <= 0 {
+            if robot.take_damage(damage) {
                 destroyed_robots += 1;
+                robot.assign_destination(
+                    buildings_manager,
+                    &mut self.robots_destination,
+                    &mut self.shortest_path_grid,
+                )?;
             }
-            robot.assign_destination(
-                buildings_manager,
-                &mut self.robots_destination,
-                &mut self.shortest_path_grid,
-            )?;
         }
         Ok(destroyed_robots)
     }

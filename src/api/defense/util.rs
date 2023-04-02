@@ -69,6 +69,7 @@ pub struct DefenseResponse {
     pub attacker_types: Vec<AttackerType>,
     pub no_of_drones: i32,
     pub user: Option<LoginResponse>,
+    pub is_map_valid: bool,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -80,7 +81,7 @@ pub fn is_defense_allowed_now() -> bool {
     let start_time = NaiveTime::parse_from_str(DEFENSE_START_TIME, "%H:%M:%S").unwrap();
     let end_time = NaiveTime::parse_from_str(DEFENSE_END_TIME, "%H:%M:%S").unwrap();
     let current_time = Local::now().naive_local().time();
-    current_time >= start_time || current_time <= end_time
+    current_time >= start_time && current_time <= end_time
 }
 
 pub fn defender_exists(defender: i32, conn: &mut PgConnection) -> Result<bool> {
@@ -227,6 +228,7 @@ pub fn get_details_from_map_layout(
         attacker_types,
         no_of_drones: -1,
         user: user_response,
+        is_map_valid: map.is_valid,
     })
 }
 
@@ -303,6 +305,7 @@ pub fn get_map_details_for_attack(
         attacker_types,
         no_of_drones,
         user: None,
+        is_map_valid: map.is_valid,
     })
 }
 

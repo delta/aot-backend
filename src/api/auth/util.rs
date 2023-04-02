@@ -1,6 +1,6 @@
 use crate::api::RedisConn;
 use crate::models::*;
-use crate::schema::user;
+use crate::schema::user::{self, otps_sent};
 use crate::util::function;
 use crate::{constants::INITIAL_RATING, error::DieselError};
 use anyhow::Result;
@@ -21,6 +21,13 @@ pub fn get_user(conn: &mut PgConnection, id: i32) -> Result<Option<User>> {
             error: err,
         })?;
     Ok(user)
+}
+
+pub fn update_otp_count(conn: &mut PgConnection, id: i32) -> Result<()> {
+    diesel::update(user::table.filter(user::id.eq(id)))
+        .set(user::otps_sent.eq(otps_sent + 1))
+        .execute(conn)?;
+    Ok(())
 }
 
 pub fn get_user_by_username(conn: &mut PgConnection, username: &str) -> Result<Option<User>> {
@@ -70,9 +77,10 @@ pub fn get_pragyan_user(
             overall_rating: &INITIAL_RATING,
             is_pragyan: &true,
             password: "",
-            is_verified: &true,
+            is_verified: &false,
             highest_rating: &INITIAL_RATING,
             avatar: &0,
+            otps_sent: &0,
         };
         let user: User = diesel::insert_into(user::table)
             .values(&new_user)
