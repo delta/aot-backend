@@ -108,7 +108,7 @@ pub fn is_valid_update_layout(
 
 // checks every 4x4 tiles has completely Roads
 pub fn is_road_rounded(road_positions: &HashSet<(i32, i32)>) -> bool {
-    let directions = vec![(-1, 0), (-1, -1), (0, -1)];
+    let directions = [(-1, 0), (-1, -1), (0, -1)];
     for i in 1..MAP_SIZE as i32 {
         for j in 1..MAP_SIZE as i32 {
             if road_positions.contains(&(i, j)) {
@@ -134,6 +134,7 @@ pub fn is_valid_save_layout(
     buildings: &HashMap<i32, BuildingType>,
     blocks: &[BlockType],
 ) -> Result<(), BaseInvalidError> {
+    let original_constraints: HashMap<i32, i32> = building_constraints.clone();
     is_valid_update_layout(map_spaces, buildings, blocks)?;
 
     let mut graph: Graph<(), (), Directed> = Graph::new();
@@ -185,14 +186,14 @@ pub fn is_valid_save_layout(
         }
     }
 
-    //checks if all blocks are used
+    //checks if atleast one block of each type is used
     for building_constraint in building_constraints {
         if buildings
             .get(building_constraint.0)
             .unwrap()
             .building_category
             == BuildingCategory::Building
-            && *building_constraint.1 != 0
+            && *building_constraint.1 == *original_constraints.get(building_constraint.0).unwrap()
         {
             return Err(BaseInvalidError::BlocksUnused(
                 blocks[&buildings.get(building_constraint.0).unwrap().blk_type]
@@ -258,3 +259,4 @@ pub fn is_valid_save_layout(
         )))
     }
 }
+
