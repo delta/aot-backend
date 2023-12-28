@@ -85,8 +85,7 @@ async fn login(
     if let Some(user) = user {
         if !user.is_pragyan {
             if bcrypt::verify(&request.password, &user.password) {
-                session::set(&session, user.id, user.is_verified)
-                    .map_err(|err| error::handle_error(err))?;
+                session::set(&session, user.id, user.is_verified).map_err(error::handle_error)?;
                 if user.is_verified {
                     return Ok(Json(LoginResponse {
                         user_id: user.id,
@@ -113,7 +112,7 @@ async fn login(
     let email = username.to_lowercase();
     let pragyan_auth = pragyan::auth(email, password)
         .await
-        .map_err(|err| error::handle_error(err))?;
+        .map_err(error::handle_error)?;
     match pragyan_auth.status_code {
         200 => {
             if let PragyanMessage::Success(pragyan_user) = pragyan_auth.message {
@@ -126,7 +125,7 @@ async fn login(
                 })
                 .await?
                 .map_err(|err| error::handle_error(err.into()))?;
-                session::set(&session, user.id, true).map_err(|err| error::handle_error(err))?;
+                session::set(&session, user.id, true).map_err(error::handle_error)?;
                 Ok(Json(LoginResponse {
                     user_id: user.id,
                     username: user.username,
@@ -196,7 +195,7 @@ async fn sendotp(
     let request = request.into_inner();
     let is_valid_recatpcha = otp::verify_recaptcha(request.recaptcha)
         .await
-        .map_err(|err| error::handle_error(err))?;
+        .map_err(error::handle_error)?;
     if !is_valid_recatpcha {
         return Err(ErrorUnauthorized("Invalid reCAPTCHA"));
     }
@@ -204,7 +203,7 @@ async fn sendotp(
     let phone_number = user.phone;
     otp::send_otp(&phone_number, redis_conn, user_id, true)
         .await
-        .map_err(|err| error::handle_error(err))?;
+        .map_err(error::handle_error)?;
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     web::block(move || util::update_otp_count(&mut conn, user.id))
         .await?
@@ -237,7 +236,7 @@ async fn verify(
 
     let is_valid_recatpcha = otp::verify_recaptcha(recaptcha)
         .await
-        .map_err(|err| error::handle_error(err))?;
+        .map_err(error::handle_error)?;
     if !is_valid_recatpcha {
         return Err(ErrorUnauthorized("Invalid reCAPTCHA"));
     }
@@ -245,7 +244,7 @@ async fn verify(
     let user_id = user.unwrap().id;
     let otp_response = otp::verify_otp(&otp, redis_conn, user_id)
         .await
-        .map_err(|err| error::handle_error(err))?;
+        .map_err(error::handle_error)?;
     match otp_response {
         OtpVerificationResponse::Match => {
             web::block(move || {
@@ -292,7 +291,7 @@ async fn send_resetpw_otp(
 
     let is_valid_recatpcha = otp::verify_recaptcha(request.recaptcha)
         .await
-        .map_err(|err| error::handle_error(err))?;
+        .map_err(error::handle_error)?;
     if !is_valid_recatpcha {
         return Err(ErrorUnauthorized("Invalid reCAPTCHA"));
     }
@@ -300,7 +299,7 @@ async fn send_resetpw_otp(
     let phone_number = request.phone_number;
     otp::send_otp(&phone_number, redis_conn, user.id, false)
         .await
-        .map_err(|err| error::handle_error(err))?;
+        .map_err(error::handle_error)?;
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     web::block(move || util::update_otp_count(&mut conn, user.id))
         .await?
@@ -338,14 +337,14 @@ async fn reset_pw(
 
     let is_valid_recatpcha = otp::verify_recaptcha(recaptcha)
         .await
-        .map_err(|err| error::handle_error(err))?;
+        .map_err(error::handle_error)?;
     if !is_valid_recatpcha {
         return Err(ErrorUnauthorized("Invalid reCAPTCHA"));
     }
     let user_id = user.unwrap().id;
     let otp_response = otp::verify_otp(&otp, redis_conn, user_id)
         .await
-        .map_err(|err| error::handle_error(err))?;
+        .map_err(error::handle_error)?;
     match otp_response {
         OtpVerificationResponse::Match => {
             web::block(move || {

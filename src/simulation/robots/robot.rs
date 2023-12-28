@@ -83,9 +83,7 @@ impl Robot {
             })?;
         self.stay_in_time = 0;
         self.destination = destination_id;
-        robots_destination
-            .entry(destination_id)
-            .or_insert_with(HashSet::new);
+        robots_destination.entry(destination_id).or_default();
         robots_destination
             .get_mut(&destination_id)
             .unwrap()
