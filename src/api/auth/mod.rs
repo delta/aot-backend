@@ -52,8 +52,7 @@ async fn login(
     if let Some(user) = user {
         if !user.is_pragyan {
             if bcrypt::verify(&request.password, &user.password) {
-                session::set(&session, user.id, user.is_verified)
-                    .map_err(|err| error::handle_error(err))?;
+                session::set(&session, user.id, user.is_verified).map_err(error::handle_error)?;
                 if user.is_verified {
                     return Ok(Json(LoginResponse {
                         user_id: user.id,
@@ -80,7 +79,7 @@ async fn login(
     let email = username.to_lowercase();
     let pragyan_auth = pragyan::auth(email, password)
         .await
-        .map_err(|err| error::handle_error(err))?;
+        .map_err(error::handle_error)?;
     match pragyan_auth.status_code {
         200 => {
             if let PragyanMessage::Success(pragyan_user) = pragyan_auth.message {
@@ -93,7 +92,7 @@ async fn login(
                 })
                 .await?
                 .map_err(|err| error::handle_error(err.into()))?;
-                session::set(&session, user.id, true).map_err(|err| error::handle_error(err))?;
+                session::set(&session, user.id, true).map_err(error::handle_error)?;
                 Ok(Json(LoginResponse {
                     user_id: user.id,
                     username: user.username,

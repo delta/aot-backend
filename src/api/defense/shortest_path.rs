@@ -116,12 +116,12 @@ pub fn run_shortest_paths(
             if graph_2d[(i, j)] != NO_BLOCK {
                 // i,j->i+1,j
                 if i + 1 < MAP_SIZE && graph_2d[(i + 1, j)] != NO_BLOCK {
-                    graph.extend_with_edges(&[(
+                    graph.extend_with_edges([(
                         index_to_node[&(i * MAP_SIZE + j)],
                         index_to_node[&((i + 1) * MAP_SIZE + j)],
                         1,
                     )]);
-                    graph.extend_with_edges(&[(
+                    graph.extend_with_edges([(
                         index_to_node[&((i + 1) * MAP_SIZE + j)],
                         index_to_node[&(i * MAP_SIZE + j)],
                         1,
@@ -129,12 +129,12 @@ pub fn run_shortest_paths(
                 }
                 //i,j->i,j+1
                 if j + 1 < MAP_SIZE && graph_2d[(i, j + 1)] != NO_BLOCK {
-                    graph.extend_with_edges(&[(
+                    graph.extend_with_edges([(
                         index_to_node[&(i * MAP_SIZE + j)],
                         index_to_node[&(i * MAP_SIZE + (j + 1))],
                         1,
                     )]);
-                    graph.extend_with_edges(&[(
+                    graph.extend_with_edges([(
                         index_to_node[&(i * MAP_SIZE + (j + 1))],
                         index_to_node[&(i * MAP_SIZE + j)],
                         1,
