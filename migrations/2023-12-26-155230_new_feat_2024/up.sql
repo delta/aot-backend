@@ -1,33 +1,31 @@
 -- Your SQL goes here
 
 ALTER TABLE public.user
-ADD COLUMN oauth_token VARCHAR,
-DROP COLUMN phone,
-DROP COLUMN username,
-DROP COLUMN overall_rating,
-DROP COLUMN is_pragyan,
-DROP COLUMN password,
-DROP COLUMN is_verified,
-DROP COLUMN highest_rating,
-DROP COLUMN avatar,
-DROP COLUMN otps_sent;
-ADD COLUMN attacks_won INTEGER,
-ADD COLUMN defenses_won INTEGER,
-ADD COLUMN trophies INTEGER,
-ADD COLUMN avatar_id INTEGER,
-ADD COLUMN artifacts INTEGER;
+ADD  oauth_token VARCHAR,
+DROP  phone,
+DROP  username,
+DROP  overall_rating,
+DROP  is_pragyan,
+DROP  password,
+DROP  is_verified,
+DROP  highest_rating,
+DROP  avatar,
+DROP  otps_sent,
+ADD  attacks_won INTEGER,
+ADD  defenses_won INTEGER,
+ADD  trophies INTEGER,
+ADD  avatar_id INTEGER,
+ADD  artifacts INTEGER;
 
 
 ALTER TABLE public.game
-DROP COLUMN robots_destroyed,
-ADD COLUMN artifacts_collected INTEGER;
+DROP  robots_destroyed,
+ADD  artifacts_collected INTEGER;
 
 ALTER TABLE public.map_spaces
-DROP COLUMN blk_type,
-DROP COLUMN rotation,
-DROP COLUMN building_type,
-ADD COLUMN block_type_id INTEGER NOT NULL,
-CONSTRAINT block_type_id_fk FOREIGN KEY (block_type_id) REFERENCES public.block_type(id);
+DROP  rotation,
+DROP  building_type,
+ADD CONSTRAINT block_type_id_fk FOREIGN KEY (block_type_id) REFERENCES public.block_type(id);
 
 
 CREATE TABLE public.artifact(
@@ -51,44 +49,43 @@ CREATE TABLE public.available_blocks(
   OIDS=FALSE
 );
 
+ALTER TABLE public.attacker_type ADD level INTEGER;
+ALTER TABLE public.attacker_type ADD cost INTEGER;
 
-DROP TABLE diffuser_type;k
-DROP TABLE building_weights;
+ALTER TABLE public.defender_type ADD level INTEGER;
+ALTER TABLE public.defender_type ADD cost INTEGER;
 
-ALTER TABLE public.attacker_type ADD COLUMN level INTEGER NOT NULL;
-ALTER TABLE public.attacker_type ADD COLUMN cost INTEGER NOT NULL;
-
-ALTER TABLE public.defender_type ADD COLUMN level INTEGER NOT NULL;
-ALTER TABLE public.defender_type ADD COLUMN cost INTEGER NOT NULL;
-
-ALTER TABLE public.mine_type ADD COLUMN level INTEGER NOT NULL;
-ALTER TABLE public.mine_type ADD COLUMN cost INTEGER NOT NULL;
+ALTER TABLE public.mine_type ADD  level INTEGER;
+ALTER TABLE public.mine_type ADD  cost INTEGER;
 
 ALTER TABLE public.building_type
-DROP COLUMN defender_type,
-DROP COLUMN building_category,
-DROP COLUMN mine_type,
-DROP COLUMN diffuser_type,
-ADD COLUMN name VARCHAR,
-ADD COLUMN width INTEGER,
-ADD COLUMN height INTEGER,
-ADD COLUMN capacity INTEGER,
-ADD COLUMN level INTEGER,
-ADD COLUMN cost INTEGER;
+DROP  defender_type,
+DROP  building_category,
+DROP  mine_type,
+DROP  diffuser_type,
+ADD  name VARCHAR,
+ADD  width INTEGER,
+ADD  height INTEGER,
+ADD  capacity INTEGER,
+ADD  level INTEGER,
+ADD  cost INTEGER;
 
 
 
 CREATE TYPE block_category AS ENUM ('attacker', 'defender', 'mine', 'building', 'road');
 ALTER TABLE block_type
-ADD COLUMN category block_category,
-ADD COLUMN category_id INTEGER;
-DROP COLUMN name,
-DROP COLUMN width,
-DROP COLUMN height,
-DROP COLUMN capacity,
-DROP COLUMN entrance_x,
-DROP COLUMN entrance_y,
-CONSTRAINT category_id_fk FOREIGN KEY (category_id) REFERENCES public.attacker_type(id),
-CONSTRAINT category_id_fk FOREIGN KEY (category_id) REFERENCES public.defender_type(id),
-CONSTRAINT category_id_fk FOREIGN KEY (category_id) REFERENCES public.building_type(id),
-CONSTRAINT category_id_fk FOREIGN KEY (category_id) REFERENCES public.mine_type(id);
+ADD  category block_category,
+ADD  category_id INTEGER,
+DROP  name,
+DROP  width,
+DROP  height,
+DROP  capacity,
+DROP  entrance_x,
+DROP  entrance_y,
+ADD CONSTRAINT attacker_type_category_fk FOREIGN KEY (category_id) REFERENCES public.attacker_type(id),
+ADD CONSTRAINT defender_type_category_fk FOREIGN KEY (category_id) REFERENCES public.defender_type(id),
+ADD CONSTRAINT building_type_category_fk FOREIGN KEY (category_id) REFERENCES public.building_type(id),
+ADD CONSTRAINT mine_type_category_fk FOREIGN KEY (category_id) REFERENCES public.mine_type(id);
+
+DROP TABLE diffuser_type;
+DROP TABLE building_weights;

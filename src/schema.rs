@@ -2,13 +2,22 @@
 
 pub mod sql_types {
     #[derive(diesel::sql_types::SqlType)]
-    #[diesel(postgres_type(name = "building_category"))]
-    pub struct BuildingCategory;
+    #[diesel(postgres_type(name = "block_category"))]
+    pub struct BlockCategory;
+}
+
+diesel::table! {
+    artifact (id) {
+        id -> Int4,
+        map_space_id -> Int4,
+        count -> Int4,
+    }
 }
 
 diesel::table! {
     attack_type (id) {
         id -> Int4,
+        #[max_length = 255]
         att_type -> Varchar,
         attack_radius -> Int4,
         attack_damage -> Int4,
@@ -21,31 +30,40 @@ diesel::table! {
         max_health -> Int4,
         speed -> Int4,
         amt_of_emps -> Int4,
+        level -> Nullable<Int4>,
+        cost -> Nullable<Int4>,
     }
 }
 
 diesel::table! {
-    block_type (id) {
+    available_blocks (id) {
         id -> Int4,
-        name -> Varchar,
-        width -> Int4,
-        height -> Int4,
-        entrance_x -> Int4,
-        entrance_y -> Int4,
-        capacity -> Int4,
+        block_type_id -> Int4,
+        user_id -> Int4,
     }
 }
 
 diesel::table! {
     use diesel::sql_types::*;
-    use super::sql_types::BuildingCategory;
+    use super::sql_types::BlockCategory;
 
+    block_type (id) {
+        id -> Int4,
+        category -> Nullable<BlockCategory>,
+        category_id -> Nullable<Int4>,
+    }
+}
+
+diesel::table! {
     building_type (id) {
         id -> Int4,
-        defender_type -> Nullable<Int4>,
-        mine_type -> Nullable<Int4>,
         blk_type -> Int4,
-        building_category -> BuildingCategory,
+        name -> Nullable<Varchar>,
+        width -> Nullable<Int4>,
+        height -> Nullable<Int4>,
+        capacity -> Nullable<Int4>,
+        level -> Nullable<Int4>,
+        cost -> Nullable<Int4>,
     }
 }
 
@@ -55,12 +73,25 @@ diesel::table! {
         speed -> Int4,
         damage -> Int4,
         radius -> Int4,
+        level -> Nullable<Int4>,
+        cost -> Nullable<Int4>,
+    }
+}
+
+diesel::table! {
+    drone_usage (id) {
+        id -> Int4,
+        attacker_id -> Int4,
+        map_id -> Int4,
+        drone_x -> Int4,
+        drone_y -> Int4,
     }
 }
 
 diesel::table! {
     emp_type (id) {
         id -> Int4,
+        #[max_length = 255]
         att_type -> Varchar,
         attack_radius -> Int4,
         attack_damage -> Int4,
@@ -78,6 +109,7 @@ diesel::table! {
         emps_used -> Int4,
         damage_done -> Int4,
         is_attacker_alive -> Bool,
+        artifacts_collected -> Nullable<Int4>,
     }
 }
 
@@ -115,8 +147,7 @@ diesel::table! {
         map_id -> Int4,
         x_coordinate -> Int4,
         y_coordinate -> Int4,
-        rotation -> Int4,
-        building_type -> Int4,
+        block_type_id -> Int4,
     }
 }
 
@@ -125,6 +156,8 @@ diesel::table! {
         id -> Int4,
         radius -> Int4,
         damage -> Int4,
+        level -> Nullable<Int4>,
+        cost -> Nullable<Int4>,
     }
 }
 
@@ -135,6 +168,7 @@ diesel::table! {
         source_y -> Int4,
         dest_x -> Int4,
         dest_y -> Int4,
+        #[max_length = 12000]
         pathlist -> Varchar,
     }
 }
@@ -149,39 +183,46 @@ diesel::table! {
 diesel::table! {
     user (id) {
         id -> Int4,
+        #[max_length = 255]
         name -> Varchar,
+        #[max_length = 255]
         email -> Varchar,
-        phone -> Varchar,
-        username -> Varchar,
-        overall_rating -> Int4,
-        is_pragyan -> Bool,
-        password -> Varchar,
-        is_verified -> Bool,
-        highest_rating -> Int4,
-        avatar -> Int4,
-        otps_sent -> Int4,
+        oauth_token -> Nullable<Varchar>,
+        attacks_won -> Nullable<Int4>,
+        defenses_won -> Nullable<Int4>,
+        trophies -> Nullable<Int4>,
+        avatar_id -> Nullable<Int4>,
+        artifacts -> Nullable<Int4>,
     }
 }
 
-diesel::joinable!(building_type -> block_type (blk_type));
-diesel::joinable!(building_type -> defender_type (defender_type));
-diesel::joinable!(building_type -> mine_type (mine_type));
+diesel::joinable!(artifact -> map_spaces (map_space_id));
+diesel::joinable!(available_blocks -> block_type (block_type_id));
+diesel::joinable!(available_blocks -> user (user_id));
+diesel::joinable!(block_type -> attacker_type (category_id));
+diesel::joinable!(block_type -> defender_type (category_id));
+diesel::joinable!(block_type -> mine_type (category_id));
+diesel::joinable!(drone_usage -> map_layout (map_id));
+diesel::joinable!(drone_usage -> user (attacker_id));
 diesel::joinable!(game -> map_layout (map_layout_id));
 diesel::joinable!(level_constraints -> building_type (building_id));
 diesel::joinable!(level_constraints -> levels_fixture (level_id));
 diesel::joinable!(map_layout -> levels_fixture (level_id));
 diesel::joinable!(map_layout -> user (player));
-diesel::joinable!(map_spaces -> building_type (building_type));
+diesel::joinable!(map_spaces -> block_type (block_type_id));
 diesel::joinable!(map_spaces -> map_layout (map_id));
 diesel::joinable!(shortest_path -> map_layout (base_id));
 diesel::joinable!(simulation_log -> game (game_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
+    artifact,
     attack_type,
     attacker_type,
+    available_blocks,
     block_type,
     building_type,
     defender_type,
+    drone_usage,
     emp_type,
     game,
     level_constraints,
