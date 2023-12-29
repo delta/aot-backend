@@ -1,69 +1,86 @@
 -- This file should undo anything in `up.sql`
 
-ALTER TABLE public.user
-  DROP COLUMN oauth_token,
-  ADD COLUMN phone VARCHAR,
-  ADD COLUMN username VARCHAR,
-  ADD COLUMN overall_rating INTEGER,
-  ADD COLUMN is_pragyan BOOLEAN,
-  ADD COLUMN password VARCHAR,
-  ADD COLUMN is_verified BOOLEAN,
-  ADD COLUMN highest_rating INTEGER,
-  ADD COLUMN avatar VARCHAR,
-  ADD COLUMN otps_sent INTEGER;
-ALTER TABLE public.user
-  DROP COLUMN attacks_won,
-  DROP COLUMN defenses_won,
-  DROP COLUMN trophies,
-  DROP COLUMN avatar_id,
-  DROP COLUMN artifacts;
+CREATE TABLE diffuser_type (
+    id SERIAL PRIMARY KEY,
+    radius INTEGER,
+    speed INTEGER
+);
 
-ALTER TABLE public.game
-  ADD COLUMN robots_destroyed INTEGER,
-  DROP COLUMN artifacts_collected;
 
-ALTER TABLE public.map_spaces
-  ADD COLUMN blk_type VARCHAR,
-  ADD COLUMN rotation INTEGER,
-  ADD COLUMN building_type VARCHAR,
-  DROP COLUMN block_type_id,
-  DROP CONSTRAINT block_type_id_fk;
+CREATE INDEX idx_time ON building_weights (time);
 
-DROP TABLE IF EXISTS public.artifact;
-DROP TABLE IF EXISTS public.available_blocks;
+CREATE INDEX idx_building_id ON building_weights (building_id);
 
-ALTER TABLE public.attacker_type
-  DROP COLUMN level,
-  DROP COLUMN cost;
+CREATE TABLE building_weights (
+    time INTEGER PRIMARY KEY,
+    building_id INTEGER,
+    weight INTEGER
+);
 
-ALTER TABLE public.defender_type
-  DROP COLUMN level,
-  DROP COLUMN cost;
+ALTER TABLE block_type
+DROP COLUMN category_id,
+DROP COLUMN category,
+ADD COLUMN entrance_y INTEGER,
+ADD COLUMN entrance_x INTEGER,
+ADD COLUMN capacity INTEGER,
+ADD COLUMN height INTEGER,
+ADD COLUMN width INTEGER,
+ADD COLUMN name VARCHAR;
 
-ALTER TABLE public.mine_type
-  DROP COLUMN level,
-  DROP COLUMN cost;
+DROP TYPE block_category;
 
 ALTER TABLE public.building_type
-  ADD COLUMN defender_type VARCHAR,
-  ADD COLUMN building_category VARCHAR,
-  ADD COLUMN mine_type VARCHAR,
-  ADD COLUMN diffuser_type VARCHAR,
-  DROP COLUMN name,
-  DROP COLUMN width,
-  DROP COLUMN height,
-  DROP COLUMN capacity,
-  DROP COLUMN level,
-  DROP COLUMN cost;
+DROP COLUMN level,
+DROP COLUMN cost,
+ADD COLUMN defender_type INTEGER,
+ADD COLUMN building_category VARCHAR,
+ADD COLUMN mine_type INTEGER,
+ADD COLUMN diffuser_type INTEGER,
+DROP COLUMN name,
+DROP COLUMN width,
+DROP COLUMN height,
+DROP COLUMN capacity;
 
-DROP TYPE IF EXISTS block_category CASCADE;
 
-ALTER TABLE public.block_type
-  DROP COLUMN category,
-  DROP COLUMN category_id,
-  ADD COLUMN name VARCHAR,
-  ADD COLUMN width INTEGER,
-  ADD COLUMN height INTEGER,
-  ADD COLUMN capacity INTEGER,
-  ADD COLUMN entrance_x INTEGER,
-  ADD COLUMN entrance_y INTEGER;
+ALTER TABLE public.mine_type
+DROP COLUMN level,
+DROP COLUMN cost;
+
+ALTER TABLE public.defender_type
+DROP COLUMN level,
+DROP COLUMN cost;
+
+ALTER TABLE public.attacker_type
+DROP COLUMN level,
+DROP COLUMN cost;
+
+DROP TABLE IF EXISTS public.available_blocks;
+DROP TABLE IF EXISTS public.artifact;
+
+
+ALTER TABLE public.map_spaces
+ADD rotation INTEGER,
+ADD building_type INTEGER,
+DROP block_type_id,
+DROP CONSTRAINT IF EXISTS block_type_id_fk;
+
+ALTER TABLE public.game
+ADD  robots_destroyed INTEGER,
+DROP  artifacts_collected ;
+
+ALTER TABLE public.user
+DROP COLUMN artifacts,
+DROP COLUMN avatar_id,
+DROP COLUMN trophies,
+DROP COLUMN defenses_won,
+DROP COLUMN attacks_won,
+ADD COLUMN otps_sent INTEGER,
+ADD COLUMN avatar VARCHAR,
+ADD COLUMN highest_rating INTEGER,
+ADD COLUMN is_verified BOOLEAN,
+ADD COLUMN password VARCHAR,
+ADD COLUMN is_pragyan BOOLEAN,
+ADD COLUMN overall_rating INTEGER,
+ADD COLUMN username VARCHAR,
+ADD COLUMN phone VARCHAR,
+DROP COLUMN oauth_token;
