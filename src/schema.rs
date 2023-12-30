@@ -17,7 +17,6 @@ diesel::table! {
 diesel::table! {
     attack_type (id) {
         id -> Int4,
-        #[max_length = 255]
         att_type -> Varchar,
         attack_radius -> Int4,
         attack_damage -> Int4,
@@ -30,8 +29,8 @@ diesel::table! {
         max_health -> Int4,
         speed -> Int4,
         amt_of_emps -> Int4,
-        level -> Nullable<Int4>,
-        cost -> Nullable<Int4>,
+        level_ -> Int4,
+        cost -> Int4,
     }
 }
 
@@ -49,21 +48,23 @@ diesel::table! {
 
     block_type (id) {
         id -> Int4,
-        category -> Nullable<BlockCategory>,
-        category_id -> Nullable<Int4>,
+        defender_type -> Nullable<Int4>,
+        mine_type -> Nullable<Int4>,
+        blk_type -> Int4,
+        category -> BlockCategory,
+        building_type -> Nullable<Int4>,
     }
 }
 
 diesel::table! {
     building_type (id) {
         id -> Int4,
-        blk_type -> Int4,
-        name -> Nullable<Varchar>,
-        width -> Nullable<Int4>,
-        height -> Nullable<Int4>,
-        capacity -> Nullable<Int4>,
-        level -> Nullable<Int4>,
-        cost -> Nullable<Int4>,
+        name -> Varchar,
+        width -> Int4,
+        height -> Int4,
+        capacity -> Int4,
+        level_ -> Int4,
+        cost -> Int4,
     }
 }
 
@@ -73,25 +74,14 @@ diesel::table! {
         speed -> Int4,
         damage -> Int4,
         radius -> Int4,
-        level -> Nullable<Int4>,
-        cost -> Nullable<Int4>,
-    }
-}
-
-diesel::table! {
-    drone_usage (id) {
-        id -> Int4,
-        attacker_id -> Int4,
-        map_id -> Int4,
-        drone_x -> Int4,
-        drone_y -> Int4,
+        level_ -> Int4,
+        cost -> Int4,
     }
 }
 
 diesel::table! {
     emp_type (id) {
         id -> Int4,
-        #[max_length = 255]
         att_type -> Varchar,
         attack_radius -> Int4,
         attack_damage -> Int4,
@@ -109,7 +99,7 @@ diesel::table! {
         emps_used -> Int4,
         damage_done -> Int4,
         is_attacker_alive -> Bool,
-        artifacts_collected -> Nullable<Int4>,
+        artifacts_collected -> Int4,
     }
 }
 
@@ -156,8 +146,8 @@ diesel::table! {
         id -> Int4,
         radius -> Int4,
         damage -> Int4,
-        level -> Nullable<Int4>,
-        cost -> Nullable<Int4>,
+        level_ -> Int4,
+        cost -> Int4,
     }
 }
 
@@ -168,7 +158,6 @@ diesel::table! {
         source_y -> Int4,
         dest_x -> Int4,
         dest_y -> Int4,
-        #[max_length = 12000]
         pathlist -> Varchar,
     }
 }
@@ -183,27 +172,24 @@ diesel::table! {
 diesel::table! {
     user (id) {
         id -> Int4,
-        #[max_length = 255]
         name -> Varchar,
-        #[max_length = 255]
         email -> Varchar,
+        username -> Varchar,
+        is_pragyan -> Bool,
         oauth_token -> Nullable<Varchar>,
-        attacks_won -> Nullable<Int4>,
-        defenses_won -> Nullable<Int4>,
-        trophies -> Nullable<Int4>,
-        avatar_id -> Nullable<Int4>,
-        artifacts -> Nullable<Int4>,
+        attacks_won -> Int4,
+        defenses_won -> Int4,
+        trophies -> Int4,
+        avatar_id -> Int4,
+        artifacts -> Int4,
     }
 }
 
 diesel::joinable!(artifact -> map_spaces (map_space_id));
 diesel::joinable!(available_blocks -> block_type (block_type_id));
 diesel::joinable!(available_blocks -> user (user_id));
-diesel::joinable!(block_type -> attacker_type (category_id));
-diesel::joinable!(block_type -> defender_type (category_id));
-diesel::joinable!(block_type -> mine_type (category_id));
-diesel::joinable!(drone_usage -> map_layout (map_id));
-diesel::joinable!(drone_usage -> user (attacker_id));
+diesel::joinable!(block_type -> defender_type (defender_type));
+diesel::joinable!(block_type -> mine_type (mine_type));
 diesel::joinable!(game -> map_layout (map_layout_id));
 diesel::joinable!(level_constraints -> building_type (building_id));
 diesel::joinable!(level_constraints -> levels_fixture (level_id));
@@ -222,7 +208,6 @@ diesel::allow_tables_to_appear_in_same_query!(
     block_type,
     building_type,
     defender_type,
-    drone_usage,
     emp_type,
     game,
     level_constraints,
