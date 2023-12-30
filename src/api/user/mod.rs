@@ -86,11 +86,6 @@ async fn update_user(
 <<<<<<< HEAD
 <<<<<<< HEAD
 ) -> Result<impl Responder> {
-=======
-) -> Result<impl Responder, Error> {
->>>>>>> 080bfc4 (feat(profile routes): routes to view and update profile)
-=======
-) -> Result<impl Responder> {
 >>>>>>> 7e26212 (fix(fmt))
     let player_id = player_id.into_inner();
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
@@ -114,15 +109,10 @@ async fn update_user(
         let error_response = ErrorResponse {
             message: "Player not found".to_string(),
         };
-<<<<<<< HEAD
-<<<<<<< HEAD
+
         Err(ErrorNotFound(Json(error_response)))
-=======
-        Ok(ErrorNotFound(Json(error_response)))
->>>>>>> 080bfc4 (feat(profile routes): routes to view and update profile)
-=======
-        Err(ErrorNotFound(Json(error_response)))
->>>>>>> 7e26212 (fix(fmt))
+        
+
     }
 }
 
@@ -147,30 +137,13 @@ async fn get_user_stats(user_id: Path<i32>, pool: Data<PgPool>) -> Result<impl R
         Err(ErrorNotFound("User not found"))
     }
 }
-<<<<<<< HEAD
-<<<<<<< HEAD
 async fn get_user_profile(user_id: Path<i32>, pool: Data<PgPool>) -> Result<impl Responder> {
-    let user_id = user_id.into_inner();
-    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-
-    let user = web::block(move || util::fetch_user(&mut conn, user_id))
-        .await?
-        .map_err(|err| error::handle_error(err.into()))?;
-=======
-async fn get_user_profile(
-    user_id: Path<i32>,
-    pool: Data<PgPool>,
-) -> Result<impl Responder, Error> {
-=======
-async fn get_user_profile(user_id: Path<i32>, pool: Data<PgPool>) -> Result<impl Responder> {
->>>>>>> 7e26212 (fix(fmt))
     let user_id = user_id.into_inner();
     let mut conn = pool.get().map_err(error::handle_error)?;
 
     let user = web::block(move || util::fetch_user(&mut conn, user_id))
         .await?
         .map_err(error::handle_error)?;
->>>>>>> 080bfc4 (feat(profile routes): routes to view and update profile)
 
     if let Some(user) = user {
         let response = UserProfileResponse {
@@ -188,20 +161,7 @@ async fn get_user_profile(user_id: Path<i32>, pool: Data<PgPool>) -> Result<impl
         let error_response = ErrorResponse {
             message: "Player not found".to_string(),
         };
-<<<<<<< HEAD
-        Err(ErrorNotFound(Json(error_response)))
-    }
-}
-=======
         Ok(ErrorNotFound(Json(error_response)))
     }
 }
-<<<<<<< HEAD
 
-
-
-
-
->>>>>>> 080bfc4 (feat(profile routes): routes to view and update profile)
-=======
->>>>>>> 7e26212 (fix(fmt))
