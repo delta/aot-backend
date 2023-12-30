@@ -177,7 +177,7 @@ diesel::table! {
         email -> Varchar,
         username -> Varchar,
         is_pragyan -> Bool,
-        oauth_token -> Nullable<Varchar>,
+        oauth_token -> Varchar,
         attacks_won -> Int4,
         defenses_won -> Int4,
         trophies -> Int4,
