@@ -16,7 +16,6 @@ diesel::table! {
 diesel::table! {
     attack_type (id) {
         id -> Int4,
-        #[max_length = 255]
         att_type -> Varchar,
         attack_radius -> Int4,
         attack_damage -> Int4,
@@ -79,7 +78,6 @@ diesel::table! {
 diesel::table! {
     emp_type (id) {
         id -> Int4,
-        #[max_length = 255]
         att_type -> Varchar,
         attack_radius -> Int4,
         attack_damage -> Int4,
@@ -156,7 +154,6 @@ diesel::table! {
         source_y -> Int4,
         dest_x -> Int4,
         dest_y -> Int4,
-        #[max_length = 12000]
         pathlist -> Varchar,
     }
 }
@@ -171,9 +168,7 @@ diesel::table! {
 diesel::table! {
     user (id) {
         id -> Int4,
-        #[max_length = 255]
         name -> Varchar,
-        #[max_length = 255]
         email -> Varchar,
         username -> Varchar,
         is_pragyan -> Bool,
@@ -208,7 +203,6 @@ diesel::allow_tables_to_appear_in_same_query!(
     block_type,
     building_type,
     defender_type,
-    drone_usage,
     emp_type,
     game,
     level_constraints,
