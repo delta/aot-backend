@@ -108,7 +108,7 @@ pub fn is_valid_update_layout(
 
 // checks every 4x4 tiles has completely Roads
 pub fn is_road_rounded(road_positions: &HashSet<(i32, i32)>) -> bool {
-    let directions = vec![(-1, 0), (-1, -1), (0, -1)];
+    let directions = [(-1, 0), (-1, -1), (0, -1)];
     for i in 1..MAP_SIZE as i32 {
         for j in 1..MAP_SIZE as i32 {
             if road_positions.contains(&(i, j)) {
