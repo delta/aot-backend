@@ -253,10 +253,9 @@ pub struct NewSimulationLog<'a> {
 }
 
 #[derive(AsChangeset, Debug, Deserialize)]
-#[diesel(table_name = user)]
+#[table_name = "user"]
 pub struct UpdateUser {
-    name: Option<String>,
-    pub username: Option<String>,
+    pub name: Option<String>,
     pub avatar_id: Option<i32>,
 }
 
