@@ -134,11 +134,11 @@ async fn get_user_stats(user_id: Path<i32>, pool: Data<PgPool>) -> Result<impl R
 }
 async fn get_user_profile(user_id: Path<i32>, pool: Data<PgPool>) -> Result<impl Responder> {
     let user_id = user_id.into_inner();
-    let mut conn = pool.get().map_err(error::handle_error)?;
+    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
 
     let user = web::block(move || util::fetch_user(&mut conn, user_id))
         .await?
-        .map_err(error::handle_error)?;
+        .map_err(|err| error::handle_error(err.into()))?;
 
     if let Some(user) = user {
         let response = UserProfileResponse {
@@ -156,6 +156,6 @@ async fn get_user_profile(user_id: Path<i32>, pool: Data<PgPool>) -> Result<impl
         let error_response = ErrorResponse {
             message: "Player not found".to_string(),
         };
-        Ok(ErrorNotFound(Json(error_response)))
+        Err(ErrorNotFound(Json(error_response)))
     }
 }
