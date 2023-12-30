@@ -5,7 +5,7 @@ use crate::models::UpdateUser;
 use actix_web::error::{ErrorBadRequest, ErrorConflict, ErrorNotFound};
 use actix_web::web::{self, Data, Json, Path};
 use actix_web::{Responder, Result};
-use serde::{Deserialize,Serialize};
+use serde::{Deserialize, Serialize};
 
 pub mod util;
 
@@ -40,7 +40,6 @@ struct ErrorResponse {
 struct SuccessResponse {
     message: String,
 }
-
 
 async fn register(
     pg_pool: Data<PgPool>,
@@ -85,7 +84,7 @@ async fn update_user(
     player_id: Path<i32>,
     user_details: Json<UpdateUser>,
     pool: Data<PgPool>,
-) -> Result<impl Responder, Error> {
+) -> Result<impl Responder> {
     let player_id = player_id.into_inner();
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let user = web::block(move || util::fetch_user(&mut conn, player_id))
@@ -108,7 +107,7 @@ async fn update_user(
         let error_response = ErrorResponse {
             message: "Player not found".to_string(),
         };
-        Ok(ErrorNotFound(Json(error_response)))
+        Err(ErrorNotFound(Json(error_response)))
     }
 }
 
@@ -133,10 +132,7 @@ async fn get_user_stats(user_id: Path<i32>, pool: Data<PgPool>) -> Result<impl R
         Err(ErrorNotFound("User not found"))
     }
 }
-async fn get_user_profile(
-    user_id: Path<i32>,
-    pool: Data<PgPool>,
-) -> Result<impl Responder, Error> {
+async fn get_user_profile(user_id: Path<i32>, pool: Data<PgPool>) -> Result<impl Responder> {
     let user_id = user_id.into_inner();
     let mut conn = pool.get().map_err(error::handle_error)?;
 
@@ -163,8 +159,3 @@ async fn get_user_profile(
         Ok(ErrorNotFound(Json(error_response)))
     }
 }
-
-
-
-
-
