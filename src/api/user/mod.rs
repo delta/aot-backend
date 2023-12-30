@@ -5,7 +5,7 @@ use crate::models::UpdateUser;
 use actix_web::error::{ErrorBadRequest, ErrorConflict, ErrorNotFound};
 use actix_web::web::{self, Data, Json, Path};
 use actix_web::{Responder, Result};
-use serde::Deserialize,Serialize;
+use serde::{Deserialize,Serialize};
 
 pub mod util;
 
