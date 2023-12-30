@@ -40,11 +40,6 @@ struct ErrorResponse {
 struct SuccessResponse {
     message: String,
 }
-<<<<<<< HEAD
-=======
-
->>>>>>> 080bfc4 (feat(profile routes): routes to view and update profile)
-
 async fn register(
     pg_pool: Data<PgPool>,
     redis_pool: Data<RedisPool>,
@@ -89,10 +84,14 @@ async fn update_user(
     user_details: Json<UpdateUser>,
     pool: Data<PgPool>,
 <<<<<<< HEAD
+<<<<<<< HEAD
 ) -> Result<impl Responder> {
 =======
 ) -> Result<impl Responder, Error> {
 >>>>>>> 080bfc4 (feat(profile routes): routes to view and update profile)
+=======
+) -> Result<impl Responder> {
+>>>>>>> 7e26212 (fix(fmt))
     let player_id = player_id.into_inner();
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let user = web::block(move || util::fetch_user(&mut conn, player_id))
@@ -116,10 +115,14 @@ async fn update_user(
             message: "Player not found".to_string(),
         };
 <<<<<<< HEAD
+<<<<<<< HEAD
         Err(ErrorNotFound(Json(error_response)))
 =======
         Ok(ErrorNotFound(Json(error_response)))
 >>>>>>> 080bfc4 (feat(profile routes): routes to view and update profile)
+=======
+        Err(ErrorNotFound(Json(error_response)))
+>>>>>>> 7e26212 (fix(fmt))
     }
 }
 
@@ -145,6 +148,7 @@ async fn get_user_stats(user_id: Path<i32>, pool: Data<PgPool>) -> Result<impl R
     }
 }
 <<<<<<< HEAD
+<<<<<<< HEAD
 async fn get_user_profile(user_id: Path<i32>, pool: Data<PgPool>) -> Result<impl Responder> {
     let user_id = user_id.into_inner();
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
@@ -157,6 +161,9 @@ async fn get_user_profile(
     user_id: Path<i32>,
     pool: Data<PgPool>,
 ) -> Result<impl Responder, Error> {
+=======
+async fn get_user_profile(user_id: Path<i32>, pool: Data<PgPool>) -> Result<impl Responder> {
+>>>>>>> 7e26212 (fix(fmt))
     let user_id = user_id.into_inner();
     let mut conn = pool.get().map_err(error::handle_error)?;
 
@@ -189,9 +196,12 @@ async fn get_user_profile(
         Ok(ErrorNotFound(Json(error_response)))
     }
 }
+<<<<<<< HEAD
 
 
 
 
 
 >>>>>>> 080bfc4 (feat(profile routes): routes to view and update profile)
+=======
+>>>>>>> 7e26212 (fix(fmt))
