@@ -54,6 +54,20 @@ pub struct GoogleLoginResponse {
     pub csrf_state: String,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct UserInfoFromGoogle {
+    name: String,
+    email: String,
+    picture: String,
+}
+
+#[derive(Serialize)]
+pub struct CallbackResponse {
+    pub access_token: String,
+    pub autherization_code: String,
+    pub userinfo: UserInfoFromGoogle,
+}
+
 fn client() -> BasicClient {
     let google_client_id = ClientId::new(
         "684397563262-1mp4uefnhlb6kbpobl5rdbnd336avkps.apps.googleusercontent.com".to_string(),
@@ -96,21 +110,29 @@ async fn google_login() -> impl Responder {
 async fn login_callback(params: Query<QueryCode>) -> impl Responder {
     let code = AuthorizationCode::new(params.code.clone());
     let token_result = client().exchange_code(code.clone()).request(http_client);
+    let access_token = token_result
+        .unwrap()
+        .access_token()
+        .secret()
+        .clone()
+        .to_string();
+    let url = "https://www.googleapis.com/oauth2/v3/userinfo";
+
+    let client = reqwest::Client::new();
+
+    let response = client
+        .get(url)
+        .header("Authorization", format!("Bearer {}", access_token))
+        .send()
+        .await;
+
+    let userinfo: UserInfoFromGoogle = response.unwrap().json().await.unwrap();
+
     Json(CallbackResponse {
         autherization_code: code.secret().clone().to_string(),
-        access_token: token_result
-            .unwrap()
-            .access_token()
-            .secret()
-            .clone()
-            .to_string(),
+        access_token,
+        userinfo,
     })
-}
-
-#[derive(Serialize)]
-pub struct CallbackResponse {
-    pub access_token: String,
-    pub autherization_code: String,
 }
 
 async fn login(
