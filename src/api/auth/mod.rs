@@ -1,3 +1,5 @@
+use std::env;
+
 use self::pragyan::PragyanMessage;
 use super::{PgPool, RedisPool};
 use crate::api::error;
@@ -70,16 +72,21 @@ pub struct CallbackResponse {
 
 fn client() -> BasicClient {
     let google_client_id = ClientId::new(
-        "684397563262-1mp4uefnhlb6kbpobl5rdbnd336avkps.apps.googleusercontent.com".to_string(),
+        env::var("GOOGLE_OAUTH_CLIENT_ID")
+            .expect("Google oauth client id must be set!")
+            .to_string(),
     );
-    let google_client_secret = ClientSecret::new("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".to_string());
+    let google_client_secret = ClientSecret::new(
+        env::var("GOOGLE_OAUTH_CLIENT_SECRET")
+            .expect("Google oauth client secret must be set!")
+            .to_string(),
+    );
     let auth_url = AuthUrl::new("https://accounts.google.com/o/oauth2/v2/auth".to_string())
         .expect("Invalid authorization endpoint URL");
     let token_url = TokenUrl::new("https://www.googleapis.com/oauth2/v3/token".to_string())
         .expect("Invalid token endpoint URL");
 
-    // Set up the config for the Google OAuth2 process.
-
+    // Set up the client for the Google OAuth2 process.
     BasicClient::new(
         google_client_id,
         Some(google_client_secret),
@@ -101,6 +108,9 @@ async fn google_login() -> impl Responder {
         .add_scope(Scope::new("profile".to_string()))
         .url();
 
+    //TODO: Store the CSRF token somewhere so we can verify it in the callback.
+
+    // Redirect the user to the authorization URL sent in the below json response.
     return Json(GoogleLoginResponse {
         authorize_url: authorize_url.to_string(),
         csrf_state: csrf_token.secret().clone().to_string(),
@@ -108,7 +118,12 @@ async fn google_login() -> impl Responder {
 }
 
 async fn login_callback(params: Query<QueryCode>) -> impl Responder {
+    //TODO: Verify the CSRF state returned by Google matches the one we generated before proceeding.
+
+    //extract the authorization code from the query parameters in the callback url
     let code = AuthorizationCode::new(params.code.clone());
+
+    //exchange the authorization code with the access token
     let token_result = client().exchange_code(code.clone()).request(http_client);
     let access_token = token_result
         .unwrap()
@@ -118,15 +133,17 @@ async fn login_callback(params: Query<QueryCode>) -> impl Responder {
         .to_string();
     let url = "https://www.googleapis.com/oauth2/v3/userinfo";
 
+    //exchange the access token with for the user info
     let client = reqwest::Client::new();
-
     let response = client
         .get(url)
         .header("Authorization", format!("Bearer {}", access_token))
         .send()
         .await;
-
     let userinfo: UserInfoFromGoogle = response.unwrap().json().await.unwrap();
+
+    //TODO : Check if the user is already registered with us, if not register the user
+    //TODO : Create a session for the user and redirect to the home page
 
     Json(CallbackResponse {
         autherization_code: code.secret().clone().to_string(),
