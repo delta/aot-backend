@@ -46,37 +46,37 @@ fn get_absolute_entrance(map_space: &MapSpacesEntry, block_type: &BlockType) -> 
 //checks overlaps of blocks and also within map size
 pub fn is_valid_update_layout(
     map_spaces: &[MapSpacesEntry],
-    buildings: &HashMap<i32, BuildingType>,
-    blocks: &[BlockType],
+    blocks: &HashMap<i32, BlockType>,
+    buildings: &[BuildingType],
 ) -> Result<(), BaseInvalidError> {
     let mut occupied_positions: HashSet<(i32, i32)> = HashSet::new();
     let mut road_positions: HashSet<(i32, i32)> = HashSet::new();
-    let blocks: HashMap<i32, BlockType> = blocks
+    let buildings: HashMap<i32, BuildingType> = buildings
         .iter()
-        .map(|block| (block.id, block.clone()))
+        .map(|building| (building.id, building.clone()))
         .collect();
     for map_space in map_spaces {
-        let building_type = map_space.building_type;
+        let block_type = map_space.block_type_id;
 
-        if !buildings.contains_key(&building_type) {
-            return Err(BaseInvalidError::InvalidBuildingType(building_type));
+        if !blocks.contains_key(&block_type) {
+            return Err(BaseInvalidError::InvalidBuildingType(block_type));
         }
-        let building = buildings.get(&building_type).unwrap();
+        let blocks = blocks.get(&block_type).unwrap();
 
-        let blk_type = building.blk_type;
-        if !blocks.contains_key(&blk_type) {
+        let blk_type = block.blk_type;
+        if !buildings.contains_key(&blk_type) {
             return Err(BaseInvalidError::InvalidBlockType(blk_type));
         }
 
-        let block: &BlockType = blocks.get(&blk_type).unwrap();
+        let building: &BuildingType = buildings.get(&blk_type).unwrap();
         let (x, y, width, height) = get_absolute_coordinates(
             map_space.rotation,
             (map_space.x_coordinate, map_space.y_coordinate),
-            (block.width, block.height),
+            (building.width, building.height),
         );
         if x == -1 && blk_type != ROAD_ID {
             return Err(BaseInvalidError::InvalidRotation(
-                blocks[&blk_type].name.clone(),
+                buildings[&blk_type].name.clone(),
                 map_space.rotation,
             ));
         }
@@ -130,12 +130,12 @@ pub fn is_road_rounded(road_positions: &HashSet<(i32, i32)>) -> bool {
 // checks if no of buildings are within level constraints and if the city is connected
 pub fn is_valid_save_layout(
     map_spaces: &[MapSpacesEntry],
-    building_constraints: &mut HashMap<i32, i32>,
-    buildings: &HashMap<i32, BlockType>,
-    blocks: &[BuildingType],
+    block_constraints: &mut HashMap<i32, i32>,
+    blocks: &HashMap<i32, BlockType>,
+    buildings: &[BuildingType],
 ) -> Result<(), BaseInvalidError> {
-    let original_constraints: HashMap<i32, i32> = building_constraints.clone();
-    is_valid_update_layout(map_spaces, buildings, blocks)?;
+    let original_constraints: HashMap<i32, i32> = block_constraints.clone();
+    is_valid_update_layout(map_spaces, blocks, buildings)?;
 
     let mut graph: Graph<(), (), Directed> = Graph::new();
     let mut road_graph: Graph<(), (), Directed> = Graph::new();
@@ -144,9 +144,9 @@ pub fn is_valid_save_layout(
     let mut node_to_coords: HashMap<NodeIndex, (i32, i32)> = HashMap::new();
     let mut road_node_to_coords: HashMap<NodeIndex, (i32, i32)> = HashMap::new();
 
-    let blocks: HashMap<i32, BuildingType> = blocks
+    let buildings: HashMap<i32, BuildingType> = buildings
         .iter()
-        .map(|block| (block.id, block.clone()))
+        .map(|building| (building.id, building.clone()))
         .collect();
 
     for map_space in map_spaces {
@@ -157,16 +157,16 @@ pub fn is_valid_save_layout(
             ..
         } = *map_space;
 
-        let building = buildings.get(block_type_id).unwrap();
+        let blocks = blocks.get(&block_type_id).unwrap();
 
-        let blk_type = building.blk_type;
+        let blk_type = block.blk_type;
 
         // check for level constraints
-        if let Some(building_constraint) = building_constraints.get_mut(&block_type_id) {
-            if *building_constraint > 0 {
-                *building_constraint -= 1;
+        if let Some(block_constraint) = block_constraints.get_mut(&block_type_id) {
+            if *block_constraint > 0 {
+                *block_constraint -= 1;
             } else {
-                return Err(BaseInvalidError::BlockCountExceeded(building_type));
+                return Err(BaseInvalidError::BlockCountExceeded(block_type_id));
             }
         }
 
@@ -179,24 +179,24 @@ pub fn is_valid_save_layout(
             node_to_coords.insert(new_node, (x_coordinate, y_coordinate));
             road_node_to_coords.insert(road_node, (x_coordinate, y_coordinate));
         } else {
-            let block = blocks.get(&blk_type).unwrap();
-            let entrance = get_absolute_entrance(map_space, block);
+            let building = buildings.get(&blk_type).unwrap();
+            let entrance = get_absolute_entrance(map_space, building);
             node_to_coords.insert(new_node, entrance);
             map_grid.insert(entrance, new_node);
         }
     }
 
     //checks if atleast one block of each type is used
-    for building_constraint in building_constraints {
+    for block_constraint in block_constraints {
         if buildings
-            .get(building_constraint.0)
+            .get(block_constraint.0)
             .unwrap()
             .category
             == BlockCategory::Building
-            && *building_constraint.1 == *original_constraints.get(building_constraint.0).unwrap()
+            && *block_constraint.1 == *original_constraints.get(block_constraint.0).unwrap()
         {
             return Err(BaseInvalidError::BlocksUnused(
-                blocks[&buildings.get(building_constraint.0).unwrap().blk_type]
+                buildings[&blocks.get(block_constraint.0).unwrap().blk_type]
                     .name
                     .clone(),
             ));
