@@ -32,7 +32,7 @@ pub struct DefenderTypeResponse {
     pub speed: i32,
     pub damage: i32,
     pub building_id: i32,
-    pub block: BlockTypeResponse,
+    pub block: BuildingTypeResponse,
 }
 
 #[derive(Serialize)]
@@ -52,7 +52,7 @@ pub struct BuildingTypeResponse {
 #[derive(Serialize)]
 pub struct DefenseResponse {
     pub map_spaces: Vec<MapSpaces>,
-    pub blocks: Vec<BlockTypeResponse>,
+    pub blocks: Vec<BuildingTypeResponse>,
     pub levels_fixture: LevelsFixture,
     pub level_constraints: Vec<LevelConstraints>,
     pub attack_type: Vec<AttackType>,
@@ -285,13 +285,13 @@ pub fn get_map_details_for_attack(
     })
 }
 
-pub fn fetch_blocks(conn: &mut PgConnection) -> Result<Vec<BlockType>> {
-    use crate::schema::block_type::dsl::*;
+pub fn fetch_buildings(conn: &mut PgConnection) -> Result<Vec<BuildingType>> {
+    use crate::schema::building_type::dsl::*;
 
-    Ok(block_type
-        .load::<BlockType>(conn)
+    Ok(building_type
+        .load::<BuildingType>(conn)
         .map_err(|err| DieselError {
-            table: "block_type",
+            table: "building_type",
             function: function!(),
             error: err,
         })?)
@@ -559,21 +559,21 @@ pub fn fetch_building_blocks(conn: &mut PgConnection) -> Result<Vec<BuildingType
             block_id: block_type.id,
         })
         .collect();
-    Ok(blocks)
+    Ok(buildings)
 }
 
-pub fn fetch_buildings(conn: &mut PgConnection) -> Result<HashMap<i32, BuildingType>> {
-    use crate::schema::building_type::dsl::*;
-    Ok(building_type
-        .load::<BuildingType>(conn)
+pub fn fetch_blocks(conn: &mut PgConnection) -> Result<HashMap<i32, BlockType>> {
+    use crate::schema::block_type::dsl::*;
+    Ok(block_type
+        .load::<BlockType>(conn)
         .map_err(|err| DieselError {
-            table: "building_type",
+            table: "block_type",
             function: function!(),
             error: err,
         })?
         .into_iter()
-        .map(|building| (building.id, building))
-        .collect::<HashMap<i32, BuildingType>>())
+        .map(|block| (block.id, block))
+        .collect::<HashMap<i32, BlockType>>())
 }
 
 pub fn fetch_attacker_types(conn: &mut PgConnection) -> Result<Vec<AttackerType>> {

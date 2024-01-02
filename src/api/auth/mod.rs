@@ -29,9 +29,11 @@ pub struct LoginResponse {
     pub user_id: i32,
     pub username: String,
     pub name: String,
-    pub overall_rating: i32,
-    pub avatar: i32,
-    pub highest_rating: i32,
+    pub avatar_id: i32,
+    pub attacks_won: i32,
+    pub defenses_won: i32,
+    pub trophies: i32,
+    pub artifacts: i32,
     pub email: String,
 }
 
@@ -58,9 +60,11 @@ async fn login(
                         user_id: user.id,
                         username: user.username,
                         name: user.name,
-                        overall_rating: user.overall_rating,
-                        avatar: user.avatar,
-                        highest_rating: user.highest_rating,
+                        avatar_id: user.avatar_id,
+                        attacks_won: user.attacks_won,
+                        defenses_won: user.defenses_won,
+                        trophies: user.trophies,
+                        artifacts: user.artifacts,
                         email: user.email,
                     }));
                 }
@@ -96,10 +100,12 @@ async fn login(
                 Ok(Json(LoginResponse {
                     user_id: user.id,
                     username: user.username,
-                    name: pragyan_user.user_fullname,
-                    overall_rating: user.overall_rating,
-                    avatar: user.avatar,
-                    highest_rating: user.highest_rating,
+                    name: user.name,
+                    avatar_id: user.avatar_id,
+                    attacks_won: user.attacks_won,
+                    defenses_won: user.defenses_won,
+                    trophies: user.trophies,
+                    artifacts: user.artifacts,
                     email: user.email,
                 }))
             } else {
