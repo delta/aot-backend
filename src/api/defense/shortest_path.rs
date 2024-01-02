@@ -53,7 +53,7 @@ fn get_block_id(building_id: &i32, building_map: &HashMap<i32, BlockType>) -> i3
 pub fn run_shortest_paths(
     conn: &mut PgConnection,
     input_map_layout_id: i32,
-    blocks_list: &Vec<BlockType>,
+    buildings_list: &Vec<BuildingType>,
 ) -> Result<()> {
     // reading map_spaces
     let mapspaces_list = map_spaces::table
@@ -75,7 +75,7 @@ pub fn run_shortest_paths(
     let mut index_to_node = HashMap::new();
 
     // filling block types in map
-    for p in blocks_list {
+    for p in buildings_list {
         map.insert(p.id, (p.width, p.height, p.entrance_x, p.entrance_y));
     }
 
@@ -90,14 +90,14 @@ pub fn run_shortest_paths(
             i.rotation,
             i.x_coordinate,
             i.y_coordinate,
-            map[&get_block_id(&i.building_type, &buildings_block_map)].2,
-            map[&get_block_id(&i.building_type, &buildings_block_map)].3,
+            map[&get_block_id(&i.block_type_id, &buildings_block_map)].2,
+            map[&get_block_id(&i.block_type_id, &buildings_block_map)].3,
         );
         graph_2d
             .set(
                 absolute_entrance_y as usize,
                 absolute_entrance_x as usize,
-                get_block_id(&i.building_type, &buildings_block_map),
+                get_block_id(&i.block_type_id, &buildings_block_map),
             )
             .unwrap();
         node_to_index.insert(
@@ -148,21 +148,21 @@ pub fn run_shortest_paths(
     let mut shortest_paths = vec![];
     for i in &mapspaces_list {
         for j in &mapspaces_list {
-            if j.building_type != ROAD_ID {
+            if j.block_type_id != ROAD_ID {
                 let (start_absolute_entrance_x, start_absolute_entrance_y) =
                     get_absolute_coordinates(
                         i.rotation,
                         i.x_coordinate,
                         i.y_coordinate,
-                        map[&get_block_id(&i.building_type, &buildings_block_map)].2,
-                        map[&get_block_id(&i.building_type, &buildings_block_map)].3,
+                        map[&get_block_id(&i.block_type_id, &buildings_block_map)].2,
+                        map[&get_block_id(&i.block_type_id, &buildings_block_map)].3,
                     );
                 let (dest_absolute_entrance_x, dest_absolute_entrance_y) = get_absolute_coordinates(
                     j.rotation,
                     j.x_coordinate,
                     j.y_coordinate,
-                    map[&get_block_id(&j.building_type, &buildings_block_map)].2,
-                    map[&get_block_id(&j.building_type, &buildings_block_map)].3,
+                    map[&get_block_id(&i.block_type_id, &buildings_block_map)].2,
+                    map[&get_block_id(&i.block_type_id, &buildings_block_map)].3,
                 );
                 let start_node = index_to_node[&((start_absolute_entrance_y as usize) * MAP_SIZE
                     + (start_absolute_entrance_x as usize))];
