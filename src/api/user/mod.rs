@@ -29,6 +29,7 @@ struct UserProfileResponse {
     name: String,
     trophies: i32,
     artifacts: i32,
+    attacks_won: i32,
     defenses_won: i32,
     avatar_id: i32,
 }
@@ -83,10 +84,7 @@ async fn update_user(
     player_id: Path<i32>,
     user_details: Json<UpdateUser>,
     pool: Data<PgPool>,
-<<<<<<< HEAD
-<<<<<<< HEAD
 ) -> Result<impl Responder> {
->>>>>>> 7e26212 (fix(fmt))
     let player_id = player_id.into_inner();
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let user = web::block(move || util::fetch_user(&mut conn, player_id))
@@ -106,13 +104,7 @@ async fn update_user(
         };
         Ok(Json(success_response))
     } else {
-        let error_response = ErrorResponse {
-            message: "Player not found".to_string(),
-        };
-
-        Err(ErrorNotFound(Json(error_response)))
-        
-
+        Err(ErrorNotFound("Player not found"))
     }
 }
 
@@ -158,10 +150,9 @@ async fn get_user_profile(user_id: Path<i32>, pool: Data<PgPool>) -> Result<impl
 
         Ok(Json(response))
     } else {
-        let error_response = ErrorResponse {
-            message: "Player not found".to_string(),
-        };
-        Ok(ErrorNotFound(Json(error_response)))
+
+        Err(ErrorNotFound("Player not found"))
+
     }
 }
 
