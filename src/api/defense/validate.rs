@@ -21,23 +21,23 @@ fn get_absolute_coordinates(
     }
 }
 
-fn get_absolute_entrance(map_space: &MapSpacesEntry, block_type: &BlockType) -> (i32, i32) {
+fn get_absolute_entrance(map_space: &MapSpacesEntry, building_type: &BuildingType) -> (i32, i32) {
     match map_space.rotation {
         0 => (
-            map_space.x_coordinate + block_type.entrance_x,
-            map_space.y_coordinate + block_type.entrance_y,
+            map_space.x_coordinate + building_type.entrance_x,
+            map_space.y_coordinate + buidling_type.entrance_y,
         ),
         90 => (
-            map_space.x_coordinate - block_type.entrance_y,
-            map_space.y_coordinate + block_type.entrance_x,
+            map_space.x_coordinate - building_type.entrance_y,
+            map_space.y_coordinate + building_type.entrance_x,
         ),
         180 => (
-            map_space.x_coordinate - block_type.entrance_x,
-            map_space.y_coordinate - block_type.entrance_y,
+            map_space.x_coordinate - building_type.entrance_x,
+            map_space.y_coordinate - building_type.entrance_y,
         ),
         270 => (
-            map_space.x_coordinate + block_type.entrance_y,
-            map_space.y_coordinate - block_type.entrance_x,
+            map_space.x_coordinate + building_type.entrance_y,
+            map_space.y_coordinate - building_type.entrance_x,
         ),
         _ => panic!("Invalid Map Space Rotation"),
     }
@@ -61,7 +61,7 @@ pub fn is_valid_update_layout(
         if !blocks.contains_key(&block_type) {
             return Err(BaseInvalidError::InvalidBuildingType(block_type));
         }
-        let blocks = blocks.get(&block_type).unwrap();
+        let block = blocks.get(&block_type).unwrap();
 
         let blk_type = block.blk_type;
         if !buildings.contains_key(&blk_type) {
@@ -157,7 +157,7 @@ pub fn is_valid_save_layout(
             ..
         } = *map_space;
 
-        let blocks = blocks.get(&block_type_id).unwrap();
+        let block = blocks.get(&block_type_id).unwrap();
 
         let blk_type = block.blk_type;
 
@@ -188,7 +188,7 @@ pub fn is_valid_save_layout(
 
     //checks if atleast one block of each type is used
     for block_constraint in block_constraints {
-        if buildings
+        if blocks
             .get(block_constraint.0)
             .unwrap()
             .category
