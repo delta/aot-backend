@@ -25,7 +25,7 @@ fn get_absolute_entrance(map_space: &MapSpacesEntry, building_type: &BuildingTyp
     match map_space.rotation {
         0 => (
             map_space.x_coordinate + building_type.entrance_x,
-            map_space.y_coordinate + buidling_type.entrance_y,
+            map_space.y_coordinate + building_type.entrance_y,
         ),
         90 => (
             map_space.x_coordinate - building_type.entrance_y,
