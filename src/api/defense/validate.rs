@@ -131,8 +131,8 @@ pub fn is_road_rounded(road_positions: &HashSet<(i32, i32)>) -> bool {
 pub fn is_valid_save_layout(
     map_spaces: &[MapSpacesEntry],
     building_constraints: &mut HashMap<i32, i32>,
-    buildings: &HashMap<i32, BuildingType>,
-    blocks: &[BlockType],
+    buildings: &HashMap<i32, BlockType>,
+    blocks: &[BuildingType],
 ) -> Result<(), BaseInvalidError> {
     let original_constraints: HashMap<i32, i32> = building_constraints.clone();
     is_valid_update_layout(map_spaces, buildings, blocks)?;
@@ -144,25 +144,25 @@ pub fn is_valid_save_layout(
     let mut node_to_coords: HashMap<NodeIndex, (i32, i32)> = HashMap::new();
     let mut road_node_to_coords: HashMap<NodeIndex, (i32, i32)> = HashMap::new();
 
-    let blocks: HashMap<i32, BlockType> = blocks
+    let blocks: HashMap<i32, BuildingType> = blocks
         .iter()
         .map(|block| (block.id, block.clone()))
         .collect();
 
     for map_space in map_spaces {
         let MapSpacesEntry {
-            building_type,
+            block_type_id,
             x_coordinate,
             y_coordinate,
             ..
         } = *map_space;
 
-        let building = buildings.get(&building_type).unwrap();
+        let building = buildings.get(block_type_id).unwrap();
 
         let blk_type = building.blk_type;
 
         // check for level constraints
-        if let Some(building_constraint) = building_constraints.get_mut(&building_type) {
+        if let Some(building_constraint) = building_constraints.get_mut(&block_type_id) {
             if *building_constraint > 0 {
                 *building_constraint -= 1;
             } else {
@@ -191,8 +191,8 @@ pub fn is_valid_save_layout(
         if buildings
             .get(building_constraint.0)
             .unwrap()
-            .building_category
-            == BuildingCategory::Building
+            .category
+            == BlockCategory::Building
             && *building_constraint.1 == *original_constraints.get(building_constraint.0).unwrap()
         {
             return Err(BaseInvalidError::BlocksUnused(
