@@ -27,7 +27,7 @@ use std::io::Write;
 pub struct DefensePosition {
     pub y_coord: i32,
     pub x_coord: i32,
-    pub building_category: BuildingCategory,
+    pub building_category: BlockCategory,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -71,7 +71,7 @@ pub fn get_map_id(
 }
 
 pub fn get_valid_road_paths(map_id: i32, conn: &mut PgConnection) -> Result<HashSet<(i32, i32)>> {
-    use crate::schema::{building_type, map_spaces};
+    use crate::schema::{block_type, map_spaces};
     let valid_road_paths: HashSet<(i32, i32)> = map_spaces::table
         .inner_join(block_type::table)
         .filter(map_spaces::map_id.eq(map_id))
