@@ -117,7 +117,7 @@ pub fn get_leaderboard(
             user::id,
             user::username,
             user::overall_rating,
-            user::avatar,
+            user::avatar_id,
             map_layout::is_valid.nullable(),
         ))
         .order_by(user::overall_rating.desc())
