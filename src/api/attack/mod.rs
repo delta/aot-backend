@@ -158,7 +158,7 @@ async fn get_details_from_drone(
     let (map_spaces, drone_count) = web::block(move || {
         let drone_count = util::get_already_used_drone_count(map_id, user_id, &mut conn)?;
         let map_spaces = util::get_buildings(map_id, &mut conn)?;
-        Ok((map_spaces, drone_count)) as anyhow::Result<(Vec<(MapSpaces, BuildingType)>, i64)>
+        Ok((map_spaces, drone_count)) as anyhow::Result<(Vec<(MapSpaces, BlockType)>, i64)>
     })
     .await?
     .map_err(|err| error::handle_error(err.into()))?;

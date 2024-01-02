@@ -855,9 +855,9 @@ pub fn get_defense_details(
 
     let mut defense_positions = Vec::new();
 
-    for (map_space, building_type) in map_spaces.iter() {
-        if !(building_type.building_category == BuildingCategory::Mine
-            || building_type.building_category == BuildingCategory::Diffuser)
+    for (map_space, block_type) in map_spaces.iter() {
+        if !(block_type.category == BlockCategory::Mine
+            || block_type.category == BlockCategory::Diffuser)
         {
             continue;
         }
@@ -868,7 +868,7 @@ pub fn get_defense_details(
             defense_positions.push(DefensePosition {
                 y_coord: pos_y,
                 x_coord: pos_x,
-                building_category: building_type.building_category,
+                block_category: block_type.category,
             })
         }
     }

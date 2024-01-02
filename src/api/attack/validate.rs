@@ -86,16 +86,16 @@ pub fn is_attack_valid(
 pub fn is_valid_drone(
     drone_position: &DronePosition,
     drone_count: i64,
-    map_spaces: &[(MapSpaces, BuildingType)],
+    map_spaces: &[(MapSpaces, BlockType)],
 ) -> Result<()> {
     if drone_count >= DRONE_LIMIT_PER_BASE as i64 {
         return Err(anyhow::anyhow!("Total Amount Of Drones used exceeds"));
     }
 
-    for (map_space, building_type) in map_spaces.iter() {
+    for (map_space, block_type) in map_spaces.iter() {
         if map_space.x_coordinate == drone_position.x_coord
             && map_space.y_coordinate == drone_position.y_coord
-            && building_type.blk_type == ROAD_ID
+            && block_type.blk_type == ROAD_ID
         {
             return Ok(());
         }
