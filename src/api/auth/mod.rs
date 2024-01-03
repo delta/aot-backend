@@ -125,11 +125,6 @@ async fn google_login() -> impl Responder {
     //TODO: Store the CSRF token somewhere so we can verify it in the callback.
 
     // Redirect the user to the authorization URL sent in the below json response.
-    //the below doesnt work
-    // let mut response = HttpResponse::Found();
-    // response.append_header((LOCATION, authorize_url.to_string()));
-    // response.body(csrf_token.secret().to_string());
-    // response.finish()
 
     Json(GoogleLoginResponse {
         authorize_url: authorize_url.to_string(),
@@ -206,11 +201,7 @@ async fn login_callback(
         .finish();
 
     let frontend_origin = env::var("FRONTEND_URL").expect("Frontend origin must be set!");
-    // let mut response = HttpResponse::Found();
-    // response.append_header((LOCATION, format!("{}{}", frontend_origin, state)));
-    // response.cookie(cookie);
-    // response.finish();
-    // Ok(response)
+
     Ok(Json(CallbackResponse {
         cookie: cookie.to_string(),
         claims,
