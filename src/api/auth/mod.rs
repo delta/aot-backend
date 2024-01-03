@@ -1,21 +1,27 @@
-use std::env;
-
 use self::pragyan::PragyanMessage;
 use super::{PgPool, RedisPool};
 use crate::api::error;
+use crate::constants::OTP_LIMIT;
+use crate::models::User;
 use actix_session::Session;
 use actix_web::error::{ErrorBadRequest, ErrorUnauthorized};
 use actix_web::web::{self, Data, Json, Query};
 use actix_web::Responder;
-use actix_web::{HttpResponse, Result};
+use actix_web::{
+    cookie::{time::Duration as ActixWebDuration, Cookie},
+    HttpResponse, Result,
+};
+use chrono::{Duration, Utc};
+use jsonwebtoken::{encode, EncodingKey, Header};
 use oauth2::reqwest::http_client;
 use oauth2::{basic::BasicClient, TokenResponse};
 use oauth2::{
     AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken, RedirectUrl, Scope, TokenUrl,
 };
 use pwhash::bcrypt;
+// use reqwest::header::LOCATION;
 use serde::{Deserialize, Serialize};
-// use std::env;
+use std::env;
 mod pragyan;
 pub mod session;
 mod util;
@@ -65,9 +71,17 @@ pub struct UserInfoFromGoogle {
 
 #[derive(Serialize)]
 pub struct CallbackResponse {
-    pub access_token: String,
-    pub autherization_code: String,
-    pub userinfo: UserInfoFromGoogle,
+    pub claims: TokenClaims,
+    pub token: String,
+    pub cookie: String,
+    pub frontend_origin: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TokenClaims {
+    pub user: User,
+    pub iat: usize,
+    pub exp: usize,
 }
 
 fn client() -> BasicClient {
@@ -111,17 +125,32 @@ async fn google_login() -> impl Responder {
     //TODO: Store the CSRF token somewhere so we can verify it in the callback.
 
     // Redirect the user to the authorization URL sent in the below json response.
-    return Json(GoogleLoginResponse {
+    //the below doesnt work
+    // let mut response = HttpResponse::Found();
+    // response.append_header((LOCATION, authorize_url.to_string()));
+    // response.body(csrf_token.secret().to_string());
+    // response.finish()
+
+    Json(GoogleLoginResponse {
         authorize_url: authorize_url.to_string(),
-        csrf_state: csrf_token.secret().clone().to_string(),
-    });
+        csrf_state: csrf_token.secret().to_string(),
+    })
 }
 
-async fn login_callback(params: Query<QueryCode>) -> impl Responder {
+async fn login_callback(
+    params: Query<QueryCode>,
+    pg_pool: Data<PgPool>,
+    redis_pool: Data<RedisPool>,
+) -> Result<impl Responder> {
     //TODO: Verify the CSRF state returned by Google matches the one we generated before proceeding.
 
     //extract the authorization code from the query parameters in the callback url
     let code = AuthorizationCode::new(params.code.clone());
+
+    let state = params.state.clone();
+    if state.is_empty() {
+        return Err(ErrorBadRequest("Invalid state"));
+    }
 
     //exchange the authorization code with the access token
     let token_result = client().exchange_code(code.clone()).request(http_client);
@@ -133,7 +162,7 @@ async fn login_callback(params: Query<QueryCode>) -> impl Responder {
         .to_string();
     let url = "https://www.googleapis.com/oauth2/v3/userinfo";
 
-    //exchange the access token with for the user info
+    //exchange the access token for the user info
     let client = reqwest::Client::new();
     let response = client
         .get(url)
@@ -141,15 +170,53 @@ async fn login_callback(params: Query<QueryCode>) -> impl Responder {
         .send()
         .await;
     let userinfo: UserInfoFromGoogle = response.unwrap().json().await.unwrap();
+    let email = userinfo.email.clone();
+    let name = userinfo.name.clone();
 
-    //TODO : Check if the user is already registered with us, if not register the user
-    //TODO : Create a session for the user and redirect to the home page
-
-    Json(CallbackResponse {
-        autherization_code: code.secret().clone().to_string(),
-        access_token,
-        userinfo,
+    let user = web::block(move || {
+        let mut conn = pg_pool.get()?;
+        let mut redis_conn = redis_pool.get()?;
+        let email = email.clone();
+        util::get_oauth_user(&mut conn, &mut redis_conn, &email, &name)
     })
+    .await?
+    .map_err(|err| error::handle_error(err.into()))?;
+
+    let jwt_secret = env::var("JWT_SECRET").expect("JWT secret must be set!");
+    let now = Utc::now();
+    let iat = now.timestamp() as usize;
+    let jwt_max_age: i64 = env::var("JWT_MAX_AGE")
+        .expect("JWT max age must be set!")
+        .parse()
+        .expect("JWT max age must be an integer!");
+    let exp = (now + Duration::minutes(jwt_max_age)).timestamp() as usize;
+    let claims: TokenClaims = TokenClaims { user, exp, iat };
+
+    let token = encode(
+        &Header::default(),
+        &claims,
+        &EncodingKey::from_secret(jwt_secret.as_ref()),
+    )
+    .unwrap();
+
+    let cookie = Cookie::build("token", token.clone())
+        .path("/")
+        .max_age(ActixWebDuration::new(60 * jwt_max_age, 0))
+        .http_only(true)
+        .finish();
+
+    let frontend_origin = env::var("FRONTEND_URL").expect("Frontend origin must be set!");
+    // let mut response = HttpResponse::Found();
+    // response.append_header((LOCATION, format!("{}{}", frontend_origin, state)));
+    // response.cookie(cookie);
+    // response.finish();
+    // Ok(response)
+    Ok(Json(CallbackResponse {
+        cookie: cookie.to_string(),
+        claims,
+        token,
+        frontend_origin,
+    }))
 }
 
 async fn login(
