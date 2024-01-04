@@ -1,11 +1,8 @@
 use crate::error::DieselError;
+use crate::models::{Game, LevelsFixture};
 use crate::util::function;
-use crate::{
-    constants::ATTACK_END_TIME,
-    models::{Game, LevelsFixture},
-};
 use anyhow::Result;
-use chrono::{Local, NaiveTime};
+use chrono::Local;
 use diesel::prelude::*;
 use diesel::PgConnection;
 use serde::{Deserialize, Serialize};
@@ -26,12 +23,8 @@ pub struct GameHistoryEntry {
 }
 
 pub fn can_show_replay(requested_user: i32, game: &Game, levels_fixture: &LevelsFixture) -> bool {
-    let end_time = NaiveTime::parse_from_str(ATTACK_END_TIME, "%H:%M:%S").unwrap();
     let current_date = Local::now().naive_local();
-    let current_time = current_date.time();
-    let is_current_round_over = current_time > end_time;
-    is_current_round_over // current round is over
-        || requested_user == game.attack_id // user requesting history if an attacker or defender
+    requested_user == game.attack_id // user requesting history if an attacker or defender
         || requested_user == game.defend_id
         || current_date > levels_fixture.start_date // game happened in previous rounds
 }

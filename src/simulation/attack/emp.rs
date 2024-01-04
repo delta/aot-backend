@@ -1,10 +1,9 @@
 use crate::constants::*;
 use crate::error::DieselError;
 use crate::models::AttackType;
-use crate::simulation::blocks::{Building, BuildingsManager};
+use crate::simulation::blocks::BuildingsManager;
 use crate::simulation::defense::DefenseManager;
 use crate::simulation::error::*;
-use crate::simulation::robots::RobotsManager;
 use crate::util::function;
 use anyhow::Result;
 use diesel::prelude::*;
@@ -75,7 +74,6 @@ impl Emps {
     pub fn simulate(
         &self,
         minute: i32,
-        robots_manager: &mut RobotsManager,
         buildings_manager: &mut BuildingsManager,
         defense_manager: &mut DefenseManager,
         attackers: &mut HashMap<i32, Attacker>,
@@ -111,7 +109,6 @@ impl Emps {
                     }
 
                     defense_manager.defenders.get_damage(x, y);
-                    defense_manager.diffusers.get_damage(x, y);
 
                     // attackers is in the imapact of EMP
                     for (_, attacker) in attackers.iter_mut() {
@@ -135,96 +132,57 @@ impl Emps {
                     if building_id != 0 {
                         affected_buildings.insert(building_id);
                     } else {
-                        // robots on road
+                        /* robots on road
                         robots_manager.damage_and_reassign_robots(
                             emp.damage,
                             x,
                             y,
                             buildings_manager,
-                        )?;
+                        )?; */
                     }
 
                     // Robots whose shortest path was in impact of an emp
-                    let RobotsManager {
-                        robots,
-                        robots_destination,
-                        shortest_path_grid,
-                        ..
-                    } = robots_manager;
-                    let robots_on_path = shortest_path_grid[x as usize][y as usize].clone();
-                    for robot_id in robots_on_path.iter() {
-                        let robot = robots.get_mut(robot_id).ok_or(KeyError {
-                            key: *robot_id,
-                            hashmap: "robots".to_string(),
-                        })?;
-                        robot.assign_destination(
-                            buildings_manager,
-                            robots_destination,
-                            shortest_path_grid,
-                        )?;
-                    }
+                    /*
+                    CODE
+                     */
                 }
             }
 
-            for building_id in &affected_buildings {
-                let building =
+            /* for building_id in &affected_buildings {
+                /* let building =
                     buildings_manager
                         .buildings
                         .get_mut(building_id)
                         .ok_or(KeyError {
                             key: *building_id,
                             hashmap: "buildings".to_string(),
-                        })?;
-                let Building {
+                        })?; */
+                /*let Building {
                     absolute_entrance_x: x,
                     absolute_entrance_y: y,
                     ..
-                } = building;
+                } = building;*/
                 // robots in affected building
-                let destroyed_robots = robots_manager.damage_and_reassign_robots(
-                    emp.damage,
-                    *x,
-                    *y,
-                    buildings_manager,
-                )?;
-                let building =
+               /*
+               code for damage to robots inside building
+                */
+
+                /* let building =
                     buildings_manager
                         .buildings
                         .get_mut(building_id)
                         .ok_or(KeyError {
                             key: *building_id,
                             hashmap: "buildings".to_string(),
-                        })?;
+                        })?; */
+
+                /*
+                reduce robots in building after damage
+
                 building.population -= destroyed_robots;
+                 */
                 // robots going to affected building
-                let RobotsManager {
-                    robots,
-                    robots_destination,
-                    shortest_path_grid,
-                    ..
-                } = robots_manager;
-                if !robots_destination.contains_key(building_id) {
-                    continue;
-                }
-                let robots_going_to_building = robots_destination
-                    .get(building_id)
-                    .ok_or(KeyError {
-                        key: *building_id,
-                        hashmap: "robots_destination".to_string(),
-                    })?
-                    .clone();
-                for robot_id in robots_going_to_building {
-                    let robot = robots.get_mut(&robot_id).ok_or(KeyError {
-                        key: robot_id,
-                        hashmap: "robots".to_string(),
-                    })?;
-                    robot.assign_destination(
-                        buildings_manager,
-                        robots_destination,
-                        shortest_path_grid,
-                    )?;
-                }
-            }
+            } */
         }
         Ok(())
     }

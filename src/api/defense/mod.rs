@@ -3,7 +3,7 @@ use super::user::util::fetch_user;
 use super::PgPool;
 use crate::api::error;
 use crate::models::*;
-use actix_web::error::{ErrorBadRequest, ErrorForbidden, ErrorNotFound};
+use actix_web::error::{ErrorBadRequest, ErrorNotFound};
 use actix_web::web::{self, Data, Json};
 use actix_web::{Responder, Result};
 use serde::Deserialize;
@@ -52,10 +52,8 @@ async fn get_user_base_details(pool: Data<PgPool>, user: AuthUser) -> Result<imp
 async fn get_other_base_details(
     defender_id: web::Path<i32>,
     pool: web::Data<PgPool>,
-    user: AuthUser,
 ) -> Result<impl Responder> {
     let defender_id = defender_id.into_inner();
-    let attacker_id = user.0;
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let defender_exists = web::block(move || util::defender_exists(defender_id, &mut conn))
         .await?
@@ -75,7 +73,7 @@ async fn get_other_base_details(
 
     let response = web::block(move || {
         let mut conn = pool.get()?;
-        util::get_map_details_for_attack(attacker_id, &mut conn, map)
+        util::get_map_details_for_attack(&mut conn, map)
     })
     .await?
     .map_err(|err| error::handle_error(err.into()))?;
@@ -114,10 +112,6 @@ async fn set_base_details(
 ) -> Result<impl Responder> {
     let defender_id = user.0;
 
-    if !util::is_defense_allowed_now() {
-        return Err(ErrorForbidden("Cannot edit base now"));
-    }
-
     let map_spaces = map_spaces.into_inner();
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let (map, blocks, buildings) = web::block(move || {
@@ -149,10 +143,6 @@ async fn confirm_base_details(
     user: AuthUser,
 ) -> Result<impl Responder> {
     let defender_id = user.0;
-
-    if !util::is_defense_allowed_now() {
-        return Err(ErrorForbidden("Cannot edit base now"));
-    }
 
     let map_spaces = map_spaces.into_inner();
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;

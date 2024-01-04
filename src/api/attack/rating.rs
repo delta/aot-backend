@@ -57,16 +57,16 @@ fn new_rating(
 fn bonus_trophies(
     attacker_rating: &mut i32,
     defender_rating: &mut i32,
-    (live_attackers, used_defenders, used_diffusers, used_mines): (i32, i32, i32, i32),
+    (live_attackers, used_defenders, used_mines): (i32, i32, i32),
 ) {
     *attacker_rating += BONUS_SCALE * live_attackers;
-    *defender_rating += BONUS_SCALE * (used_defenders + used_diffusers + used_mines) / 3;
+    *defender_rating += BONUS_SCALE * (used_defenders + used_mines) / 2;
 }
 
 impl Game {
     pub fn update_rating(
         &self,
-        metrics: (i32, i32, i32, i32),
+        metrics: (i32, i32, i32),
         conn: &mut PgConnection,
     ) -> Result<(i32, i32, i32, i32), diesel::result::Error> {
         use crate::schema::user;
