@@ -43,18 +43,9 @@ diesel::table! {
     building_type (id) {
         id -> Int4,
         defender_type -> Nullable<Int4>,
-        diffuser_type -> Nullable<Int4>,
         mine_type -> Nullable<Int4>,
         blk_type -> Int4,
         building_category -> BuildingCategory,
-    }
-}
-
-diesel::table! {
-    building_weights (time, building_id) {
-        time -> Int4,
-        building_id -> Int4,
-        weight -> Int4,
     }
 }
 
@@ -64,24 +55,6 @@ diesel::table! {
         speed -> Int4,
         damage -> Int4,
         radius -> Int4,
-    }
-}
-
-diesel::table! {
-    diffuser_type (id) {
-        id -> Int4,
-        radius -> Int4,
-        speed -> Int4,
-    }
-}
-
-diesel::table! {
-    drone_usage (id) {
-        id -> Int4,
-        attacker_id -> Int4,
-        map_id -> Int4,
-        drone_x -> Int4,
-        drone_y -> Int4,
     }
 }
 
@@ -102,7 +75,6 @@ diesel::table! {
         map_layout_id -> Int4,
         attack_score -> Int4,
         defend_score -> Int4,
-        robots_destroyed -> Int4,
         emps_used -> Int4,
         damage_done -> Int4,
         is_attacker_alive -> Bool,
@@ -123,7 +95,6 @@ diesel::table! {
         start_date -> Timestamp,
         end_date -> Timestamp,
         no_of_bombs -> Int4,
-        no_of_robots -> Int4,
         rating_factor -> Float4,
         no_of_attackers -> Int4,
     }
@@ -194,11 +165,7 @@ diesel::table! {
 
 diesel::joinable!(building_type -> block_type (blk_type));
 diesel::joinable!(building_type -> defender_type (defender_type));
-diesel::joinable!(building_type -> diffuser_type (diffuser_type));
 diesel::joinable!(building_type -> mine_type (mine_type));
-diesel::joinable!(building_weights -> block_type (building_id));
-diesel::joinable!(drone_usage -> map_layout (map_id));
-diesel::joinable!(drone_usage -> user (attacker_id));
 diesel::joinable!(game -> map_layout (map_layout_id));
 diesel::joinable!(level_constraints -> building_type (building_id));
 diesel::joinable!(level_constraints -> levels_fixture (level_id));
@@ -214,10 +181,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     attacker_type,
     block_type,
     building_type,
-    building_weights,
     defender_type,
-    diffuser_type,
-    drone_usage,
     emp_type,
     game,
     level_constraints,

@@ -1,4 +1,3 @@
-use crate::api::attack;
 use crate::api::error::AuthError;
 use crate::api::user::util::fetch_user;
 use crate::api::util::{can_show_replay, get_current_levels_fixture};
@@ -89,12 +88,10 @@ pub fn get_leaderboard(
             function: function!(),
             error: err,
         })?;
-    let is_attack_allowed_now = attack::util::is_attack_allowed_now();
     let can_be_attacked = |defender_id: i32, map_valid: Option<bool>| {
         *no_of_times_attacked.get(&defender_id).unwrap_or(&0) < TOTAL_ATTACKS_ON_A_BASE
             && map_valid.unwrap_or(false)
             && !already_attacked.contains(&defender_id)
-            && is_attack_allowed_now
             && attacker.is_some()
     };
 

@@ -1,5 +1,4 @@
 use crate::api::{attack, auth, defense, game, user};
-use crate::constants::{ATTACK_END_TIME, ATTACK_START_TIME};
 use actix_cors::Cors;
 use actix_session::{
     config::PersistentSession, storage::RedisActorSessionStore, SessionMiddleware,
@@ -7,7 +6,6 @@ use actix_session::{
 use actix_web::cookie::time::Duration;
 use actix_web::web::Data;
 use actix_web::{cookie::Key, middleware, web, App, HttpResponse, HttpServer};
-use chrono::NaiveTime;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use flexi_logger::{Cleanup, Criterion, Duplicate, FileSpec, Naming};
 
@@ -38,9 +36,6 @@ async fn main() -> std::io::Result<()> {
         )
         .start()
         .unwrap();
-
-    assert!(NaiveTime::parse_from_str(ATTACK_START_TIME, "%H:%M:%S").is_ok());
-    assert!(NaiveTime::parse_from_str(ATTACK_END_TIME, "%H:%M:%S").is_ok());
 
     let pg_pool = util::get_pg_conn_pool();
     let redis_pool = util::get_redis_conn_pool();

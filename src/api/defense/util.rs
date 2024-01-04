@@ -6,13 +6,12 @@ use crate::api::error::AuthError;
 use crate::api::game::util::UserDetail;
 use crate::api::user::util::fetch_user;
 use crate::api::util::GameHistoryEntry;
-use crate::api::{self, attack};
-use crate::constants::{DEFENSE_END_TIME, DEFENSE_START_TIME, DRONE_LIMIT_PER_BASE, ROAD_ID};
+use crate::api::{self};
+use crate::constants::ROAD_ID;
 use crate::models::*;
 use crate::util::function;
 use crate::{api::util::GameHistoryResponse, error::DieselError};
 use anyhow::{Ok, Result};
-use chrono::{Local, NaiveTime};
 use diesel::dsl::exists;
 use diesel::{prelude::*, select};
 use serde::{Deserialize, Serialize};
@@ -23,14 +22,6 @@ pub struct MineTypeResponse {
     pub id: i32,
     pub radius: i32,
     pub damage: i32,
-    pub building_id: i32,
-}
-
-#[derive(Serialize)]
-pub struct DiffuserTypeResponse {
-    pub id: i32,
-    pub radius: i32,
-    pub speed: i32,
     pub building_id: i32,
 }
 
@@ -64,10 +55,8 @@ pub struct DefenseResponse {
     pub level_constraints: Vec<LevelConstraints>,
     pub attack_type: Vec<AttackType>,
     pub defender_types: Vec<DefenderTypeResponse>,
-    pub diffuser_types: Vec<DiffuserTypeResponse>,
     pub mine_types: Vec<MineTypeResponse>,
     pub attacker_types: Vec<AttackerType>,
-    pub no_of_drones: i32,
     pub user: Option<LoginResponse>,
     pub is_map_valid: bool,
 }
@@ -75,13 +64,6 @@ pub struct DefenseResponse {
 #[derive(Deserialize, Serialize)]
 pub struct DefenceHistoryResponse {
     pub games: Vec<Game>,
-}
-
-pub fn is_defense_allowed_now() -> bool {
-    let start_time = NaiveTime::parse_from_str(DEFENSE_START_TIME, "%H:%M:%S").unwrap();
-    let end_time = NaiveTime::parse_from_str(DEFENSE_END_TIME, "%H:%M:%S").unwrap();
-    let current_time = Local::now().naive_local().time();
-    current_time >= start_time && current_time <= end_time
 }
 
 pub fn defender_exists(defender: i32, conn: &mut PgConnection) -> Result<bool> {
@@ -200,7 +182,6 @@ pub fn get_details_from_map_layout(
 
     let mine_types = fetch_mine_types(conn)?;
     let defender_types = fetch_defender_types(conn)?;
-    let diffuser_types = fetch_diffuser_types(conn)?;
     let attacker_types = fetch_attacker_types(conn)?;
     let user_response = if let Some(user) = user {
         Some(LoginResponse {
@@ -224,16 +205,13 @@ pub fn get_details_from_map_layout(
         attack_type,
         mine_types,
         defender_types,
-        diffuser_types,
         attacker_types,
-        no_of_drones: -1,
         user: user_response,
         is_map_valid: map.is_valid,
     })
 }
 
 pub fn get_map_details_for_attack(
-    attacker_id: i32,
     conn: &mut PgConnection,
     map: MapLayout,
 ) -> Result<DefenseResponse> {
@@ -285,13 +263,9 @@ pub fn get_map_details_for_attack(
             error: err,
         })?;
 
-    let no_of_drones_used = attack::util::get_already_used_drone_count(map.id, attacker_id, conn)?;
-
     let mine_types = fetch_mine_types(conn)?;
     let defender_types = fetch_defender_types(conn)?;
-    let diffuser_types = fetch_diffuser_types(conn)?;
     let attacker_types = fetch_attacker_types(conn)?;
-    let no_of_drones = DRONE_LIMIT_PER_BASE - no_of_drones_used as i32;
 
     Ok(DefenseResponse {
         map_spaces,
@@ -301,9 +275,7 @@ pub fn get_map_details_for_attack(
         attack_type,
         mine_types,
         defender_types,
-        diffuser_types,
         attacker_types,
-        no_of_drones,
         user: None,
         is_map_valid: map.is_valid,
     })
@@ -515,31 +487,6 @@ pub fn fetch_mine_types(conn: &mut PgConnection) -> Result<Vec<MineTypeResponse>
         })
         .collect();
     mines
-}
-
-pub fn fetch_diffuser_types(conn: &mut PgConnection) -> Result<Vec<DiffuserTypeResponse>> {
-    use crate::schema::{building_type, diffuser_type};
-
-    let joined_table = building_type::table.inner_join(diffuser_type::table);
-    let diffusers: Result<Vec<DiffuserTypeResponse>> = joined_table
-        .load::<(BuildingType, DiffuserType)>(conn)
-        .map_err(|err| DieselError {
-            table: "diffuser_type",
-            function: function!(),
-            error: err,
-        })?
-        .into_iter()
-        .map(|(building_type, diffuser_type)| {
-            Ok(DiffuserTypeResponse {
-                id: diffuser_type.id,
-                radius: diffuser_type.radius,
-                speed: diffuser_type.speed,
-                building_id: building_type.id,
-            })
-        })
-        .collect();
-
-    diffusers
 }
 
 pub fn fetch_defender_types(conn: &mut PgConnection) -> Result<Vec<DefenderTypeResponse>> {
