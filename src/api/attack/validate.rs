@@ -1,8 +1,5 @@
-use super::util::{DronePosition, NewAttack};
-use crate::{
-    constants::*,
-    models::{AttackerType, BuildingType, MapSpaces},
-};
+use super::util::NewAttack;
+use crate::{constants::*, models::AttackerType};
 use anyhow::Result;
 
 use std::collections::{HashMap, HashSet};
@@ -81,24 +78,4 @@ pub fn is_attack_valid(
     }
 
     Ok(())
-}
-
-pub fn is_valid_drone(
-    drone_position: &DronePosition,
-    drone_count: i64,
-    map_spaces: &[(MapSpaces, BuildingType)],
-) -> Result<()> {
-    if drone_count >= DRONE_LIMIT_PER_BASE as i64 {
-        return Err(anyhow::anyhow!("Total Amount Of Drones used exceeds"));
-    }
-
-    for (map_space, building_type) in map_spaces.iter() {
-        if map_space.x_coordinate == drone_position.x_coord
-            && map_space.y_coordinate == drone_position.y_coord
-            && building_type.blk_type == ROAD_ID
-        {
-            return Ok(());
-        }
-    }
-    Err(anyhow::anyhow!("Invalid Position Of Drone"))
 }

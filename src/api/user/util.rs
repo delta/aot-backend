@@ -179,7 +179,6 @@ pub fn make_response(
         stats.highest_attack_score = attack_game[0].attack_score;
         for attack in attack_game {
             stats.total_damage_attack += attack.damage_done;
-            stats.no_of_robots_killed += attack.robots_destroyed;
             stats.no_of_emps_used += attack.emps_used;
             if !attack.is_attacker_alive {
                 stats.no_of_attackers_suicided += 1;
@@ -190,7 +189,6 @@ pub fn make_response(
         stats.highest_defense_score = defense_game[0].defend_score;
         for defend in defense_game {
             stats.total_damage_defense += defend.damage_done;
-            stats.no_of_robots_got_killed += defend.robots_destroyed;
         }
     }
     if !users.is_empty() {
