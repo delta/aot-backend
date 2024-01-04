@@ -2,9 +2,13 @@ name: CI
 
 on:
   push:
-    branches: [ aor23 ]
+    branches:
+      - aor23
+      - aor24
   pull_request:
-    branches: [ aor23 ]
+    branches:
+      - aor23
+      - aor24
 
 jobs:
   check:
