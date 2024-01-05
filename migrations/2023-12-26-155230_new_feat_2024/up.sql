@@ -8,7 +8,6 @@ DROP  is_verified,
 DROP  highest_rating,
 DROP  avatar,
 DROP  otps_sent,
-ADD  oauth_token VARCHAR(255) NOT NULL,
 ADD  attacks_won INTEGER NOT NULL DEFAULT 0,
 ADD  defenses_won INTEGER NOT NULL DEFAULT 0,
 ADD  trophies INTEGER NOT NULL,
@@ -62,10 +61,9 @@ ADD block_type_id INTEGER NOT NULL,
 ADD CONSTRAINT map_spaces_fk1 FOREIGN KEY (block_type_id) REFERENCES public.block_type(id);
 
 CREATE TABLE public.available_blocks(
-    id INTEGER NOT NULL,
     block_type_id INTEGER NOT NULL,
     user_id INTEGER NOT NULL,
-    CONSTRAINT available_blocks_id_primary PRIMARY KEY(id),
+    CONSTRAINT available_blocks_id_primary PRIMARY KEY(user_id, block_type_id),
     CONSTRAINT user_id_fk FOREIGN KEY (user_id) REFERENCES public.user(id),
     CONSTRAINT block_type_id_fk FOREIGN KEY (block_type_id) REFERENCES public.block_type(id)
 ) WITH (
@@ -73,10 +71,9 @@ CREATE TABLE public.available_blocks(
 );
 
 CREATE TABLE public.artifact(
-    id INTEGER NOT NULL,
     map_space_id INTEGER NOT NULL,
     count INTEGER NOT NULL,
-    CONSTRAINT artifact_id_primary PRIMARY KEY(id),
+    CONSTRAINT artifact_id_primary PRIMARY KEY(map_space_id),
     CONSTRAINT map_space_id_fk FOREIGN KEY (map_space_id) REFERENCES public.map_spaces(id)
 ) WITH (
   OIDS=FALSE
@@ -85,6 +82,8 @@ CREATE TABLE public.artifact(
 ALTER TABLE public.level_constraints
 DROP CONSTRAINT level_constraints_fk1,
 ADD CONSTRAINT level_constraints_fk1 FOREIGN KEY (building_id) REFERENCES public.building_type(id);
+
+ALTER TABLE public.levels_fixture DROP no_of_robots;
 
 DROP TABLE diffuser_type;
 DROP TABLE building_weights;

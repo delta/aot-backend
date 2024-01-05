@@ -32,6 +32,8 @@ CREATE TABLE public.diffuser_type(
   OIDS=FALSE
 );
 
+ALTER TABLE public.levels_fixture ADD no_of_robots INTEGER NOT NULL DEFAULT 1000;
+
 DROP TABLE IF EXISTS artifact;
 DROP TABLE IF EXISTS available_blocks;
 
@@ -41,7 +43,6 @@ DROP avatar_id,
 DROP trophies,
 DROP defenses_won,
 DROP attacks_won,
-DROP oauth_token,
 ADD otps_sent INTEGER NOT NULL DEFAULT 0,
 ADD avatar INTEGER NOT NULL DEFAULT 0,
 ADD highest_rating INTEGER NOT NULL DEFAULT 0,

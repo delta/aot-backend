@@ -7,8 +7,7 @@ pub mod sql_types {
 }
 
 diesel::table! {
-    artifact (id) {
-        id -> Int4,
+    artifact (map_space_id) {
         map_space_id -> Int4,
         count -> Int4,
     }
@@ -35,8 +34,7 @@ diesel::table! {
 }
 
 diesel::table! {
-    available_blocks (id) {
-        id -> Int4,
+    available_blocks (user_id, block_type_id) {
         block_type_id -> Int4,
         user_id -> Int4,
     }
@@ -176,7 +174,6 @@ diesel::table! {
         email -> Varchar,
         username -> Varchar,
         is_pragyan -> Bool,
-        oauth_token -> Varchar,
         attacks_won -> Int4,
         defenses_won -> Int4,
         trophies -> Int4,

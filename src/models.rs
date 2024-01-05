@@ -68,16 +68,8 @@ pub struct NewBuildingType<'a> {
     pub capacity: &'a i32,
 }
 
-#[derive(Queryable)]
-pub struct BuildingWeights {
-    pub time: i32,
-    pub building_id: i32,
-    pub weight: i32,
-}
-
 #[derive(Queryable, Debug, Serialize, Deserialize)]
 pub struct Artifact {
-    pub id: i32,
     pub map_space_id: i32,
     pub count: i32,
 }
@@ -91,7 +83,6 @@ pub struct NewArtifact {
 
 #[derive(Queryable, Debug, Serialize, Deserialize)]
 pub struct AvailableBlocks {
-    pub id: i32,
     pub block_type_id: i32,
     pub user_id: i32,
 }
@@ -227,7 +218,6 @@ pub struct User {
     pub email: String,
     pub username: String,
     pub is_pragyan: bool,
-    pub oauth_token: String,
     pub attacks_won: i32,
     pub defenses_won: i32,
     pub trophies: i32,
@@ -242,7 +232,6 @@ pub struct NewUser<'a> {
     pub email: &'a str,
     pub username: &'a str,
     pub is_pragyan: &'a bool,
-    pub oauth_token: &'a str,
     pub attacks_won: &'a i32,
     pub defenses_won: &'a i32,
     pub trophies: &'a i32,
