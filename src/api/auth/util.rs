@@ -20,6 +20,18 @@ pub fn get_user_by_username(conn: &mut PgConnection, username: &str) -> Result<O
         })?;
     Ok(user)
 }
+pub fn get_user_by_user_id(conn: &mut PgConnection, user_id: &i32) -> Result<Option<User>> {
+    let user = user::table
+        .filter(user::id.eq(user_id))
+        .first::<User>(conn)
+        .optional()
+        .map_err(|err| DieselError {
+            table: "user",
+            function: function!(),
+            error: err,
+        })?;
+    Ok(user)
+}
 
 pub fn get_pragyan_user(
     pg_conn: &mut PgConnection,

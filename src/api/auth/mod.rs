@@ -1,8 +1,8 @@
+use self::authentication_token::AuthenticationToken;
 use self::pragyan::PragyanMessage;
 use super::{PgPool, RedisPool};
 use crate::api::error;
 use crate::constants::OTP_LIMIT;
-use crate::models::User;
 use actix_session::Session;
 use actix_web::error::{ErrorBadRequest, ErrorUnauthorized};
 use actix_web::web::{self, Data, Json, Query};
@@ -11,6 +11,7 @@ use actix_web::{
     cookie::{time::Duration as ActixWebDuration, Cookie},
     HttpResponse, Result,
 };
+
 use chrono::{Duration, Utc};
 use jsonwebtoken::{encode, EncodingKey, Header};
 use oauth2::reqwest::http_client;
@@ -22,6 +23,7 @@ use pwhash::bcrypt;
 // use reqwest::header::LOCATION;
 use serde::{Deserialize, Serialize};
 use std::env;
+pub mod authentication_token;
 mod pragyan;
 pub mod session;
 mod util;
@@ -30,7 +32,8 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
     cfg.service(web::resource("/gauth2/login").route(web::get().to(google_login)))
         .service(web::resource("/login").route(web::post().to(login)))
         .service(web::resource("/logout").route(web::post().to(logout)))
-        .service(web::resource("/gauth2/callback").route(web::get().to(login_callback)));
+        .service(web::resource("/gauth2/callback").route(web::get().to(login_callback)))
+        .service(web::resource("/autherization/health-check").route(web::get().to(health_check)));
     }
 
 #[derive(Deserialize)]
@@ -79,7 +82,7 @@ pub struct CallbackResponse {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TokenClaims {
-    pub user: User,
+    pub id: i32,
     pub iat: usize,
     pub exp: usize,
 }
@@ -113,6 +116,19 @@ fn client() -> BasicClient {
     )
 }
 
+async fn health_check(user: AuthenticationToken, pg_pool: Data<PgPool>) -> Result<impl Responder> {
+    let user_id = user.id;
+
+    let mut pg_conn = pg_pool
+        .get()
+        .map_err(|err| error::handle_error(err.into()))?;
+
+    let user = web::block(move || util::get_user_by_user_id(&mut pg_conn, &user_id))
+        .await?
+        .map_err(|err| error::handle_error(err.into()))?;
+
+    Ok(Json(user))
+}
 async fn google_login() -> impl Responder {
     // Generate the authorization URL to which we'll redirect the user.
     let (authorize_url, csrf_token) = client()
@@ -185,7 +201,11 @@ async fn login_callback(
         .parse()
         .expect("JWT max age must be an integer!");
     let exp = (now + Duration::minutes(jwt_max_age)).timestamp() as usize;
-    let claims: TokenClaims = TokenClaims { user, exp, iat };
+    let claims: TokenClaims = TokenClaims {
+        id: user.id,
+        exp,
+        iat,
+    };
 
     let token = encode(
         &Header::default(),
