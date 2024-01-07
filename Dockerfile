@@ -2,7 +2,7 @@ FROM rust:1.67.0-slim as base
 WORKDIR /usr/src/aot-backend
 RUN apt-get update -y && apt-get install -y \
     libpq-dev \
-    netcat \
+    netcat-traditional \
     pkg-config \
     libssl-dev
 RUN cargo install diesel_cli --no-default-features --features postgres

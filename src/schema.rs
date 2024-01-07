@@ -2,8 +2,15 @@
 
 pub mod sql_types {
     #[derive(diesel::sql_types::SqlType)]
-    #[diesel(postgres_type(name = "building_category"))]
-    pub struct BuildingCategory;
+    #[diesel(postgres_type(name = "block_category"))]
+    pub struct BlockCategory;
+}
+
+diesel::table! {
+    artifact (map_space_id) {
+        map_space_id -> Int4,
+        count -> Int4,
+    }
 }
 
 diesel::table! {
@@ -21,31 +28,41 @@ diesel::table! {
         max_health -> Int4,
         speed -> Int4,
         amt_of_emps -> Int4,
+        level_ -> Int4,
+        cost -> Int4,
     }
 }
 
 diesel::table! {
-    block_type (id) {
-        id -> Int4,
-        name -> Varchar,
-        width -> Int4,
-        height -> Int4,
-        entrance_x -> Int4,
-        entrance_y -> Int4,
-        capacity -> Int4,
+    available_blocks (user_id, block_type_id) {
+        block_type_id -> Int4,
+        user_id -> Int4,
     }
 }
 
 diesel::table! {
     use diesel::sql_types::*;
-    use super::sql_types::BuildingCategory;
+    use super::sql_types::BlockCategory;
 
-    building_type (id) {
+    block_type (id) {
         id -> Int4,
         defender_type -> Nullable<Int4>,
         mine_type -> Nullable<Int4>,
         blk_type -> Int4,
-        building_category -> BuildingCategory,
+        category -> BlockCategory,
+        building_type -> Nullable<Int4>,
+    }
+}
+
+diesel::table! {
+    building_type (id) {
+        id -> Int4,
+        name -> Varchar,
+        width -> Int4,
+        height -> Int4,
+        capacity -> Int4,
+        level_ -> Int4,
+        cost -> Int4,
     }
 }
 
@@ -55,6 +72,8 @@ diesel::table! {
         speed -> Int4,
         damage -> Int4,
         radius -> Int4,
+        level_ -> Int4,
+        cost -> Int4,
     }
 }
 
@@ -78,6 +97,7 @@ diesel::table! {
         emps_used -> Int4,
         damage_done -> Int4,
         is_attacker_alive -> Bool,
+        artifacts_collected -> Int4,
     }
 }
 
@@ -115,8 +135,7 @@ diesel::table! {
         map_id -> Int4,
         x_coordinate -> Int4,
         y_coordinate -> Int4,
-        rotation -> Int4,
-        building_type -> Int4,
+        block_type_id -> Int4,
     }
 }
 
@@ -125,6 +144,8 @@ diesel::table! {
         id -> Int4,
         radius -> Int4,
         damage -> Int4,
+        level_ -> Int4,
+        cost -> Int4,
     }
 }
 
@@ -151,34 +172,36 @@ diesel::table! {
         id -> Int4,
         name -> Varchar,
         email -> Varchar,
-        phone -> Varchar,
         username -> Varchar,
-        overall_rating -> Int4,
         is_pragyan -> Bool,
-        password -> Varchar,
-        is_verified -> Bool,
-        highest_rating -> Int4,
-        avatar -> Int4,
-        otps_sent -> Int4,
+        attacks_won -> Int4,
+        defenses_won -> Int4,
+        trophies -> Int4,
+        avatar_id -> Int4,
+        artifacts -> Int4,
     }
 }
 
-diesel::joinable!(building_type -> block_type (blk_type));
-diesel::joinable!(building_type -> defender_type (defender_type));
-diesel::joinable!(building_type -> mine_type (mine_type));
+diesel::joinable!(artifact -> map_spaces (map_space_id));
+diesel::joinable!(available_blocks -> block_type (block_type_id));
+diesel::joinable!(available_blocks -> user (user_id));
+diesel::joinable!(block_type -> defender_type (defender_type));
+diesel::joinable!(block_type -> mine_type (mine_type));
 diesel::joinable!(game -> map_layout (map_layout_id));
 diesel::joinable!(level_constraints -> building_type (building_id));
 diesel::joinable!(level_constraints -> levels_fixture (level_id));
 diesel::joinable!(map_layout -> levels_fixture (level_id));
 diesel::joinable!(map_layout -> user (player));
-diesel::joinable!(map_spaces -> building_type (building_type));
+diesel::joinable!(map_spaces -> block_type (block_type_id));
 diesel::joinable!(map_spaces -> map_layout (map_id));
 diesel::joinable!(shortest_path -> map_layout (base_id));
 diesel::joinable!(simulation_log -> game (game_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
+    artifact,
     attack_type,
     attacker_type,
+    available_blocks,
     block_type,
     building_type,
     defender_type,
