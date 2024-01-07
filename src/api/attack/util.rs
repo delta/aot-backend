@@ -171,6 +171,7 @@ pub fn add_game(
         map_layout_id: &map_layout_id,
         attack_score: &0,
         defend_score: &0,
+        artifacts_collected: &0,
         damage_done: &0,
         emps_used: &0,
         is_attacker_alive: &false,
@@ -648,6 +649,8 @@ pub fn get_attacker_types(conn: &mut PgConnection) -> Result<HashMap<i32, Attack
                     max_health: attacker.max_health,
                     speed: attacker.speed,
                     amt_of_emps: attacker.amt_of_emps,
+                    level_: attacker.level_,
+                    cost: attacker.cost,
                 },
             )
         })

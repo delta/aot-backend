@@ -1,6 +1,6 @@
 use crate::constants::*;
 use crate::error::DieselError;
-use crate::models::{BlockType, MapSpaces, ShortestPath};
+use crate::models::{BuildingType, MapSpaces, ShortestPath};
 use crate::simulation::error::*;
 use crate::simulation::BuildingStats;
 use crate::util::function;

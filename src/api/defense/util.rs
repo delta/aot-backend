@@ -417,7 +417,7 @@ pub fn fetch_defense_history(
                     user_id: defender.id,
                     username: defender.username,
                     trophies: defender.trophies,
-                    avatar-id: defender.avatar_id,
+                    avatar_id: defender.avatar_id,
                 },
                 is_replay_available,
             })

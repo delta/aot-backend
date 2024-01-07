@@ -169,7 +169,7 @@ async fn confirm_base_details(
     web::block(move || {
         let mut conn = pool.get()?;
         util::put_base_details(&map_spaces, &map, &mut conn)?;
-        util::calculate_shortest_paths(&mut conn, map.id, &blocks)?;
+        util::calculate_shortest_paths(&mut conn, map.id, &buildings)?;
         util::set_map_valid(&mut conn, map.id)
     })
     .await?

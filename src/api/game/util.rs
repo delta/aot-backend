@@ -27,8 +27,8 @@ pub struct LeaderboardResponse {
 pub struct UserDetail {
     pub user_id: i32,
     pub username: String,
-    pub overall_rating: i32,
-    pub avatar: i32,
+    pub trophies: i32,
+    pub avatar_id: i32,
 }
 
 #[derive(Queryable, Deserialize, Serialize)]
