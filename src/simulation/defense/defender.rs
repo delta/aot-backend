@@ -83,8 +83,8 @@ impl Defenders {
         use crate::schema::{block_type, building_type, defender_type, map_spaces};
         let result: Vec<(MapSpaces, (BuildingType, BlockType, DefenderType))> = map_spaces::table
             .inner_join(
-                building_type::table
-                    .inner_join(block_type::table)
+                block_type::table
+                    .inner_join(building_type::table)
                     .inner_join(defender_type::table),
             )
             .filter(map_spaces::map_id.eq(map_id))
@@ -97,9 +97,9 @@ impl Defenders {
 
         let mut defenders: Vec<Defender> = Vec::new();
 
-        for (defender_id, (map_space, (_, block_type, defender_type))) in result.iter().enumerate()
+        for (defender_id, (map_space, (_, building_type, defender_type))) in result.iter().enumerate()
         {
-            let (hut_x, hut_y) = BuildingsManager::get_absolute_entrance(map_space, block_type)?;
+            let (hut_x, hut_y) = BuildingsManager::get_absolute_entrance(map_space, building_type)?;
             let path = vec![(hut_x, hut_y)];
             defenders.push(Defender {
                 id: defender_id as i32 + 1,

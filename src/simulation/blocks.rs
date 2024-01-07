@@ -11,7 +11,7 @@ use std::collections::HashMap;
 
 #[derive(Debug)]
 struct BuildingClass {
-    block_type: BlockType,
+    building_type: BuildingType,
     // capacity: i32,
 }
 
@@ -45,9 +45,9 @@ impl BuildingsManager {
         use crate::schema::{block_type, building_type, map_spaces};
 
         Ok(map_spaces::table
-            .inner_join(building_type::table.inner_join(block_type::table))
+            .inner_join(block_type::table.inner_join(building_type::table))
             .filter(map_spaces::map_id.eq(map_id))
-            .filter(block_type::id.ne(ROAD_ID))
+            .filter(building_type::id.ne(ROAD_ID))
             .select(map_spaces::all_columns)
             .load::<MapSpaces>(conn)
             .map_err(|err| DieselError {
@@ -75,11 +75,11 @@ impl BuildingsManager {
 
     // get all building_types
     fn get_building_types(conn: &mut PgConnection) -> Result<HashMap<i32, BuildingClass>> {
-        use crate::schema::block_type::dsl::*;
+        use crate::schema::building_type::dsl::*;
         block_type
-            .load::<BlockType>(conn)
+            .load::<BuildingType>(conn)
             .map_err(|err| DieselError {
-                table: "block_type",
+                table: "building_type",
                 function: function!(),
                 error: err,
             })?
@@ -88,7 +88,7 @@ impl BuildingsManager {
                 Ok((
                     x.id,
                     BuildingClass {
-                        block_type: x.clone(),
+                        building_type: x.clone(),
                         // capacity: x.capacity,
                     },
                 ))
@@ -136,24 +136,24 @@ impl BuildingsManager {
     // get absolute entrance location (x, y) in map with map_space and block_type
     pub fn get_absolute_entrance(
         map_space: &MapSpaces,
-        block_type: &BlockType,
+        building_type: &BuildingType,
     ) -> Result<(i32, i32)> {
         match map_space.rotation {
             0 => Ok((
-                map_space.x_coordinate + block_type.entrance_x,
-                map_space.y_coordinate + block_type.entrance_y,
+                map_space.x_coordinate + building_type.entrance_x,
+                map_space.y_coordinate + building_type.entrance_y,
             )),
             90 => Ok((
-                map_space.x_coordinate - block_type.entrance_y,
-                map_space.y_coordinate + block_type.entrance_x,
+                map_space.x_coordinate - building_type.entrance_y,
+                map_space.y_coordinate + building_type.entrance_x,
             )),
             180 => Ok((
-                map_space.x_coordinate - block_type.entrance_x,
-                map_space.y_coordinate - block_type.entrance_y,
+                map_space.x_coordinate - building_type.entrance_x,
+                map_space.y_coordinate - building_type.entrance_y,
             )),
             270 => Ok((
-                map_space.x_coordinate + block_type.entrance_y,
-                map_space.y_coordinate - block_type.entrance_x,
+                map_space.x_coordinate + building_type.entrance_y,
+                map_space.y_coordinate - building_type.entrance_x,
             )),
             _ => Err(MapSpaceRotationError {
                 map_space_id: map_space.id,
@@ -163,20 +163,20 @@ impl BuildingsManager {
     }
 
     //Returns Hashmap of building id and block type
-    fn get_building_block_map(conn: &mut PgConnection) -> Result<HashMap<i32, BlockType>> {
+    fn get_building_block_map(conn: &mut PgConnection) -> Result<HashMap<i32, BuildingType>> {
         use crate::schema::{block_type, building_type};
 
-        Ok(building_type::table
-            .inner_join(block_type::table)
-            .select((building_type::id, block_type::all_columns))
-            .load::<(i32, BlockType)>(conn)
+        Ok(block_type::table
+            .inner_join(building_type::table)
+            .select((block_type::id, building_type::all_columns))
+            .load::<(i32, BuildingType)>(conn)
             .map_err(|err| DieselError {
-                table: "block_type",
+                table: "building_type",
                 function: function!(),
                 error: err,
             })?
             .into_iter()
-            .map(|(id, block)| (id, block))
+            .map(|(id, building)| (id, building))
             .collect())
     }
 

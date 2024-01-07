@@ -30,22 +30,22 @@ fn get_absolute_coordinates(
     }
 }
 
-fn get_blocks(conn: &mut PgConnection) -> Result<HashMap<i32, BlockType>> {
-    Ok(building_type::table
-        .inner_join(block_type::table)
-        .select((building_type::id, block_type::all_columns))
-        .load::<(i32, BlockType)>(conn)
+fn get_blocks(conn: &mut PgConnection) -> Result<HashMap<i32, BuilingType>> {
+    Ok(block_type::table
+        .inner_join(building_type::table)
+        .select((block_type::id, building_type::all_columns))
+        .load::<(i32, BuildingType)>(conn)
         .map_err(|err| DieselError {
-            table: "buildin_type",
+            table: "block_type",
             function: function!(),
             error: err,
         })?
         .into_iter()
-        .map(|(id, block)| (id, block))
+        .map(|(id, building)| (id, building))
         .collect())
 }
 
-fn get_block_id(building_id: &i32, building_map: &HashMap<i32, BlockType>) -> i32 {
+fn get_block_id(building_id: &i32, building_map: &HashMap<i32, BuildingType>) -> i32 {
     building_map[building_id].id
 }
 

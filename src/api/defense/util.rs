@@ -22,7 +22,7 @@ pub struct MineTypeResponse {
     pub id: i32,
     pub radius: i32,
     pub damage: i32,
-    pub building_id: i32,
+    pub block_id: i32,
 }
 
 #[derive(Serialize)]
@@ -468,25 +468,25 @@ pub fn fetch_top_defenses(user_id: i32, conn: &mut PgConnection) -> Result<GameH
 }
 
 pub fn fetch_mine_types(conn: &mut PgConnection) -> Result<Vec<MineTypeResponse>> {
-    use crate::schema::building_type;
+    use crate::schema::block_type;
     use crate::schema::mine_type;
 
-    let joined_table = building_type::table.inner_join(mine_type::table);
+    let joined_table = block_type::table.inner_join(mine_type::table);
 
     let mines: Result<Vec<MineTypeResponse>> = joined_table
-        .load::<(BuildingType, MineType)>(conn)
+        .load::<(BlockType, MineType)>(conn)
         .map_err(|err| DieselError {
             table: "mine_type",
             function: function!(),
             error: err,
         })?
         .into_iter()
-        .map(|(building_type, mine_type)| {
+        .map(|(block_type, mine_type)| {
             Ok(MineTypeResponse {
                 id: mine_type.id,
                 radius: mine_type.radius,
                 damage: mine_type.damage,
-                building_id: building_type.id,
+                block_id: block_type.id,
             })
         })
         .collect();
