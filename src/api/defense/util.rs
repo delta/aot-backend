@@ -31,7 +31,7 @@ pub struct DefenderTypeResponse {
     pub radius: i32,
     pub speed: i32,
     pub damage: i32,
-    pub building_id: i32,
+    pub block_id: i32,
     pub block: BuildingTypeResponse,
 }
 
@@ -515,16 +515,16 @@ pub fn fetch_defender_types(conn: &mut PgConnection) -> Result<Vec<DefenderTypeR
                 damage: defender_type.damage,
                 block_id: block_type.id,
                 building: BuildingTypeResponse {
-                    id: block_type.id,
-                    name: block_type.name,
-                    width: block_type.width,
-                    height: block_type.height,
-                    level :block_type.level,
-                    cost :block_type.cost,
+                    id: building_type.id,
+                    name: building_type.name,
+                    width: building_type.width,
+                    height: building_type.height,
+                    level :building_type.level,
+                    cost :building_type.cost,
                     //entrance_x: block_type.entrance_x,
                     //entrance_y: block_type.entrance_y,
-                    capacity: block_type.capacity,
-                    block_id: block_type.id,
+                    capacity: building_type.capacity,
+                    block_id: building_type.id,
                 },
             })
         })
@@ -590,7 +590,7 @@ pub fn fetch_attacker_types(conn: &mut PgConnection) -> Result<Vec<AttackerType>
 pub fn calculate_shortest_paths(
     conn: &mut PgConnection,
     map_id: i32,
-    blocks: &Vec<BlockType>,
+    buildings: &Vec<BuildingType>,
 ) -> Result<()> {
     use crate::schema::shortest_path::dsl::*;
 
@@ -601,7 +601,7 @@ pub fn calculate_shortest_paths(
             function: function!(),
             error: err,
         })?;
-    run_shortest_paths(conn, map_id, blocks)?;
+    run_shortest_paths(conn, map_id, buildings)?;
 
     Ok(())
 }

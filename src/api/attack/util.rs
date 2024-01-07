@@ -7,7 +7,7 @@ use crate::constants::*;
 use crate::error::DieselError;
 use crate::models::{
     AttackerType, BlockCategory, BlockType, Game, LevelsFixture, MapLayout, MapSpaces,
-    NewAttackerPath, NewDroneUsage, NewGame, NewSimulationLog, User,
+    NewAttackerPath, NewGame, NewSimulationLog, User,
 };
 use crate::schema::user;
 use crate::simulation::{RenderAttacker, RenderMine};
