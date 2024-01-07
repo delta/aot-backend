@@ -76,7 +76,7 @@ impl BuildingsManager {
     // get all building_types
     fn get_building_types(conn: &mut PgConnection) -> Result<HashMap<i32, BuildingClass>> {
         use crate::schema::building_type::dsl::*;
-        block_type
+        building_type
             .load::<BuildingType>(conn)
             .map_err(|err| DieselError {
                 table: "building_type",
@@ -246,7 +246,7 @@ impl BuildingsManager {
 
     fn get_block_id(
         building_id: &i32,
-        building_block_map: &HashMap<i32, BlockType>,
+        building_block_map: &HashMap<i32, BuildingType>,
     ) -> Result<i32> {
         Ok(building_block_map
             .get(building_id)

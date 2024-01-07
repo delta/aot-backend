@@ -30,7 +30,7 @@ fn get_absolute_coordinates(
     }
 }
 
-fn get_blocks(conn: &mut PgConnection) -> Result<HashMap<i32, BuilingType>> {
+fn get_blocks(conn: &mut PgConnection) -> Result<HashMap<i32, BuildingType>> {
     Ok(block_type::table
         .inner_join(building_type::table)
         .select((block_type::id, building_type::all_columns))

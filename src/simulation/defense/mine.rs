@@ -21,7 +21,7 @@ pub struct Mines(pub Vec<Mine>);
 
 impl Mines {
     pub fn new(conn: &mut PgConnection, map_id: i32) -> Result<Self> {
-        use crate::schema::{building_type, map_spaces, mine_type};
+        use crate::schema::{block_type, map_spaces, mine_type};
 
         let joined_table = map_spaces::table
             .filter(map_spaces::map_id.eq(map_id))

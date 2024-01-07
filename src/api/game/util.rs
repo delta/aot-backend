@@ -135,8 +135,8 @@ pub fn get_leaderboard(
                 defender: UserDetail {
                     user_id,
                     username,
-                    overall_rating,
-                    avatar,
+                    trophies,
+                    avatar_id,
                 },
                 attacker: UserDetail {
                     user_id: user.id,
