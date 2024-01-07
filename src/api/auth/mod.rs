@@ -4,22 +4,15 @@ use super::{PgPool, RedisPool};
 use crate::api::error;
 use crate::constants::OTP_LIMIT;
 use actix_session::Session;
-use actix_web::error::{ErrorBadRequest, ErrorUnauthorized};
+use actix_web::error::{ErrorBadRequest, ErrorInternalServerError, ErrorUnauthorized};
 use actix_web::web::{self, Data, Json, Query};
 use actix_web::Responder;
-use actix_web::{
-    cookie::{time::Duration as ActixWebDuration, Cookie},
-    HttpResponse, Result,
-};
-
-use chrono::{Duration, Utc};
-use jsonwebtoken::{encode, EncodingKey, Header};
+use actix_web::{HttpResponse, Result};
 use oauth2::reqwest::http_client;
-use oauth2::{basic::BasicClient, TokenResponse};
-use oauth2::{
-    AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken, RedirectUrl, Scope, TokenUrl,
-};
+use oauth2::TokenResponse;
+use oauth2::{AuthorizationCode, CsrfToken, Scope};
 use pwhash::bcrypt;
+use reqwest::header::{AUTHORIZATION, COOKIE, LOCATION};
 // use reqwest::header::LOCATION;
 use serde::{Deserialize, Serialize};
 use std::env;
@@ -61,7 +54,6 @@ pub struct QueryCode {
 
 #[derive(Debug, Serialize)]
 pub struct GoogleLoginResponse {
-    pub authorize_url: String,
     pub csrf_state: String,
 }
 
@@ -74,10 +66,7 @@ pub struct UserInfoFromGoogle {
 
 #[derive(Serialize)]
 pub struct CallbackResponse {
-    pub claims: TokenClaims,
-    pub token: String,
-    pub cookie: String,
-    pub frontend_origin: String,
+    expiry_time: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -85,35 +74,6 @@ pub struct TokenClaims {
     pub id: i32,
     pub iat: usize,
     pub exp: usize,
-}
-
-fn client() -> BasicClient {
-    let google_client_id = ClientId::new(
-        env::var("GOOGLE_OAUTH_CLIENT_ID")
-            .expect("Google oauth client id must be set!")
-            .to_string(),
-    );
-    let google_client_secret = ClientSecret::new(
-        env::var("GOOGLE_OAUTH_CLIENT_SECRET")
-            .expect("Google oauth client secret must be set!")
-            .to_string(),
-    );
-    let auth_url = AuthUrl::new("https://accounts.google.com/o/oauth2/v2/auth".to_string())
-        .expect("Invalid authorization endpoint URL");
-    let token_url = TokenUrl::new("https://www.googleapis.com/oauth2/v3/token".to_string())
-        .expect("Invalid token endpoint URL");
-
-    // Set up the client for the Google OAuth2 process.
-    BasicClient::new(
-        google_client_id,
-        Some(google_client_secret),
-        auth_url,
-        Some(token_url),
-    )
-    .set_redirect_uri(
-        RedirectUrl::new("http://localhost:8000/user/gauth2/callback".to_string())
-            .expect("Invalid redirect URL"),
-    )
 }
 
 async fn health_check(user: AuthenticationToken, pg_pool: Data<PgPool>) -> Result<impl Responder> {
@@ -131,7 +91,7 @@ async fn health_check(user: AuthenticationToken, pg_pool: Data<PgPool>) -> Resul
 }
 async fn google_login() -> impl Responder {
     // Generate the authorization URL to which we'll redirect the user.
-    let (authorize_url, csrf_token) = client()
+    let (authorize_url, csrf_token) = util::client()
         .authorize_url(CsrfToken::new_random)
         .add_scope(Scope::new("email".to_string()))
         .add_scope(Scope::new("openid".to_string()))
@@ -141,11 +101,10 @@ async fn google_login() -> impl Responder {
     //TODO: Store the CSRF token somewhere so we can verify it in the callback.
 
     // Redirect the user to the authorization URL sent in the below json response.
-
-    Json(GoogleLoginResponse {
-        authorize_url: authorize_url.to_string(),
-        csrf_state: csrf_token.secret().to_string(),
-    })
+    HttpResponse::Found()
+        .append_header((LOCATION, authorize_url.to_string()))
+        .append_header(("GOOGLE_CSRF_TOKEN", csrf_token.secret().to_string()))
+        .finish()
 }
 
 async fn login_callback(
@@ -153,81 +112,65 @@ async fn login_callback(
     pg_pool: Data<PgPool>,
     redis_pool: Data<RedisPool>,
 ) -> Result<impl Responder> {
-    //TODO: Verify the CSRF state returned by Google matches the one we generated before proceeding.
-
-    //extract the authorization code from the query parameters in the callback url
+    //extracting the authorization code from the query parameters in the callback url
     let code = AuthorizationCode::new(params.code.clone());
 
+    //TODO: Verify the CSRF state returned by Google matches the one we generated before proceeding.
     let state = params.state.clone();
     if state.is_empty() {
         return Err(ErrorBadRequest("Invalid state"));
     }
 
-    //exchange the authorization code with the access token
-    let token_result = client().exchange_code(code.clone()).request(http_client);
-    let access_token = token_result
-        .unwrap()
-        .access_token()
-        .secret()
-        .clone()
-        .to_string();
-    let url = "https://www.googleapis.com/oauth2/v3/userinfo";
+    //exchanging the authorization code for the access token
+    let token_result = util::client().exchange_code(code).request(http_client);
+    let access_token = match token_result {
+        Ok(token_result) => token_result.access_token().secret().clone(),
+        Err(e) => return Err(ErrorInternalServerError(e.to_string())),
+    };
+    let url = "https://www.googleapis.com/oauth2/v3/userinfo"; //url for getting user info from google
 
-    //exchange the access token for the user info
+    //exchanging the access token for the user info
     let client = reqwest::Client::new();
     let response = client
         .get(url)
         .header("Authorization", format!("Bearer {}", access_token))
         .send()
         .await;
-    let userinfo: UserInfoFromGoogle = response.unwrap().json().await.unwrap();
-    let email = userinfo.email.clone();
-    let name = userinfo.name.clone();
-
+    //TODO: use map instead of nested match error handling
+    let userinfo: UserInfoFromGoogle = match response {
+        Ok(response) => match response.json().await {
+            Ok(json_response_from_google) => json_response_from_google,
+            Err(e) => return Err(ErrorInternalServerError(e.to_string())),
+        },
+        Err(_) => {
+            return Err(ErrorInternalServerError(
+                "Error in getting user info from google",
+            ))
+        }
+    };
+    let email = userinfo.email;
+    let name = userinfo.name;
+    //checking if the user exists in db else creating a new user
     let user = web::block(move || {
         let mut conn = pg_pool.get()?;
         let mut redis_conn = redis_pool.get()?;
-        let email = email.clone();
         util::get_oauth_user(&mut conn, &mut redis_conn, &email, &name)
     })
     .await?
     .map_err(|err| error::handle_error(err.into()))?;
 
-    let jwt_secret = env::var("JWT_SECRET").expect("JWT secret must be set!");
-    let now = Utc::now();
-    let iat = now.timestamp() as usize;
-    let jwt_max_age: i64 = env::var("JWT_MAX_AGE")
-        .expect("JWT max age must be set!")
-        .parse()
-        .expect("JWT max age must be an integer!");
-    let exp = (now + Duration::minutes(jwt_max_age)).timestamp() as usize;
-    let claims: TokenClaims = TokenClaims {
-        id: user.id,
-        exp,
-        iat,
-    };
-
-    let token = encode(
-        &Header::default(),
-        &claims,
-        &EncodingKey::from_secret(jwt_secret.as_ref()),
-    )
-    .unwrap();
-
-    let cookie = Cookie::build("token", token.clone())
-        .path("/")
-        .max_age(ActixWebDuration::new(60 * jwt_max_age, 0))
-        .http_only(true)
-        .finish();
+    //generating jwt token and cookie
+    let (token, cookie, expiring_time) = util::generate_jwt_token_and_cookie(user.id).unwrap();
 
     let frontend_origin = env::var("FRONTEND_URL").expect("Frontend origin must be set!");
 
-    Ok(Json(CallbackResponse {
-        cookie: cookie.to_string(),
-        claims,
-        token,
-        frontend_origin,
-    }))
+    //the user will be redirected to the frontend_origin with the cookie and jwt in the header.
+    Ok(HttpResponse::Found()
+        .append_header((LOCATION, frontend_origin))
+        .append_header((COOKIE, cookie.to_string()))
+        .append_header((AUTHORIZATION, token))
+        .append_header(("expiry_time", expiring_time.to_string()))
+        .finish())
 }
 
 async fn login(
