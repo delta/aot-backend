@@ -15,8 +15,8 @@ use serde::Serialize;
 pub struct StatsResponse {
     pub highest_attack_score: i32,
     pub highest_defense_score: i32,
-    pub rating: i32,
-    pub highest_rating: i32,
+    pub trophies: i32,
+    //pub highest_rating: i32,
     pub position_in_leaderboard: i32,
     pub no_of_robots_killed: i32,
     pub no_of_robots_got_killed: i32,
@@ -44,7 +44,7 @@ pub fn fetch_user(conn: &mut PgConnection, player_id: i32) -> Result<Option<User
 pub fn fetch_all_user(conn: &mut PgConnection) -> Result<Vec<User>> {
     use crate::schema::user;
     Ok(user::table
-        .order_by(user::overall_rating.desc())
+        .order_by(user::trophies.desc())
         .load::<User>(conn)
         .map_err(|err| DieselError {
             table: "user",
@@ -162,8 +162,8 @@ pub fn make_response(
     let mut stats = StatsResponse {
         highest_attack_score: 0,
         highest_defense_score: 0,
-        rating: user.overall_rating,
-        highest_rating: user.highest_rating,
+        trophies: user.trophies,
+        //highest_rating: user.highest_rating,
         position_in_leaderboard: 0,
         no_of_robots_killed: 0,
         no_of_robots_got_killed: 0,

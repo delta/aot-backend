@@ -116,11 +116,11 @@ pub fn get_leaderboard(
         .select((
             user::id,
             user::username,
-            user::overall_rating,
+            user::trophies,
             user::avatar_id,
             map_layout::is_valid.nullable(),
         ))
-        .order_by(user::overall_rating.desc())
+        .order_by(user::trophies.desc())
         .offset(offset)
         .limit(limit)
         .load::<(i32, String, i32, i32, Option<bool>)>(conn)
@@ -141,8 +141,8 @@ pub fn get_leaderboard(
                 attacker: UserDetail {
                     user_id: user.id,
                     username: user.username.to_string(),
-                    overall_rating: user.overall_rating,
-                    avatar: user.avatar,
+                    trophies: user.trophies,
+                    avatar_id: user.avatar_id,
                 },
                 can_be_attacked: can_be_attacked(user_id, map_valid),
             },

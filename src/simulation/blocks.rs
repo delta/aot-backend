@@ -184,16 +184,16 @@ impl BuildingsManager {
     fn get_building_grid(
         conn: &mut PgConnection,
         map_id: i32,
-        building_block_map: &HashMap<i32, BlockType>,
+        building_block_map: &HashMap<i32, BuildingType>,
     ) -> Result<[[i32; MAP_SIZE]; MAP_SIZE]> {
         let map_spaces: Vec<MapSpaces> = Self::get_building_map_spaces(conn, map_id)?;
         let mut building_grid: [[i32; MAP_SIZE]; MAP_SIZE] = [[0; MAP_SIZE]; MAP_SIZE];
 
         for map_space in map_spaces {
-            let BlockType { width, height, .. } = building_block_map
-                .get(&map_space.building_type)
+            let BuildingType { width, height, .. } = building_block_map
+                .get(&map_space.block_type_id)
                 .ok_or(KeyError {
-                    key: map_space.building_type,
+                    key: map_space.block_type_id,
                     hashmap: "building_block_map".to_string(),
                 })?;
             let MapSpaces {
@@ -268,7 +268,7 @@ impl BuildingsManager {
         // let road_map_spaces: Vec<MapSpaces> = Self::get_road_map_spaces(conn, map_id)?;
 
         for map_space in map_spaces {
-            let blk_type = Self::get_block_id(&map_space.building_type, &building_block_map)?;
+            let blk_type = Self::get_block_id(&map_space.block_type_id, &building_block_map)?;
 
             let (absolute_entrance_x, absolute_entrance_y) =
                 Self::get_absolute_entrance(&map_space, &building_types[&blk_type].block_type)?;

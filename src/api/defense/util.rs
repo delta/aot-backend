@@ -32,7 +32,7 @@ pub struct DefenderTypeResponse {
     pub speed: i32,
     pub damage: i32,
     pub block_id: i32,
-    pub block: BuildingTypeResponse,
+    pub building: BuildingTypeResponse,
 }
 
 #[derive(Serialize)]
@@ -410,14 +410,14 @@ pub fn fetch_defense_history(
                 attacker: UserDetail {
                     user_id: attacker.id,
                     username: attacker.username,
-                    overall_rating: attacker.overall_rating,
-                    avatar: attacker.avatar_id,
+                    trophies: attacker.trophies,
+                    avatar_id: attacker.avatar_id,
                 },
                 defender: UserDetail {
                     user_id: defender.id,
                     username: defender.username,
-                    overall_rating: defender.overall_rating,
-                    avatar: defender.avatar_id,
+                    trophies: defender.trophies,
+                    avatar-id: defender.avatar_id,
                 },
                 is_replay_available,
             })
@@ -450,14 +450,14 @@ pub fn fetch_top_defenses(user_id: i32, conn: &mut PgConnection) -> Result<GameH
                 attacker: UserDetail {
                     user_id: attacker.id,
                     username: attacker.username,
-                    overall_rating: attacker.overall_rating,
-                    avatar: attacker.avatar_id,
+                    trophies: attacker.trophies,
+                    avatar_id: attacker.avatar_id,
                 },
                 defender: UserDetail {
                     user_id: defender.id,
                     username: defender.username,
-                    overall_rating: defender.overall_rating,
-                    avatar: defender.avatar_id,
+                    trophies: defender.trophies,
+                    avatar_id: defender.avatar_id,
                 },
                 is_replay_available,
             })
@@ -553,7 +553,7 @@ pub fn fetch_building_blocks(conn: &mut PgConnection) -> Result<Vec<BuildingType
             height: building_type.height,
             //entrance_x: block_type.entrance_x,
             //entrance_y: block_type.entrance_y,
-            level: building_type.level,
+            level: building_type.level_,
             cost: building_type.cost,
             capacity: building_type.capacity,
             block_id: block_type.id,

@@ -52,7 +52,7 @@ pub fn get_pragyan_user(
             email,
             phone: "",
             username,
-            overall_rating: &INITIAL_RATING,
+            trophies: &INITIAL_RATING,
             is_pragyan: &true,
             password: "",
             is_verified: &false,

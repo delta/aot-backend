@@ -209,14 +209,14 @@ pub fn fetch_attack_history(
                 attacker: UserDetail {
                     user_id: attacker.id,
                     username: attacker.username.to_string(),
-                    overall_rating: attacker.overall_rating,
-                    avatar: attacker.avatar,
+                    trophies: attacker.trophies,
+                    avatar_id: attacker.avatar_id,
                 },
                 defender: UserDetail {
                     user_id: defender.id,
                     username: defender.username,
-                    overall_rating: defender.overall_rating,
-                    avatar: defender.avatar,
+                    trophies: defender.trophies,
+                    avatar_id: defender.avatar_id,
                 },
                 is_replay_available,
             })
@@ -245,14 +245,14 @@ pub fn fetch_top_attacks(user_id: i32, conn: &mut PgConnection) -> Result<GameHi
                 attacker: UserDetail {
                     user_id: attacker.id,
                     username: attacker.username,
-                    overall_rating: attacker.overall_rating,
-                    avatar: attacker.avatar,
+                    trophies: attacker.trophies,
+                    avatar_id: attacker.avatar_id,
                 },
                 defender: UserDetail {
                     user_id: defender.id,
                     username: defender.username,
-                    overall_rating: defender.overall_rating,
-                    avatar: defender.avatar,
+                    trophies: defender.trophies,
+                    avatar_id: defender.avatar_id,
                 },
                 is_replay_available,
             })
