@@ -2,7 +2,7 @@ FROM rust:slim as base
 WORKDIR /usr/src/aot-backend
 RUN apt-get update -y && apt-get install -y \
     libpq-dev \
-    netcat \
+    netcat-traditional \
     pkg-config \
     libssl-dev
 RUN cargo install cargo-chef
