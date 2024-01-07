@@ -193,7 +193,7 @@ pub fn is_valid_save_layout(
             .unwrap()
             .category
             == BlockCategory::Building
-            && *block_constraint.1 == *original_constraints.get(block_constraint.0).unwrap()
+            && *block_constraint.1 !=0
         {
             return Err(BaseInvalidError::BlocksUnused(
                 buildings[&blocks.get(block_constraint.0).unwrap().blk_type]
