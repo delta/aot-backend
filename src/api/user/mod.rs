@@ -19,9 +19,9 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
 #[derive(Clone, Deserialize)]
 pub struct InputUser {
     name: String,
-    phone: String,
+    //phone: String,
     username: String,
-    password: String,
+    //password: String,
 }
 #[derive(Serialize)]
 struct UserProfileResponse {
@@ -55,18 +55,16 @@ async fn register(
             "Username should contain atleast 6 characters",
         ));
     }
-    if user.password.len() < 6 {
+    /*if user.password.len() < 6 {
         return Err(ErrorBadRequest(
             "Password should contain atleast 6 characters",
         ));
-    }
+    }*/
     let duplicates = web::block(move || util::get_duplicate_users(&mut conn, &user))
         .await?
         .map_err(|err| error::handle_error(err.into()))?;
     for duplicate in duplicates {
-        if duplicate.phone == input_user.phone && duplicate.is_verified {
-            return Err(ErrorConflict("Phone number already exists"));
-        } else if duplicate.username == input_user.username {
+        if duplicate.username == input_user.username {
             return Err(ErrorConflict("Username already exists"));
         }
     }

@@ -7,7 +7,6 @@ use crate::models::{Game, UpdateUser, User};
 use crate::util::function;
 use anyhow::Result;
 use diesel::prelude::*;
-use pwhash::bcrypt;
 use redis::Commands;
 use serde::Serialize;
 
@@ -59,20 +58,18 @@ pub fn add_user(
     user: &InputUser,
 ) -> anyhow::Result<()> {
     use crate::schema::user;
-
-    let hashed_password = bcrypt::hash(&user.password)?;
     let new_user = NewUser {
         name: &user.name,
-        email: "",
-        phone: &user.phone,
+        email : "",
         username: &user.username,
-        overall_rating: &INITIAL_RATING,
-        is_pragyan: &false,
-        password: &hashed_password,
-        is_verified: &false,
-        highest_rating: &INITIAL_RATING,
-        avatar: &0,
-        otps_sent: &0,
+        is_pragyan: &true,
+        //is_verified: &false,
+        //highest_rating: &INITIAL_RATING,
+        attacks_won: &0,
+        defenses_won: &0,
+        trophies: &INITIAL_RATING,
+        avatar_id: &0,
+        artifacts: &0,
     };
     let user: User = diesel::insert_into(user::table)
         .values(&new_user)

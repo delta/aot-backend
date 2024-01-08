@@ -16,7 +16,7 @@ struct BuildingClass {
 }
 
 #[derive(Debug)]
-pub struct Building {
+pub struct Block {
     map_space: MapSpaces,
     pub absolute_entrance_x: i32,
     pub absolute_entrance_y: i32,
@@ -33,7 +33,7 @@ pub struct SourceDest {
 
 #[derive(Debug)]
 pub struct BuildingsManager {
-    pub buildings: HashMap<i32, Building>,
+    pub blocks: HashMap<i32, Block>,
     pub shortest_paths: HashMap<SourceDest, Vec<(i32, i32)>>,
     pub buildings_grid: [[i32; MAP_SIZE]; MAP_SIZE],
 }
@@ -262,7 +262,7 @@ impl BuildingsManager {
         let map_spaces = Self::get_building_map_spaces(conn, map_id)?;
         let building_types = Self::get_building_types(conn)?;
         let building_block_map = Self::get_building_block_map(conn)?;
-        let mut buildings: HashMap<i32, Building> = HashMap::new();
+        let mut blocks: HashMap<i32, Block> = HashMap::new();
         let buildings_grid: [[i32; MAP_SIZE]; MAP_SIZE] =
             Self::get_building_grid(conn, map_id, &building_block_map)?;
         // let road_map_spaces: Vec<MapSpaces> = Self::get_road_map_spaces(conn, map_id)?;
@@ -271,10 +271,10 @@ impl BuildingsManager {
             let blk_type = Self::get_block_id(&map_space.block_type_id, &building_block_map)?;
 
             let (absolute_entrance_x, absolute_entrance_y) =
-                Self::get_absolute_entrance(&map_space, &building_types[&blk_type].block_type)?;
-            buildings.insert(
+                Self::get_absolute_entrance(&map_space, &building_types[&blk_type].building_type)?;
+            blocks.insert(
                 map_space.id,
-                Building {
+                Block {
                     map_space,
                     absolute_entrance_x,
                     absolute_entrance_y,
@@ -285,7 +285,7 @@ impl BuildingsManager {
 
         let shortest_paths = Self::get_shortest_paths(conn, map_id)?;
         Ok(BuildingsManager {
-            buildings,
+            blocks,
             shortest_paths,
             buildings_grid,
         })

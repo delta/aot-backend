@@ -131,7 +131,7 @@ pub fn get_leaderboard(
         })?
         .into_iter()
         .map(
-            |(user_id, username, overall_rating, avatar, map_valid)| LeaderboardEntry {
+            |(user_id, username, trophies, avatar_id, map_valid)| LeaderboardEntry {
                 defender: UserDetail {
                     user_id,
                     username,

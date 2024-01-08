@@ -6,7 +6,7 @@ use crate::api::util::{GameHistoryEntry, GameHistoryResponse};
 use crate::constants::*;
 use crate::error::DieselError;
 use crate::models::{
-    AttackerType, BlockCategory, BlockType, Game, LevelsFixture, MapLayout, MapSpaces,
+    AttackerType, BlockCategory, Game, LevelsFixture, MapLayout,
     NewAttackerPath, NewGame, NewSimulationLog, User,
 };
 use crate::schema::user;
