@@ -46,6 +46,8 @@ diesel::table! {
 
     block_type (id) {
         id -> Int4,
+        defender_type -> Nullable<Int4>,
+        mine_type -> Nullable<Int4>,
         blk_type -> Int4,
         category -> BlockCategory,
         building_type -> Nullable<Int4>,
