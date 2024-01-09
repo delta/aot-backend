@@ -21,7 +21,7 @@ fn get_absolute_coordinates(
     }
 }
 
-fn get_absolute_entrance(map_space: &MapSpacesEntry, building_type: &BuildingType) -> (i32, i32) {
+/*fn get_absolute_entrance(map_space: &MapSpacesEntry, building_type: &BuildingType) -> (i32, i32) {
     match map_space.rotation {
         0 => (
             map_space.x_coordinate + building_type.entrance_x,
@@ -42,6 +42,7 @@ fn get_absolute_entrance(map_space: &MapSpacesEntry, building_type: &BuildingTyp
         _ => panic!("Invalid Map Space Rotation"),
     }
 }
+*/
 
 //checks overlaps of blocks and also within map size
 pub fn is_valid_update_layout(
@@ -180,7 +181,7 @@ pub fn is_valid_save_layout(
             road_node_to_coords.insert(road_node, (x_coordinate, y_coordinate));
         } else {
             let building = buildings.get(&blk_type).unwrap();
-            let entrance = get_absolute_entrance(map_space, building);
+            let entrance = (map_space.x_coordinate,map_space.y_coordinate);
             node_to_coords.insert(new_node, entrance);
             map_grid.insert(entrance, new_node);
         }
