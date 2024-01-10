@@ -133,7 +133,7 @@ impl BuildingsManager {
         Ok(shortest_paths)
     }
 
-    // get absolute entrance location (x, y) in map with map_space and block_type
+    /*// get absolute entrance location (x, y) in map with map_space and block_type
     pub fn get_absolute_entrance(
         map_space: &MapSpaces,
         building_type: &BuildingType,
@@ -161,6 +161,7 @@ impl BuildingsManager {
             .into()),
         }
     }
+    */
 
     //Returns Hashmap of building id and block type
     fn get_building_block_map(conn: &mut PgConnection) -> Result<HashMap<i32, BuildingType>> {
@@ -270,8 +271,7 @@ impl BuildingsManager {
         for map_space in map_spaces {
             let blk_type = Self::get_block_id(&map_space.block_type_id, &building_block_map)?;
 
-            let (absolute_entrance_x, absolute_entrance_y) =
-                Self::get_absolute_entrance(&map_space, &building_types[&blk_type].building_type)?;
+            let (absolute_entrance_x, absolute_entrance_y) = (map_space.x_coordinate,map_space.y_coordinate);
             blocks.insert(
                 map_space.id,
                 Block {
@@ -295,7 +295,7 @@ impl BuildingsManager {
 // Methods
 impl BuildingsManager {
     pub fn get_building_stats(&self) -> Vec<BuildingStats> {
-        self.buildings
+        self.blocks
             .values()
             .map(|building| BuildingStats {
                 mapsace_id: building.map_space.id,

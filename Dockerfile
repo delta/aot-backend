@@ -18,3 +18,6 @@ COPY --from=planner /usr/src/aot-backend/recipe.json recipe.json
 RUN cargo chef cook --recipe-path recipe.json
 COPY . .
 RUN cargo build
+
+
+

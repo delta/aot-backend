@@ -99,7 +99,7 @@ impl Defenders {
 
         for (defender_id, (map_space, (_, building_type, defender_type))) in result.iter().enumerate()
         {
-            let (hut_x, hut_y) = BuildingsManager::get_absolute_entrance(map_space, building_type)?;
+            let (hut_x, hut_y) = (map_space.x_coordinate,map_space.y_coordinate);
             let path = vec![(hut_x, hut_y)];
             defenders.push(Defender {
                 id: defender_id as i32 + 1,

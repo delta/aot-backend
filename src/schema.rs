@@ -187,6 +187,7 @@ diesel::joinable!(available_blocks -> block_type (block_type_id));
 diesel::joinable!(available_blocks -> user (user_id));
 diesel::joinable!(block_type -> defender_type (defender_type));
 diesel::joinable!(block_type -> mine_type (mine_type));
+diesel::joinable!(block_type -> building_type (building_type));
 diesel::joinable!(game -> map_layout (map_layout_id));
 diesel::joinable!(level_constraints -> building_type (building_id));
 diesel::joinable!(level_constraints -> levels_fixture (level_id));

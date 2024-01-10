@@ -101,7 +101,7 @@ pub fn get_duplicate_users(conn: &mut PgConnection, user: &InputUser) -> Result<
     use crate::schema::user;
     let duplicates = user::table
         .filter(user::username.eq(&user.username))
-        .or_filter(user::phone.eq(&user.phone))
+        //.or_filter(user::phone.eq(&user.phone))
         .load::<User>(conn)
         .map_err(|err| DieselError {
             table: "user",
