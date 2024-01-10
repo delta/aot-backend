@@ -71,12 +71,12 @@ pub fn is_valid_update_layout(
 
         let building: &BuildingType = buildings.get(&blk_type).unwrap();
         let (x, y, width, height) = (map_space.x_coordinate,map_space.y_coordinate,building.width,building.height);
-        if x == -1 && blk_type != ROAD_ID {
+        /*if x == -1 && blk_type != ROAD_ID {
             return Err(BaseInvalidError::InvalidRotation(
                 buildings[&blk_type].name.clone(),
                 map_space.rotation,
             ));
-        }
+        }*/
 
         for i in 0..width {
             for j in 0..height {
