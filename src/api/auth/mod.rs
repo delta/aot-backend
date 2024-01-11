@@ -6,7 +6,6 @@ use actix_web::error::ErrorUnauthorized;
 use actix_web::web::{self, Data, Json};
 use actix_web::Responder;
 use actix_web::{HttpResponse, Result};
-use pwhash::bcrypt;
 use serde::{Deserialize, Serialize};
 
 mod pragyan;
@@ -53,26 +52,17 @@ async fn login(
         .map_err(|err| error::handle_error(err.into()))?;
     if let Some(user) = user {
         if !user.is_pragyan {
-            if bcrypt::verify(&request.password, &user.password) {
-                session::set(&session, user.id, user.is_verified).map_err(error::handle_error)?;
-                if user.is_verified {
-                    return Ok(Json(LoginResponse {
-                        user_id: user.id,
-                        username: user.username,
-                        name: user.name,
-                        avatar_id: user.avatar_id,
-                        attacks_won: user.attacks_won,
-                        defenses_won: user.defenses_won,
-                        trophies: user.trophies,
-                        artifacts: user.artifacts,
-                        email: user.email,
-                    }));
-                }
-                // Account not verified
-                return Err(ErrorUnauthorized("App account not verified"));
-            } else {
-                return Err(ErrorUnauthorized("Invalid Credentials"));
-            }
+            return Ok(Json(LoginResponse {
+                user_id: user.id,
+                username: user.username,
+                name: user.name,
+                avatar_id: user.avatar_id,
+                attacks_won: user.attacks_won,
+                defenses_won: user.defenses_won,
+                trophies: user.trophies,
+                artifacts: user.artifacts,
+                email: user.email,
+            }));
         }
     } else {
         return Err(ErrorUnauthorized("Invalid Credentials"));

@@ -4,46 +4,6 @@ use crate::{api::error::BaseInvalidError, constants::*, models::*};
 use petgraph::{self, algo::tarjan_scc, prelude::*, Graph};
 use std::collections::{HashMap, HashSet};
 
-//returns equivalent left and right coordinates of current position
-//and also equivalent height and width assuming that dimensions of block in current position along x axis is width and similarly for height
-fn get_absolute_coordinates(
-    rot: i32,
-    coord: (i32, i32),
-    dimen: (i32, i32),
-) -> (i32, i32, i32, i32) {
-    let (x, y, width, height) = (coord.0, coord.1, dimen.0, dimen.1);
-    match rot {
-        0 => (x, y, width, height),
-        90 => (x - height + 1, y, height, width),
-        180 => (x - width + 1, y - height + 1, width, height),
-        270 => (x, y - width + 1, height, width),
-        _ => (-1, -1, -1, -1),
-    }
-}
-
-/*fn get_absolute_entrance(map_space: &MapSpacesEntry, building_type: &BuildingType) -> (i32, i32) {
-    match map_space.rotation {
-        0 => (
-            map_space.x_coordinate + building_type.entrance_x,
-            map_space.y_coordinate + building_type.entrance_y,
-        ),
-        90 => (
-            map_space.x_coordinate - building_type.entrance_y,
-            map_space.y_coordinate + building_type.entrance_x,
-        ),
-        180 => (
-            map_space.x_coordinate - building_type.entrance_x,
-            map_space.y_coordinate - building_type.entrance_y,
-        ),
-        270 => (
-            map_space.x_coordinate + building_type.entrance_y,
-            map_space.y_coordinate - building_type.entrance_x,
-        ),
-        _ => panic!("Invalid Map Space Rotation"),
-    }
-}
-*/
-
 //checks overlaps of blocks and also within map size
 pub fn is_valid_update_layout(
     map_spaces: &[MapSpacesEntry],
@@ -64,16 +24,21 @@ pub fn is_valid_update_layout(
         }
         let block = blocks.get(&block_type).unwrap();
 
-        let blk_type = block.blk_type;
-        if !buildings.contains_key(&blk_type) {
-            return Err(BaseInvalidError::InvalidBlockType(blk_type));
+        let building_type = block.building_type;
+        if !buildings.contains_key(&building_type) {
+            return Err(BaseInvalidError::InvalidBlockType(building_type));
         }
 
-        let building: &BuildingType = buildings.get(&blk_type).unwrap();
-        let (x, y, width, height) = (map_space.x_coordinate,map_space.y_coordinate,building.width,building.height);
-        /*if x == -1 && blk_type != ROAD_ID {
+        let building: &BuildingType = buildings.get(&building_type).unwrap();
+        let (x, y, width, height) = (
+            map_space.x_coordinate,
+            map_space.y_coordinate,
+            building.width,
+            building.height,
+        );
+        /*if x == -1 && building_type != ROAD_ID {
             return Err(BaseInvalidError::InvalidRotation(
-                buildings[&blk_type].name.clone(),
+                buildings[&building_type].name.clone(),
                 map_space.rotation,
             ));
         }*/
@@ -92,7 +57,7 @@ pub fn is_valid_update_layout(
                 }
             }
         }
-        if blk_type == ROAD_ID {
+        if building_type == ROAD_ID {
             road_positions.insert((map_space.x_coordinate, map_space.y_coordinate));
         }
     }
@@ -131,7 +96,6 @@ pub fn is_valid_save_layout(
     blocks: &HashMap<i32, BlockType>,
     buildings: &[BuildingType],
 ) -> Result<(), BaseInvalidError> {
-    let original_constraints: HashMap<i32, i32> = block_constraints.clone();
     is_valid_update_layout(map_spaces, blocks, buildings)?;
 
     let mut graph: Graph<(), (), Directed> = Graph::new();
@@ -156,7 +120,7 @@ pub fn is_valid_save_layout(
 
         let block = blocks.get(&block_type_id).unwrap();
 
-        let blk_type = block.blk_type;
+        let building_type = block.building_type;
 
         // check for level constraints
         if let Some(block_constraint) = block_constraints.get_mut(&block_type_id) {
@@ -169,31 +133,26 @@ pub fn is_valid_save_layout(
 
         // add roads and entrances to graph
         let new_node = graph.add_node(());
-        if blk_type == ROAD_ID {
+        if building_type == ROAD_ID {
             let road_node = road_graph.add_node(());
             map_grid.insert((x_coordinate, y_coordinate), new_node);
             road_grid.insert((x_coordinate, y_coordinate), road_node);
             node_to_coords.insert(new_node, (x_coordinate, y_coordinate));
             road_node_to_coords.insert(road_node, (x_coordinate, y_coordinate));
         } else {
-            let building = buildings.get(&blk_type).unwrap();
-            let entrance = (map_space.x_coordinate,map_space.y_coordinate);
+            let entrance = (map_space.x_coordinate, map_space.y_coordinate);
             node_to_coords.insert(new_node, entrance);
             map_grid.insert(entrance, new_node);
         }
     }
 
-    //checks if atleast one block of each type is used
+    //checks if every block of each type is used
     for block_constraint in block_constraints {
-        if blocks
-            .get(block_constraint.0)
-            .unwrap()
-            .category
-            == BlockCategory::Building
-            && *block_constraint.1 !=0
+        if blocks.get(block_constraint.0).unwrap().category == BlockCategory::Building
+            && *block_constraint.1 != 0
         {
             return Err(BaseInvalidError::BlocksUnused(
-                buildings[&blocks.get(block_constraint.0).unwrap().blk_type]
+                buildings[&blocks.get(block_constraint.0).unwrap().building_type]
                     .name
                     .clone(),
             ));

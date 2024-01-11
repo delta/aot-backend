@@ -118,7 +118,7 @@ async fn set_base_details(
             util::fetch_map_layout(&mut conn, &defender_id)?,
             util::fetch_blocks(&mut conn)?,
             util::fetch_buildings(&mut conn)?,
-        )) as anyhow::Result<(MapLayout,HashMap<i32, BlockType>, Vec<BuildingType>, )>
+        )) as anyhow::Result<(MapLayout, HashMap<i32, BlockType>, Vec<BuildingType>)>
     })
     .await?
     .map_err(|err| error::handle_error(err.into()))?;
@@ -158,7 +158,6 @@ async fn confirm_base_details(
                 HashMap<i32, BlockType>,
                 HashMap<i32, i32>,
                 Vec<BuildingType>,
-                
             )>
     })
     .await?

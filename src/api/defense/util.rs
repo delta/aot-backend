@@ -41,10 +41,8 @@ pub struct BuildingTypeResponse {
     pub name: String,
     pub width: i32,
     pub height: i32,
-    //pub entrance_x: i32,
-    //pub entrance_y: i32,
-    pub level_ : i32,
-    pub cost : i32,
+    pub level_: i32,
+    pub cost: i32,
     pub capacity: i32,
     pub block_id: i32,
 }
@@ -219,9 +217,7 @@ pub fn get_map_details_for_attack(
     conn: &mut PgConnection,
     map: MapLayout,
 ) -> Result<DefenseResponse> {
-    use crate::schema::{
-        attack_type, block_type, level_constraints, levels_fixture, map_spaces,
-    };
+    use crate::schema::{attack_type, block_type, level_constraints, levels_fixture, map_spaces};
 
     let map_spaces = map_spaces::table
         .inner_join(block_type::table)
@@ -234,7 +230,7 @@ pub fn get_map_details_for_attack(
         })?
         .into_iter()
         .map(|(mut map_space, block_type)| {
-            if block_type.blk_type == ROAD_ID {
+            if block_type.building_type == ROAD_ID {
                 map_space.block_type_id = ROAD_ID;
                 map_space
             } else {
@@ -318,7 +314,6 @@ pub fn put_base_details(
             map_id: map.id,
             x_coordinate: e.x_coordinate,
             y_coordinate: e.y_coordinate,
-            //rotation: e.rotation,
             block_type_id: e.block_type_id,
         })
         .collect();
@@ -494,7 +489,7 @@ pub fn fetch_mine_types(conn: &mut PgConnection) -> Result<Vec<MineTypeResponse>
 }
 
 pub fn fetch_defender_types(conn: &mut PgConnection) -> Result<Vec<DefenderTypeResponse>> {
-    use crate::schema::{building_type, block_type, defender_type};
+    use crate::schema::{block_type, building_type, defender_type};
 
     let joined_table = block_type::table
         .inner_join(defender_type::table)
@@ -519,10 +514,8 @@ pub fn fetch_defender_types(conn: &mut PgConnection) -> Result<Vec<DefenderTypeR
                     name: building_type.name,
                     width: building_type.width,
                     height: building_type.height,
-                    level_ :building_type.level_,
-                    cost :building_type.cost,
-                    //entrance_x: block_type.entrance_x,
-                    //entrance_y: block_type.entrance_y,
+                    level_: building_type.level_,
+                    cost: building_type.cost,
                     capacity: building_type.capacity,
                     block_id: building_type.id,
                 },
@@ -533,7 +526,7 @@ pub fn fetch_defender_types(conn: &mut PgConnection) -> Result<Vec<DefenderTypeR
 }
 
 pub fn fetch_building_blocks(conn: &mut PgConnection) -> Result<Vec<BuildingTypeResponse>> {
-    use crate::schema::{building_type, block_type};
+    use crate::schema::{block_type, building_type};
 
     let joined_table = block_type::table
         .filter(block_type::category.eq(BlockCategory::Building))
@@ -551,8 +544,6 @@ pub fn fetch_building_blocks(conn: &mut PgConnection) -> Result<Vec<BuildingType
             name: building_type.name,
             width: building_type.width,
             height: building_type.height,
-            //entrance_x: block_type.entrance_x,
-            //entrance_y: block_type.entrance_y,
             level_: building_type.level_,
             cost: building_type.cost,
             capacity: building_type.capacity,

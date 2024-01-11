@@ -70,7 +70,7 @@ pub fn run_shortest_paths(
     // Initialising nodes, filling 2d array and the node_to_index and index_to_node maps
     for i in &mapspaces_list {
         let single_node = graph.add_node(0);
-        let (absolute_entrance_x, absolute_entrance_y) = (i.x_coordinate,i.y_coordinate);
+        let (absolute_entrance_x, absolute_entrance_y) = (i.x_coordinate, i.y_coordinate);
         graph_2d
             .set(
                 absolute_entrance_y as usize,
@@ -127,8 +127,10 @@ pub fn run_shortest_paths(
     for i in &mapspaces_list {
         for j in &mapspaces_list {
             if j.block_type_id != ROAD_ID {
-                let (start_absolute_entrance_x, start_absolute_entrance_y) =(i.x_coordinate,i.y_coordinate);
-                let (dest_absolute_entrance_x, dest_absolute_entrance_y) = (j.x_coordinate,j.y_coordinate);
+                let (start_absolute_entrance_x, start_absolute_entrance_y) =
+                    (i.x_coordinate, i.y_coordinate);
+                let (dest_absolute_entrance_x, dest_absolute_entrance_y) =
+                    (j.x_coordinate, j.y_coordinate);
                 let start_node = index_to_node[&((start_absolute_entrance_y as usize) * MAP_SIZE
                     + (start_absolute_entrance_x as usize))];
                 let dest_node = index_to_node[&((dest_absolute_entrance_y as usize) * MAP_SIZE

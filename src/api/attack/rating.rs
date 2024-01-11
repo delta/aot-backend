@@ -101,16 +101,6 @@ impl Game {
         diesel::update(user::table.filter(user::id.eq(defend_id)))
             .set(user::trophies.eq(new_defender_rating))
             .execute(conn)?;
-        /*if new_attacker_rating > attacker_rating {
-            diesel::update(user::table.filter(user::id.eq(attack_id)))
-                .set(user::highest_rating.eq(new_attacker_rating))
-                .execute(conn)?;
-        }
-        if new_defender_rating > defender_rating {
-            diesel::update(user::table.filter(user::id.eq(defend_id)))
-                .set(user::highest_rating.eq(new_defender_rating))
-                .execute(conn)?;
-        }*/
         Ok((
             new_attacker_rating,
             new_defender_rating,

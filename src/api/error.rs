@@ -41,7 +41,6 @@ impl From<r2d2::Error> for AuthError {
 pub enum BaseInvalidError {
     InvalidBlockType(i32),
     #[display(fmt = "{self:?}")]
-    InvalidRotation(String, i32),
     InvalidBuildingType(i32),
     OverlappingBlocks,
     BlockOutsideMap,
@@ -56,9 +55,6 @@ impl ResponseError for BaseInvalidError {
         let response_body = match self {
             BaseInvalidError::InvalidBlockType(block_type) => {
                 format!("Invalid block type: {block_type}")
-            }
-            BaseInvalidError::InvalidRotation(block_type, rotation) => {
-                format!("Invalid rotation {rotation} for a block of type {block_type}")
             }
             BaseInvalidError::InvalidBuildingType(building_id) => {
                 format!("City has invalid building of type {building_id} placed")

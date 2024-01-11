@@ -97,9 +97,8 @@ impl Defenders {
 
         let mut defenders: Vec<Defender> = Vec::new();
 
-        for (defender_id, (map_space, (_, building_type, defender_type))) in result.iter().enumerate()
-        {
-            let (hut_x, hut_y) = (map_space.x_coordinate,map_space.y_coordinate);
+        for (defender_id, (map_space, (_, _, defender_type))) in result.iter().enumerate() {
+            let (hut_x, hut_y) = (map_space.x_coordinate, map_space.y_coordinate);
             let path = vec![(hut_x, hut_y)];
             defenders.push(Defender {
                 id: defender_id as i32 + 1,

@@ -15,10 +15,7 @@ pub struct StatsResponse {
     pub highest_attack_score: i32,
     pub highest_defense_score: i32,
     pub trophies: i32,
-    //pub highest_rating: i32,
     pub position_in_leaderboard: i32,
-    pub no_of_robots_killed: i32,
-    pub no_of_robots_got_killed: i32,
     pub no_of_emps_used: i32,
     pub total_damage_defense: i32,
     pub total_damage_attack: i32,
@@ -60,11 +57,9 @@ pub fn add_user(
     use crate::schema::user;
     let new_user = NewUser {
         name: &user.name,
-        email : "",
+        email: "",
         username: &user.username,
-        is_pragyan: &true,
-        //is_verified: &false,
-        //highest_rating: &INITIAL_RATING,
+        is_pragyan: &false,
         attacks_won: &0,
         defenses_won: &0,
         trophies: &INITIAL_RATING,
@@ -101,7 +96,6 @@ pub fn get_duplicate_users(conn: &mut PgConnection, user: &InputUser) -> Result<
     use crate::schema::user;
     let duplicates = user::table
         .filter(user::username.eq(&user.username))
-        //.or_filter(user::phone.eq(&user.phone))
         .load::<User>(conn)
         .map_err(|err| DieselError {
             table: "user",
@@ -160,10 +154,7 @@ pub fn make_response(
         highest_attack_score: 0,
         highest_defense_score: 0,
         trophies: user.trophies,
-        //highest_rating: user.highest_rating,
         position_in_leaderboard: 0,
-        no_of_robots_killed: 0,
-        no_of_robots_got_killed: 0,
         no_of_emps_used: 0,
         total_damage_defense: 0,
         total_damage_attack: 0,

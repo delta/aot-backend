@@ -52,14 +52,11 @@ pub fn get_pragyan_user(
             email,
             username,
             is_pragyan: &true,
-            //is_verified: &false,
-            //highest_rating: &INITIAL_RATING,
             attacks_won: &0,
             defenses_won: &0,
             trophies: &INITIAL_RATING,
             avatar_id: &0,
             artifacts: &0,
-            //otps_sent: &0,
         };
         let user: User = diesel::insert_into(user::table)
             .values(&new_user)

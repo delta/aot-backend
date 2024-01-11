@@ -44,13 +44,14 @@ ALTER TABLE public.building_type DROP CONSTRAINT diffuser_type_fk;
 ALTER TABLE public.building_type RENAME TO block_type;
 ALTER TABLE public.building_type_temp RENAME TO building_type;
 
-CREATE TYPE block_category AS ENUM ('defender', 'mine', 'building', 'road');
+CREATE TYPE block_category AS ENUM ('defender', 'mine', 'building');
 
 ALTER TABLE public.block_type
 DROP diffuser_type,
 DROP building_category,
+DROP blk_type,
 ADD category block_category NOT NULL,
-ADD building_type INTEGER,
+ADD building_type INTEGER NOT NULL,
 ADD CONSTRAINT building_type_fk FOREIGN KEY (building_type) REFERENCES public.building_type(id);
 DROP TYPE building_category;
 

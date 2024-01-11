@@ -6,8 +6,8 @@ use crate::api::util::{GameHistoryEntry, GameHistoryResponse};
 use crate::constants::*;
 use crate::error::DieselError;
 use crate::models::{
-    AttackerType, BlockCategory, Game, LevelsFixture, MapLayout,
-    NewAttackerPath, NewGame, NewSimulationLog, User,
+    AttackerType, BlockCategory, Game, LevelsFixture, MapLayout, NewAttackerPath, NewGame,
+    NewSimulationLog, User,
 };
 use crate::schema::user;
 use crate::simulation::{RenderAttacker, RenderMine};
@@ -27,7 +27,7 @@ use std::io::Write;
 pub struct DefensePosition {
     pub y_coord: i32,
     pub x_coord: i32,
-    pub building_category: BlockCategory,
+    pub block_category: BlockCategory,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -75,7 +75,7 @@ pub fn get_valid_road_paths(map_id: i32, conn: &mut PgConnection) -> Result<Hash
     let valid_road_paths: HashSet<(i32, i32)> = map_spaces::table
         .inner_join(block_type::table)
         .filter(map_spaces::map_id.eq(map_id))
-        .filter(block_type::blk_type.eq(ROAD_ID))
+        .filter(block_type::building_type.eq(ROAD_ID))
         .select((map_spaces::x_coordinate, map_spaces::y_coordinate))
         .load::<(i32, i32)>(conn)
         .map_err(|err| DieselError {
