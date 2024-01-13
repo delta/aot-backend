@@ -52,9 +52,9 @@ pub struct BuildingType {
     pub name: String,
     pub width: i32,
     pub height: i32,
+    pub capacity: i32,
     pub level_: i32,
     pub cost: i32,
-    pub capacity: i32,
 }
 
 #[derive(Insertable)]
@@ -63,9 +63,9 @@ pub struct NewBuildingType<'a> {
     pub name: &'a str,
     pub width: &'a i32,
     pub height: &'a i32,
+    pub capacity: &'a i32,
     pub level_: &'a i32,
     pub cost: &'a i32,
-    pub capacity: &'a i32,
 }
 
 #[derive(Queryable, Debug, Serialize, Deserialize)]
@@ -104,8 +104,8 @@ pub struct Game {
     pub defend_score: i32,
     pub artifacts_collected: i32,
     pub emps_used: i32,
-    pub damage_done: i32,
     pub is_attacker_alive: bool,
+    pub damage_done: i32,
 }
 
 #[derive(Insertable)]
@@ -275,26 +275,26 @@ pub struct DefenderType {
     pub speed: i32,
     pub damage: i32,
     pub radius: i32,
+    pub level_: i32,
+    pub cost: i32,
 }
 
 #[derive(Queryable, Clone, Debug, Serialize)]
 pub struct BlockType {
     pub id: i32,
     pub defender_type: Option<i32>,
-    pub building_type: Option<i32>,
     pub mine_type: Option<i32>,
-    pub blk_type: i32,
     pub category: BlockCategory,
+    pub building_type: i32,
 }
 
 #[derive(Queryable, Clone, Debug, Serialize)]
 #[diesel(table_name = block_type)]
 pub struct NewBlockType<'a> {
     pub defender_type: &'a Option<i32>,
-    pub building_type: &'a Option<i32>,
     pub mine_type: &'a Option<i32>,
-    pub blk_type: &'a i32,
     pub category: &'a BlockCategory,
+    pub building_type: &'a Option<i32>,
 }
 
 #[derive(Queryable, Clone, Debug, Serialize)]

@@ -21,14 +21,14 @@ pub struct Mines(pub Vec<Mine>);
 
 impl Mines {
     pub fn new(conn: &mut PgConnection, map_id: i32) -> Result<Self> {
-        use crate::schema::{building_type, map_spaces, mine_type};
+        use crate::schema::{block_type, map_spaces, mine_type};
 
         let joined_table = map_spaces::table
             .filter(map_spaces::map_id.eq(map_id))
-            .inner_join(building_type::table.inner_join(mine_type::table));
+            .inner_join(block_type::table.inner_join(mine_type::table));
 
         let mines: Vec<Mine> = joined_table
-            .load::<(MapSpaces, (BuildingType, MineType))>(conn)?
+            .load::<(MapSpaces, (BlockType, MineType))>(conn)?
             .into_iter()
             .enumerate()
             .map(|(mine_id, (map_space, (_, mine_type)))| Mine {

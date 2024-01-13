@@ -81,14 +81,14 @@ impl Defender {
 impl Defenders {
     pub fn new(conn: &mut PgConnection, map_id: i32) -> Result<Self> {
         use crate::schema::{block_type, building_type, defender_type, map_spaces};
-        let result: Vec<(MapSpaces, (BuildingType, BlockType, DefenderType))> = map_spaces::table
+        let result: Vec<(MapSpaces, (BlockType, BuildingType, DefenderType))> = map_spaces::table
             .inner_join(
-                building_type::table
-                    .inner_join(block_type::table)
+                block_type::table
+                    .inner_join(building_type::table)
                     .inner_join(defender_type::table),
             )
             .filter(map_spaces::map_id.eq(map_id))
-            .load::<(MapSpaces, (BuildingType, BlockType, DefenderType))>(conn)
+            .load::<(MapSpaces, (BlockType, BuildingType, DefenderType))>(conn)
             .map_err(|err| DieselError {
                 table: "map_spaces",
                 function: function!(),
@@ -97,9 +97,8 @@ impl Defenders {
 
         let mut defenders: Vec<Defender> = Vec::new();
 
-        for (defender_id, (map_space, (_, block_type, defender_type))) in result.iter().enumerate()
-        {
-            let (hut_x, hut_y) = BuildingsManager::get_absolute_entrance(map_space, block_type)?;
+        for (defender_id, (map_space, (_, _, defender_type))) in result.iter().enumerate() {
+            let (hut_x, hut_y) = (map_space.x_coordinate, map_space.y_coordinate);
             let path = vec![(hut_x, hut_y)];
             defenders.push(Defender {
                 id: defender_id as i32 + 1,

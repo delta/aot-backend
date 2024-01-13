@@ -6,7 +6,6 @@ use actix_web::error::ErrorUnauthorized;
 use actix_web::web::{self, Data, Json};
 use actix_web::Responder;
 use actix_web::{HttpResponse, Result};
-use pwhash::bcrypt;
 use serde::{Deserialize, Serialize};
 
 mod pragyan;
@@ -29,9 +28,11 @@ pub struct LoginResponse {
     pub user_id: i32,
     pub username: String,
     pub name: String,
-    pub overall_rating: i32,
-    pub avatar: i32,
-    pub highest_rating: i32,
+    pub avatar_id: i32,
+    pub attacks_won: i32,
+    pub defenses_won: i32,
+    pub trophies: i32,
+    pub artifacts: i32,
     pub email: String,
 }
 
@@ -51,25 +52,17 @@ async fn login(
         .map_err(|err| error::handle_error(err.into()))?;
     if let Some(user) = user {
         if !user.is_pragyan {
-            if bcrypt::verify(&request.password, &user.password) {
-                session::set(&session, user.id, user.is_verified)
-                    .map_err(|err| error::handle_error(err))?;
-                if user.is_verified {
-                    return Ok(Json(LoginResponse {
-                        user_id: user.id,
-                        username: user.username,
-                        name: user.name,
-                        overall_rating: user.overall_rating,
-                        avatar: user.avatar,
-                        highest_rating: user.highest_rating,
-                        email: user.email,
-                    }));
-                }
-                // Account not verified
-                return Err(ErrorUnauthorized("App account not verified"));
-            } else {
-                return Err(ErrorUnauthorized("Invalid Credentials"));
-            }
+            return Ok(Json(LoginResponse {
+                user_id: user.id,
+                username: user.username,
+                name: user.name,
+                avatar_id: user.avatar_id,
+                attacks_won: user.attacks_won,
+                defenses_won: user.defenses_won,
+                trophies: user.trophies,
+                artifacts: user.artifacts,
+                email: user.email,
+            }));
         }
     } else {
         return Err(ErrorUnauthorized("Invalid Credentials"));
@@ -80,7 +73,7 @@ async fn login(
     let email = username.to_lowercase();
     let pragyan_auth = pragyan::auth(email, password)
         .await
-        .map_err(|err| error::handle_error(err))?;
+        .map_err(error::handle_error)?;
     match pragyan_auth.status_code {
         200 => {
             if let PragyanMessage::Success(pragyan_user) = pragyan_auth.message {
@@ -93,14 +86,16 @@ async fn login(
                 })
                 .await?
                 .map_err(|err| error::handle_error(err.into()))?;
-                session::set(&session, user.id, true).map_err(|err| error::handle_error(err))?;
+                session::set(&session, user.id, true).map_err(error::handle_error)?;
                 Ok(Json(LoginResponse {
                     user_id: user.id,
                     username: user.username,
-                    name: pragyan_user.user_fullname,
-                    overall_rating: user.overall_rating,
-                    avatar: user.avatar,
-                    highest_rating: user.highest_rating,
+                    name: user.name,
+                    avatar_id: user.avatar_id,
+                    attacks_won: user.attacks_won,
+                    defenses_won: user.defenses_won,
+                    trophies: user.trophies,
+                    artifacts: user.artifacts,
                     email: user.email,
                 }))
             } else {

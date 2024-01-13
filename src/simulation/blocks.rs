@@ -1,6 +1,6 @@
 use crate::constants::*;
 use crate::error::DieselError;
-use crate::models::{BlockType, MapSpaces, ShortestPath};
+use crate::models::{BuildingType, MapSpaces, ShortestPath};
 use crate::simulation::error::*;
 use crate::simulation::BuildingStats;
 use crate::util::function;
@@ -9,14 +9,14 @@ use diesel::prelude::*;
 use diesel::{PgConnection, QueryDsl};
 use std::collections::HashMap;
 
-#[derive(Debug)]
-struct BuildingClass {
-    block_type: BlockType,
-    // capacity: i32,
-}
+// #[derive(Debug)]
+// struct BuildingClass {
+// building_type: BuildingType,
+// capacity: i32,
+// }
 
 #[derive(Debug)]
-pub struct Building {
+pub struct Block {
     map_space: MapSpaces,
     pub absolute_entrance_x: i32,
     pub absolute_entrance_y: i32,
@@ -33,7 +33,7 @@ pub struct SourceDest {
 
 #[derive(Debug)]
 pub struct BuildingsManager {
-    pub buildings: HashMap<i32, Building>,
+    pub blocks: HashMap<i32, Block>,
     pub shortest_paths: HashMap<SourceDest, Vec<(i32, i32)>>,
     pub buildings_grid: [[i32; MAP_SIZE]; MAP_SIZE],
 }
@@ -45,9 +45,9 @@ impl BuildingsManager {
         use crate::schema::{block_type, building_type, map_spaces};
 
         Ok(map_spaces::table
-            .inner_join(building_type::table.inner_join(block_type::table))
+            .inner_join(block_type::table.inner_join(building_type::table))
             .filter(map_spaces::map_id.eq(map_id))
-            .filter(block_type::id.ne(ROAD_ID))
+            .filter(building_type::id.ne(ROAD_ID))
             .select(map_spaces::all_columns)
             .load::<MapSpaces>(conn)
             .map_err(|err| DieselError {
@@ -74,27 +74,27 @@ impl BuildingsManager {
     } */
 
     // get all building_types
-    fn get_building_types(conn: &mut PgConnection) -> Result<HashMap<i32, BuildingClass>> {
-        use crate::schema::block_type::dsl::*;
-        block_type
-            .load::<BlockType>(conn)
-            .map_err(|err| DieselError {
-                table: "block_type",
-                function: function!(),
-                error: err,
-            })?
-            .iter()
-            .map(|x| {
-                Ok((
-                    x.id,
-                    BuildingClass {
-                        block_type: x.clone(),
-                        // capacity: x.capacity,
-                    },
-                ))
-            })
-            .collect()
-    }
+    // fn get_building_types(conn: &mut PgConnection) -> Result<HashMap<i32, BuildingClass>> {
+    //     use crate::schema::building_type::dsl::*;
+    //     building_type
+    //         .load::<BuildingType>(conn)
+    //         .map_err(|err| DieselError {
+    //             table: "building_type",
+    //             function: function!(),
+    //             error: err,
+    //         })?
+    //         .iter()
+    //         .map(|x| {
+    //             Ok((
+    //                 x.id,
+    //                 BuildingClass {
+    //                     building_type: x.clone(),
+    //                     // capacity: x.capacity,
+    //                 },
+    //             ))
+    //         })
+    //         .collect()
+    // }
 
     // get all shortest paths with string pathlist converted to vector of i32 tuples
     fn get_shortest_paths(
@@ -133,27 +133,27 @@ impl BuildingsManager {
         Ok(shortest_paths)
     }
 
-    // get absolute entrance location (x, y) in map with map_space and block_type
+    /*// get absolute entrance location (x, y) in map with map_space and block_type
     pub fn get_absolute_entrance(
         map_space: &MapSpaces,
-        block_type: &BlockType,
+        building_type: &BuildingType,
     ) -> Result<(i32, i32)> {
         match map_space.rotation {
             0 => Ok((
-                map_space.x_coordinate + block_type.entrance_x,
-                map_space.y_coordinate + block_type.entrance_y,
+                map_space.x_coordinate + building_type.entrance_x,
+                map_space.y_coordinate + building_type.entrance_y,
             )),
             90 => Ok((
-                map_space.x_coordinate - block_type.entrance_y,
-                map_space.y_coordinate + block_type.entrance_x,
+                map_space.x_coordinate - building_type.entrance_y,
+                map_space.y_coordinate + building_type.entrance_x,
             )),
             180 => Ok((
-                map_space.x_coordinate - block_type.entrance_x,
-                map_space.y_coordinate - block_type.entrance_y,
+                map_space.x_coordinate - building_type.entrance_x,
+                map_space.y_coordinate - building_type.entrance_y,
             )),
             270 => Ok((
-                map_space.x_coordinate + block_type.entrance_y,
-                map_space.y_coordinate - block_type.entrance_x,
+                map_space.x_coordinate + building_type.entrance_y,
+                map_space.y_coordinate - building_type.entrance_x,
             )),
             _ => Err(MapSpaceRotationError {
                 map_space_id: map_space.id,
@@ -161,22 +161,23 @@ impl BuildingsManager {
             .into()),
         }
     }
+    */
 
     //Returns Hashmap of building id and block type
-    fn get_building_block_map(conn: &mut PgConnection) -> Result<HashMap<i32, BlockType>> {
+    fn get_building_block_map(conn: &mut PgConnection) -> Result<HashMap<i32, BuildingType>> {
         use crate::schema::{block_type, building_type};
 
-        Ok(building_type::table
-            .inner_join(block_type::table)
-            .select((building_type::id, block_type::all_columns))
-            .load::<(i32, BlockType)>(conn)
+        Ok(block_type::table
+            .inner_join(building_type::table)
+            .select((block_type::id, building_type::all_columns))
+            .load::<(i32, BuildingType)>(conn)
             .map_err(|err| DieselError {
-                table: "block_type",
+                table: "building_type",
                 function: function!(),
                 error: err,
             })?
             .into_iter()
-            .map(|(id, block)| (id, block))
+            .map(|(id, building)| (id, building))
             .collect())
     }
 
@@ -184,97 +185,93 @@ impl BuildingsManager {
     fn get_building_grid(
         conn: &mut PgConnection,
         map_id: i32,
-        building_block_map: &HashMap<i32, BlockType>,
+        building_block_map: &HashMap<i32, BuildingType>,
     ) -> Result<[[i32; MAP_SIZE]; MAP_SIZE]> {
         let map_spaces: Vec<MapSpaces> = Self::get_building_map_spaces(conn, map_id)?;
         let mut building_grid: [[i32; MAP_SIZE]; MAP_SIZE] = [[0; MAP_SIZE]; MAP_SIZE];
 
         for map_space in map_spaces {
-            let BlockType { width, height, .. } = building_block_map
-                .get(&map_space.building_type)
+            let BuildingType { width, height, .. } = building_block_map
+                .get(&map_space.block_type_id)
                 .ok_or(KeyError {
-                    key: map_space.building_type,
+                    key: map_space.block_type_id,
                     hashmap: "building_block_map".to_string(),
                 })?;
             let MapSpaces {
                 x_coordinate,
                 y_coordinate,
-                rotation,
                 ..
             } = map_space;
 
-            match rotation {
-                0 => {
-                    for i in x_coordinate..x_coordinate + width {
-                        for j in y_coordinate..y_coordinate + height {
-                            building_grid[i as usize][j as usize] = map_space.id;
-                        }
-                    }
+            // match rotation {
+            //     0 => {
+            for i in x_coordinate..x_coordinate + width {
+                for j in y_coordinate..y_coordinate + height {
+                    building_grid[i as usize][j as usize] = map_space.id;
                 }
-                90 => {
-                    for i in x_coordinate - height + 1..=x_coordinate {
-                        for j in y_coordinate..y_coordinate + width {
-                            building_grid[i as usize][j as usize] = map_space.id;
-                        }
-                    }
-                }
-                180 => {
-                    for i in x_coordinate - width + 1..=x_coordinate {
-                        for j in y_coordinate - height + 1..=y_coordinate {
-                            building_grid[i as usize][j as usize] = map_space.id;
-                        }
-                    }
-                }
-                270 => {
-                    for i in x_coordinate..x_coordinate + height {
-                        for j in y_coordinate - width + 1..=y_coordinate {
-                            building_grid[i as usize][j as usize] = map_space.id;
-                        }
-                    }
-                }
-                _ => {
-                    return Err(MapSpaceRotationError {
-                        map_space_id: map_space.id,
-                    }
-                    .into())
-                }
-            };
+            }
+            // }
+            // 90 => {
+            //     for i in x_coordinate - height + 1..=x_coordinate {
+            //         for j in y_coordinate..y_coordinate + width {
+            //             building_grid[i as usize][j as usize] = map_space.id;
+            //         }
+            //     }
+            // }
+            // 180 => {
+            //     for i in x_coordinate - width + 1..=x_coordinate {
+            //         for j in y_coordinate - height + 1..=y_coordinate {
+            //             building_grid[i as usize][j as usize] = map_space.id;
+            //         }
+            //     }
+            // }
+            // 270 => {
+            //     for i in x_coordinate..x_coordinate + height {
+            //         for j in y_coordinate - width + 1..=y_coordinate {
+            //             building_grid[i as usize][j as usize] = map_space.id;
+            //         }
+            //     }
+            // }
+            // _ => {
+            //     return Err(MapSpaceRotationError {
+            //         map_space_id: map_space.id,
+            //     }
+            //     .into())
+            // }
+            // };
         }
 
         Ok(building_grid)
     }
 
-    fn get_block_id(
-        building_id: &i32,
-        building_block_map: &HashMap<i32, BlockType>,
-    ) -> Result<i32> {
-        Ok(building_block_map
-            .get(building_id)
-            .ok_or(KeyError {
-                key: *building_id,
-                hashmap: "building_block_map".to_string(),
-            })?
-            .id)
-    }
+    // fn get_block_id(
+    //     building_id: &i32,
+    //     building_block_map: &HashMap<i32, BuildingType>,
+    // ) -> Result<i32> {
+    //     Ok(building_block_map
+    //         .get(building_id)
+    //         .ok_or(KeyError {
+    //             key: *building_id,
+    //             hashmap: "building_block_map".to_string(),
+    //         })?
+    //         .id)
+    // }
 
     // get new instance with map_id
     pub fn new(conn: &mut PgConnection, map_id: i32) -> Result<Self> {
         let map_spaces = Self::get_building_map_spaces(conn, map_id)?;
-        let building_types = Self::get_building_types(conn)?;
         let building_block_map = Self::get_building_block_map(conn)?;
-        let mut buildings: HashMap<i32, Building> = HashMap::new();
+        let mut blocks: HashMap<i32, Block> = HashMap::new();
         let buildings_grid: [[i32; MAP_SIZE]; MAP_SIZE] =
             Self::get_building_grid(conn, map_id, &building_block_map)?;
         // let road_map_spaces: Vec<MapSpaces> = Self::get_road_map_spaces(conn, map_id)?;
 
         for map_space in map_spaces {
-            let blk_type = Self::get_block_id(&map_space.building_type, &building_block_map)?;
-
             let (absolute_entrance_x, absolute_entrance_y) =
-                Self::get_absolute_entrance(&map_space, &building_types[&blk_type].block_type)?;
-            buildings.insert(
+                (map_space.x_coordinate, map_space.y_coordinate);
+            blocks.insert(
                 map_space.id,
-                Building {
+                Block {
                     map_space,
                     absolute_entrance_x,
                     absolute_entrance_y,
@@ -285,7 +282,7 @@ impl BuildingsManager {
 
         let shortest_paths = Self::get_shortest_paths(conn, map_id)?;
         Ok(BuildingsManager {
-            buildings,
+            blocks,
             shortest_paths,
             buildings_grid,
         })
@@ -295,7 +292,7 @@ impl BuildingsManager {
 // Methods
 impl BuildingsManager {
     pub fn get_building_stats(&self) -> Vec<BuildingStats> {
-        self.buildings
+        self.blocks
             .values()
             .map(|building| BuildingStats {
                 mapsace_id: building.map_space.id,

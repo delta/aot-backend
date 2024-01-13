@@ -5,12 +5,12 @@ use crate::models::UpdateUser;
 use actix_web::error::{ErrorBadRequest, ErrorConflict, ErrorNotFound};
 use actix_web::web::{self, Data, Json, Path};
 use actix_web::{Responder, Result};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 pub mod util;
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
-    cfg.service(web::resource("").route(web::patch().to(update_user)))
+    cfg.service(web::resource("/update").route(web::patch().to(update_user)))
         .service(web::resource("/register").route(web::post().to(register)))
         .service(web::resource("/{id}/stats").route(web::get().to(get_user_stats)));
 }
@@ -18,11 +18,26 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
 #[derive(Clone, Deserialize)]
 pub struct InputUser {
     name: String,
-    phone: String,
     username: String,
-    password: String,
 }
-
+#[derive(Serialize)]
+struct UserProfileResponse {
+    user_id: i32,
+    name: String,
+    trophies: i32,
+    artifacts: i32,
+    attacks_won: i32,
+    defenses_won: i32,
+    avatar_id: i32,
+}
+#[derive(Debug, Serialize)]
+struct ErrorResponse {
+    message: String,
+}
+#[derive(Debug, Serialize)]
+struct SuccessResponse {
+    message: String,
+}
 async fn register(
     pg_pool: Data<PgPool>,
     redis_pool: Data<RedisPool>,
@@ -37,18 +52,11 @@ async fn register(
             "Username should contain atleast 6 characters",
         ));
     }
-    if user.password.len() < 6 {
-        return Err(ErrorBadRequest(
-            "Password should contain atleast 6 characters",
-        ));
-    }
     let duplicates = web::block(move || util::get_duplicate_users(&mut conn, &user))
         .await?
         .map_err(|err| error::handle_error(err.into()))?;
     for duplicate in duplicates {
-        if duplicate.phone == input_user.phone && duplicate.is_verified {
-            return Err(ErrorConflict("Phone number already exists"));
-        } else if duplicate.username == input_user.username {
+        if duplicate.username == input_user.username {
             return Err(ErrorConflict("Username already exists"));
         }
     }

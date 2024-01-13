@@ -68,12 +68,14 @@ DROP COLUMN level_,
 DROP COLUMN cost;
 
 
-CREATE TYPE building_category AS ENUM ('building', 'road', 'defender','diffuser','mine');
+CREATE TYPE building_category AS ENUM ('building', 'defender','diffuser','mine');
 ALTER TABLE public.block_type
 DROP category,
 DROP building_type,
 ADD diffuser_type INTEGER,
-ADD building_category building_category NOT NULL;
+ADD building_category building_category NOT NULL,
+ADD blk_type INTEGER NOT NULL,
+ADD CONSTRAINT blk_type_fk FOREIGN KEY (blk_type) REFERENCES public.building_type(id);
 DROP TYPE IF EXISTS block_category;
 
 ALTER TABLE public.building_type RENAME TO building_type_temp;

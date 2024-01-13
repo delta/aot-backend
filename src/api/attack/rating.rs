@@ -81,11 +81,11 @@ impl Game {
         } = self;
         let attacker_rating = user::table
             .find(attack_id)
-            .select(user::overall_rating)
+            .select(user::trophies)
             .first::<i32>(conn)?;
         let defender_rating = user::table
             .find(defend_id)
-            .select(user::overall_rating)
+            .select(user::trophies)
             .first::<i32>(conn)?;
         let (mut new_attacker_rating, mut new_defender_rating) = new_rating(
             attacker_rating,
@@ -96,21 +96,11 @@ impl Game {
         bonus_trophies(&mut new_attacker_rating, &mut new_defender_rating, metrics);
 
         diesel::update(user::table.filter(user::id.eq(attack_id)))
-            .set(user::overall_rating.eq(new_attacker_rating))
+            .set(user::trophies.eq(new_attacker_rating))
             .execute(conn)?;
         diesel::update(user::table.filter(user::id.eq(defend_id)))
-            .set(user::overall_rating.eq(new_defender_rating))
+            .set(user::trophies.eq(new_defender_rating))
             .execute(conn)?;
-        if new_attacker_rating > attacker_rating {
-            diesel::update(user::table.filter(user::id.eq(attack_id)))
-                .set(user::highest_rating.eq(new_attacker_rating))
-                .execute(conn)?;
-        }
-        if new_defender_rating > defender_rating {
-            diesel::update(user::table.filter(user::id.eq(defend_id)))
-                .set(user::highest_rating.eq(new_defender_rating))
-                .execute(conn)?;
-        }
         Ok((
             new_attacker_rating,
             new_defender_rating,

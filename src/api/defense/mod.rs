@@ -31,8 +31,7 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
 pub struct MapSpacesEntry {
     pub x_coordinate: i32,
     pub y_coordinate: i32,
-    pub rotation: i32,
-    pub building_type: i32,
+    pub block_type_id: i32,
 }
 
 async fn get_user_base_details(pool: Data<PgPool>, user: AuthUser) -> Result<impl Responder> {
@@ -119,12 +118,12 @@ async fn set_base_details(
             util::fetch_map_layout(&mut conn, &defender_id)?,
             util::fetch_blocks(&mut conn)?,
             util::fetch_buildings(&mut conn)?,
-        )) as anyhow::Result<(MapLayout, Vec<BlockType>, HashMap<i32, BuildingType>)>
+        )) as anyhow::Result<(MapLayout, HashMap<i32, BlockType>, Vec<BuildingType>)>
     })
     .await?
     .map_err(|err| error::handle_error(err.into()))?;
 
-    validate::is_valid_update_layout(&map_spaces, &buildings, &blocks)?;
+    validate::is_valid_update_layout(&map_spaces, &blocks, &buildings)?;
 
     web::block(move || {
         let mut conn = pool.get()?;
@@ -156,20 +155,20 @@ async fn confirm_base_details(
         ))
             as anyhow::Result<(
                 MapLayout,
-                Vec<BlockType>,
+                HashMap<i32, BlockType>,
                 HashMap<i32, i32>,
-                HashMap<i32, BuildingType>,
+                Vec<BuildingType>,
             )>
     })
     .await?
     .map_err(|err| error::handle_error(err.into()))?;
 
-    validate::is_valid_save_layout(&map_spaces, &mut level_constraints, &buildings, &blocks)?;
+    validate::is_valid_save_layout(&map_spaces, &mut level_constraints, &blocks, &buildings)?;
 
     web::block(move || {
         let mut conn = pool.get()?;
         util::put_base_details(&map_spaces, &map, &mut conn)?;
-        util::calculate_shortest_paths(&mut conn, map.id, &blocks)?;
+        util::calculate_shortest_paths(&mut conn, map.id, &buildings)?;
         util::set_map_valid(&mut conn, map.id)
     })
     .await?

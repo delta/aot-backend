@@ -6,7 +6,7 @@ use crate::api::util::{GameHistoryEntry, GameHistoryResponse};
 use crate::constants::*;
 use crate::error::DieselError;
 use crate::models::{
-    AttackerType, BuildingCategory, Game, LevelsFixture, MapLayout, NewAttackerPath, NewGame,
+    AttackerType, BlockCategory, Game, LevelsFixture, MapLayout, NewAttackerPath, NewGame,
     NewSimulationLog, User,
 };
 use crate::schema::user;
@@ -27,7 +27,7 @@ use std::io::Write;
 pub struct DefensePosition {
     pub y_coord: i32,
     pub x_coord: i32,
-    pub building_category: BuildingCategory,
+    pub block_category: BlockCategory,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -71,11 +71,11 @@ pub fn get_map_id(
 }
 
 pub fn get_valid_road_paths(map_id: i32, conn: &mut PgConnection) -> Result<HashSet<(i32, i32)>> {
-    use crate::schema::{building_type, map_spaces};
+    use crate::schema::{block_type, map_spaces};
     let valid_road_paths: HashSet<(i32, i32)> = map_spaces::table
-        .inner_join(building_type::table)
+        .inner_join(block_type::table)
         .filter(map_spaces::map_id.eq(map_id))
-        .filter(building_type::blk_type.eq(ROAD_ID))
+        .filter(block_type::building_type.eq(ROAD_ID))
         .select((map_spaces::x_coordinate, map_spaces::y_coordinate))
         .load::<(i32, i32)>(conn)
         .map_err(|err| DieselError {
@@ -171,6 +171,7 @@ pub fn add_game(
         map_layout_id: &map_layout_id,
         attack_score: &0,
         defend_score: &0,
+        artifacts_collected: &0,
         damage_done: &0,
         emps_used: &0,
         is_attacker_alive: &false,
@@ -209,14 +210,14 @@ pub fn fetch_attack_history(
                 attacker: UserDetail {
                     user_id: attacker.id,
                     username: attacker.username.to_string(),
-                    overall_rating: attacker.overall_rating,
-                    avatar: attacker.avatar,
+                    trophies: attacker.trophies,
+                    avatar_id: attacker.avatar_id,
                 },
                 defender: UserDetail {
                     user_id: defender.id,
                     username: defender.username,
-                    overall_rating: defender.overall_rating,
-                    avatar: defender.avatar,
+                    trophies: defender.trophies,
+                    avatar_id: defender.avatar_id,
                 },
                 is_replay_available,
             })
@@ -245,14 +246,14 @@ pub fn fetch_top_attacks(user_id: i32, conn: &mut PgConnection) -> Result<GameHi
                 attacker: UserDetail {
                     user_id: attacker.id,
                     username: attacker.username,
-                    overall_rating: attacker.overall_rating,
-                    avatar: attacker.avatar,
+                    trophies: attacker.trophies,
+                    avatar_id: attacker.avatar_id,
                 },
                 defender: UserDetail {
                     user_id: defender.id,
                     username: defender.username,
-                    overall_rating: defender.overall_rating,
-                    avatar: defender.avatar,
+                    trophies: defender.trophies,
+                    avatar_id: defender.avatar_id,
                 },
                 is_replay_available,
             })
@@ -648,6 +649,8 @@ pub fn get_attacker_types(conn: &mut PgConnection) -> Result<HashMap<i32, Attack
                     max_health: attacker.max_health,
                     speed: attacker.speed,
                     amt_of_emps: attacker.amt_of_emps,
+                    level_: attacker.level_,
+                    cost: attacker.cost,
                 },
             )
         })

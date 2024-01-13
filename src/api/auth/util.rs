@@ -50,15 +50,13 @@ pub fn get_pragyan_user(
         let new_user = NewUser {
             name,
             email,
-            phone: "",
             username,
-            overall_rating: &INITIAL_RATING,
             is_pragyan: &true,
-            password: "",
-            is_verified: &false,
-            highest_rating: &INITIAL_RATING,
-            avatar: &0,
-            otps_sent: &0,
+            attacks_won: &0,
+            defenses_won: &0,
+            trophies: &INITIAL_RATING,
+            avatar_id: &0,
+            artifacts: &0,
         };
         let user: User = diesel::insert_into(user::table)
             .values(&new_user)
