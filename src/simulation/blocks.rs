@@ -177,7 +177,6 @@ impl BuildingsManager {
                 error: err,
             })?
             .into_iter()
-            .map(|(id, building)| (id, building))
             .collect())
     }
 

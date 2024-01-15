@@ -53,7 +53,7 @@ pub struct BuildingType {
     pub width: i32,
     pub height: i32,
     pub capacity: i32,
-    pub level_: i32,
+    pub level: i32,
     pub cost: i32,
 }
 
@@ -64,7 +64,7 @@ pub struct NewBuildingType<'a> {
     pub width: &'a i32,
     pub height: &'a i32,
     pub capacity: &'a i32,
-    pub level_: &'a i32,
+    pub level: &'a i32,
     pub cost: &'a i32,
 }
 
@@ -265,7 +265,7 @@ pub struct MineType {
     pub id: i32,
     pub radius: i32,
     pub damage: i32,
-    pub level_: i32,
+    pub level: i32,
     pub cost: i32,
 }
 
@@ -275,7 +275,7 @@ pub struct DefenderType {
     pub speed: i32,
     pub damage: i32,
     pub radius: i32,
-    pub level_: i32,
+    pub level: i32,
     pub cost: i32,
 }
 
@@ -303,6 +303,6 @@ pub struct AttackerType {
     pub max_health: i32,
     pub speed: i32,
     pub amt_of_emps: i32,
-    pub level_: i32,
+    pub level: i32,
     pub cost: i32,
 }

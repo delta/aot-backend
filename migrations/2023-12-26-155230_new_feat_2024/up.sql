@@ -21,15 +21,15 @@ ADD  artifacts_collected INTEGER NOT NULL;
 
 
 ALTER TABLE public.attacker_type
-ADD level_ INTEGER NOT NULL,
+ADD "level" INTEGER NOT NULL,
 ADD cost INTEGER NOT NULL;
 
 ALTER TABLE public.defender_type
-ADD level_ INTEGER NOT NULL,
+ADD "level" INTEGER NOT NULL,
 ADD cost INTEGER NOT NULL;
 
 ALTER TABLE public.mine_type
-ADD level_ INTEGER NOT NULL,
+ADD "level" INTEGER NOT NULL,
 ADD cost INTEGER NOT NULL;
 
 
@@ -37,7 +37,7 @@ ALTER TABLE public.block_type RENAME TO building_type_temp;
 ALTER TABLE public.building_type_temp
 DROP  entrance_x,
 DROP  entrance_y,
-ADD level_ INTEGER NOT NULL,
+ADD "level" INTEGER NOT NULL,
 ADD cost INTEGER NOT NULL;
 
 ALTER TABLE public.building_type DROP CONSTRAINT diffuser_type_fk;

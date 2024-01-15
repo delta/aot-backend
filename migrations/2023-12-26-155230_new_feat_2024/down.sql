@@ -56,15 +56,15 @@ ADD  robots_destroyed INTEGER NOT NULL DEFAULT 0,
 DROP  artifacts_collected;
 
 ALTER TABLE public.mine_type
-DROP COLUMN level_,
+DROP COLUMN "level",
 DROP COLUMN cost;
 
 ALTER TABLE public.defender_type
-DROP COLUMN level_,
+DROP COLUMN "level",
 DROP COLUMN cost;
 
 ALTER TABLE public.attacker_type
-DROP COLUMN level_,
+DROP COLUMN "level",
 DROP COLUMN cost;
 
 
@@ -83,7 +83,7 @@ ALTER TABLE public.block_type RENAME TO building_type;
 ALTER TABLE public.building_type ADD CONSTRAINT diffuser_type_fk FOREIGN KEY (diffuser_type) REFERENCES public.diffuser_type(id);
 
 ALTER TABLE public.building_type_temp
-DROP level_,
+DROP "level",
 DROP cost,
 ADD entrance_x INTEGER NOT NULL DEFAULT 0,
 ADD entrance_y INTEGER NOT NULL DEFAULT 0;

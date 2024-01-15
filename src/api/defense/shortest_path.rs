@@ -25,7 +25,6 @@ fn get_blocks(conn: &mut PgConnection) -> Result<HashMap<i32, BuildingType>> {
             error: err,
         })?
         .into_iter()
-        .map(|(id, building)| (id, building))
         .collect())
 }
 
