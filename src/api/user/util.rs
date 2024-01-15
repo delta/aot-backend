@@ -7,7 +7,6 @@ use crate::models::{Game, UpdateUser, User};
 use crate::util::function;
 use anyhow::Result;
 use diesel::prelude::*;
-use pwhash::bcrypt;
 use redis::Commands;
 use serde::Serialize;
 
@@ -15,11 +14,8 @@ use serde::Serialize;
 pub struct StatsResponse {
     pub highest_attack_score: i32,
     pub highest_defense_score: i32,
-    pub rating: i32,
-    pub highest_rating: i32,
+    pub trophies: i32,
     pub position_in_leaderboard: i32,
-    pub no_of_robots_killed: i32,
-    pub no_of_robots_got_killed: i32,
     pub no_of_emps_used: i32,
     pub total_damage_defense: i32,
     pub total_damage_attack: i32,
@@ -44,7 +40,7 @@ pub fn fetch_user(conn: &mut PgConnection, player_id: i32) -> Result<Option<User
 pub fn fetch_all_user(conn: &mut PgConnection) -> Result<Vec<User>> {
     use crate::schema::user;
     Ok(user::table
-        .order_by(user::overall_rating.desc())
+        .order_by(user::trophies.desc())
         .load::<User>(conn)
         .map_err(|err| DieselError {
             table: "user",
@@ -59,20 +55,16 @@ pub fn add_user(
     user: &InputUser,
 ) -> anyhow::Result<()> {
     use crate::schema::user;
-
-    let hashed_password = bcrypt::hash(&user.password)?;
     let new_user = NewUser {
         name: &user.name,
         email: "",
-        phone: &user.phone,
         username: &user.username,
-        overall_rating: &INITIAL_RATING,
         is_pragyan: &false,
-        password: &hashed_password,
-        is_verified: &false,
-        highest_rating: &INITIAL_RATING,
-        avatar: &0,
-        otps_sent: &0,
+        attacks_won: &0,
+        defenses_won: &0,
+        trophies: &INITIAL_RATING,
+        avatar_id: &0,
+        artifacts: &0,
     };
     let user: User = diesel::insert_into(user::table)
         .values(&new_user)
@@ -104,7 +96,6 @@ pub fn get_duplicate_users(conn: &mut PgConnection, user: &InputUser) -> Result<
     use crate::schema::user;
     let duplicates = user::table
         .filter(user::username.eq(&user.username))
-        .or_filter(user::phone.eq(&user.phone))
         .load::<User>(conn)
         .map_err(|err| DieselError {
             table: "user",
@@ -162,11 +153,8 @@ pub fn make_response(
     let mut stats = StatsResponse {
         highest_attack_score: 0,
         highest_defense_score: 0,
-        rating: user.overall_rating,
-        highest_rating: user.highest_rating,
+        trophies: user.trophies,
         position_in_leaderboard: 0,
-        no_of_robots_killed: 0,
-        no_of_robots_got_killed: 0,
         no_of_emps_used: 0,
         total_damage_defense: 0,
         total_damage_attack: 0,
@@ -179,7 +167,6 @@ pub fn make_response(
         stats.highest_attack_score = attack_game[0].attack_score;
         for attack in attack_game {
             stats.total_damage_attack += attack.damage_done;
-            stats.no_of_robots_killed += attack.robots_destroyed;
             stats.no_of_emps_used += attack.emps_used;
             if !attack.is_attacker_alive {
                 stats.no_of_attackers_suicided += 1;
@@ -190,7 +177,6 @@ pub fn make_response(
         stats.highest_defense_score = defense_game[0].defend_score;
         for defend in defense_game {
             stats.total_damage_defense += defend.damage_done;
-            stats.no_of_robots_got_killed += defend.robots_destroyed;
         }
     }
     if !users.is_empty() {

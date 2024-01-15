@@ -1,4 +1,3 @@
-use crate::api::attack;
 use crate::api::error::AuthError;
 use crate::api::user::util::fetch_user;
 use crate::api::util::{can_show_replay, get_current_levels_fixture};
@@ -28,8 +27,8 @@ pub struct LeaderboardResponse {
 pub struct UserDetail {
     pub user_id: i32,
     pub username: String,
-    pub overall_rating: i32,
-    pub avatar: i32,
+    pub trophies: i32,
+    pub avatar_id: i32,
 }
 
 #[derive(Queryable, Deserialize, Serialize)]
@@ -89,12 +88,10 @@ pub fn get_leaderboard(
             function: function!(),
             error: err,
         })?;
-    let is_attack_allowed_now = attack::util::is_attack_allowed_now();
     let can_be_attacked = |defender_id: i32, map_valid: Option<bool>| {
         *no_of_times_attacked.get(&defender_id).unwrap_or(&0) < TOTAL_ATTACKS_ON_A_BASE
             && map_valid.unwrap_or(false)
             && !already_attacked.contains(&defender_id)
-            && is_attack_allowed_now
             && attacker.is_some()
     };
 
@@ -119,11 +116,11 @@ pub fn get_leaderboard(
         .select((
             user::id,
             user::username,
-            user::overall_rating,
-            user::avatar,
+            user::trophies,
+            user::avatar_id,
             map_layout::is_valid.nullable(),
         ))
-        .order_by(user::overall_rating.desc())
+        .order_by(user::trophies.desc())
         .offset(offset)
         .limit(limit)
         .load::<(i32, String, i32, i32, Option<bool>)>(conn)
@@ -134,18 +131,18 @@ pub fn get_leaderboard(
         })?
         .into_iter()
         .map(
-            |(user_id, username, overall_rating, avatar, map_valid)| LeaderboardEntry {
+            |(user_id, username, trophies, avatar_id, map_valid)| LeaderboardEntry {
                 defender: UserDetail {
                     user_id,
                     username,
-                    overall_rating,
-                    avatar,
+                    trophies,
+                    avatar_id,
                 },
                 attacker: UserDetail {
                     user_id: user.id,
                     username: user.username.to_string(),
-                    overall_rating: user.overall_rating,
-                    avatar: user.avatar,
+                    trophies: user.trophies,
+                    avatar_id: user.avatar_id,
                 },
                 can_be_attacked: can_be_attacked(user_id, map_valid),
             },

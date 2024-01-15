@@ -4,11 +4,10 @@ use diesel_derive_enum::DbEnum;
 use serde::{Deserialize, Serialize};
 
 #[derive(DbEnum, Debug, Serialize, Clone, PartialEq, Copy)]
-#[DieselTypePath = "crate::schema::sql_types::BuildingCategory"]
-pub enum BuildingCategory {
+#[DieselTypePath = "crate::schema::sql_types::BlockCategory"]
+pub enum BlockCategory {
     Building,
     Defender,
-    Diffuser,
     Mine,
 }
 
@@ -48,40 +47,51 @@ pub struct NewAttackerPath {
 }
 
 #[derive(Queryable, Clone, Debug, Serialize)]
-pub struct BlockType {
+pub struct BuildingType {
     pub id: i32,
     pub name: String,
     pub width: i32,
     pub height: i32,
-    pub entrance_x: i32,
-    pub entrance_y: i32,
     pub capacity: i32,
+    pub level: i32,
+    pub cost: i32,
 }
 
 #[derive(Insertable)]
-#[diesel(table_name = block_type)]
-pub struct NewBlockType<'a> {
+#[diesel(table_name = building_type)]
+pub struct NewBuildingType<'a> {
     pub name: &'a str,
     pub width: &'a i32,
     pub height: &'a i32,
-    pub entrance_x: &'a i32,
-    pub entrance_y: &'a i32,
     pub capacity: &'a i32,
+    pub level: &'a i32,
+    pub cost: &'a i32,
 }
 
-#[derive(Queryable)]
-pub struct BuildingWeights {
-    pub time: i32,
-    pub building_id: i32,
-    pub weight: i32,
+#[derive(Queryable, Debug, Serialize, Deserialize)]
+pub struct Artifact {
+    pub map_space_id: i32,
+    pub count: i32,
 }
 
-#[derive(Insertable)]
-#[diesel(table_name = building_weights)]
-pub struct NewBuildingWeights<'a> {
-    pub time: &'a i32,
-    pub building_id: &'a i32,
-    pub weight: &'a i32,
+#[derive(Deserialize, Insertable)]
+#[diesel(table_name = artifact)]
+pub struct NewArtifact {
+    pub map_space_id: i32,
+    pub count: i32,
+}
+
+#[derive(Queryable, Debug, Serialize, Deserialize)]
+pub struct AvailableBlocks {
+    pub block_type_id: i32,
+    pub user_id: i32,
+}
+
+#[derive(Deserialize, Insertable)]
+#[diesel(table_name = available_blocks)]
+pub struct NewAvailableBlocks {
+    pub block_type_id: i32,
+    pub user_id: i32,
 }
 
 #[derive(Queryable, Serialize, Deserialize)]
@@ -92,10 +102,10 @@ pub struct Game {
     pub map_layout_id: i32,
     pub attack_score: i32,
     pub defend_score: i32,
-    pub robots_destroyed: i32,
+    pub artifacts_collected: i32,
     pub emps_used: i32,
-    pub damage_done: i32,
     pub is_attacker_alive: bool,
+    pub damage_done: i32,
 }
 
 #[derive(Insertable)]
@@ -106,7 +116,7 @@ pub struct NewGame<'a> {
     pub map_layout_id: &'a i32,
     pub attack_score: &'a i32,
     pub defend_score: &'a i32,
-    pub robots_destroyed: &'a i32,
+    pub artifacts_collected: &'a i32,
     pub emps_used: &'a i32,
     pub damage_done: &'a i32,
     pub is_attacker_alive: &'a bool,
@@ -118,7 +128,6 @@ pub struct LevelsFixture {
     pub start_date: NaiveDateTime,
     pub end_date: NaiveDateTime,
     pub no_of_bombs: i32,
-    pub no_of_robots: i32,
     pub rating_factor: f32,
     pub no_of_attackers: i32,
 }
@@ -129,7 +138,6 @@ pub struct NewLevelFixture<'a> {
     pub start_date: &'a NaiveDateTime,
     pub end_date: &'a NaiveDateTime,
     pub no_of_bombs: &'a i32,
-    pub no_of_robots: &'a i32,
     pub rating_factor: &'a f32,
     pub no_of_attackers: &'a i32,
 }
@@ -170,8 +178,7 @@ pub struct MapSpaces {
     pub map_id: i32,
     pub x_coordinate: i32,
     pub y_coordinate: i32,
-    pub rotation: i32,
-    pub building_type: i32,
+    pub block_type_id: i32,
 }
 
 #[derive(Deserialize, Insertable)]
@@ -180,8 +187,7 @@ pub struct NewMapSpaces {
     pub map_id: i32,
     pub x_coordinate: i32,
     pub y_coordinate: i32,
-    pub rotation: i32,
-    pub building_type: i32,
+    pub block_type_id: i32,
 }
 
 #[derive(Queryable)]
@@ -210,15 +216,13 @@ pub struct User {
     pub id: i32,
     pub name: String,
     pub email: String,
-    pub phone: String,
     pub username: String,
-    pub overall_rating: i32,
     pub is_pragyan: bool,
-    pub password: String,
-    pub is_verified: bool,
-    pub highest_rating: i32,
-    pub avatar: i32,
-    pub otps_sent: i32,
+    pub attacks_won: i32,
+    pub defenses_won: i32,
+    pub trophies: i32,
+    pub avatar_id: i32,
+    pub artifacts: i32,
 }
 
 #[derive(Insertable, Debug)]
@@ -226,15 +230,13 @@ pub struct User {
 pub struct NewUser<'a> {
     pub name: &'a str,
     pub email: &'a str,
-    pub phone: &'a str,
     pub username: &'a str,
-    pub overall_rating: &'a i32,
     pub is_pragyan: &'a bool,
-    pub password: &'a str,
-    pub is_verified: &'a bool,
-    pub highest_rating: &'a i32,
-    pub avatar: &'a i32,
-    pub otps_sent: &'a i32,
+    pub attacks_won: &'a i32,
+    pub defenses_won: &'a i32,
+    pub trophies: &'a i32,
+    pub avatar_id: &'a i32,
+    pub artifacts: &'a i32,
 }
 
 #[derive(Queryable, Deserialize, Serialize)]
@@ -255,7 +257,7 @@ pub struct NewSimulationLog<'a> {
 pub struct UpdateUser {
     name: Option<String>,
     pub username: Option<String>,
-    pub avatar: Option<i32>,
+    pub avatar_id: Option<i32>,
 }
 
 #[derive(Queryable, Clone, Debug, Serialize)]
@@ -263,13 +265,8 @@ pub struct MineType {
     pub id: i32,
     pub radius: i32,
     pub damage: i32,
-}
-
-#[derive(Queryable, Clone, Debug, Serialize)]
-pub struct DiffuserType {
-    pub id: i32,
-    pub radius: i32,
-    pub speed: i32,
+    pub level: i32,
+    pub cost: i32,
 }
 
 #[derive(Queryable, Clone, Debug, Serialize)]
@@ -278,26 +275,26 @@ pub struct DefenderType {
     pub speed: i32,
     pub damage: i32,
     pub radius: i32,
+    pub level: i32,
+    pub cost: i32,
 }
 
 #[derive(Queryable, Clone, Debug, Serialize)]
-pub struct BuildingType {
+pub struct BlockType {
     pub id: i32,
     pub defender_type: Option<i32>,
-    pub diffuser_type: Option<i32>,
     pub mine_type: Option<i32>,
-    pub blk_type: i32,
-    pub building_category: BuildingCategory,
+    pub category: BlockCategory,
+    pub building_type: i32,
 }
 
 #[derive(Queryable, Clone, Debug, Serialize)]
-#[diesel(table_name = building_type)]
-pub struct NewBuildingType<'a> {
+#[diesel(table_name = block_type)]
+pub struct NewBlockType<'a> {
     pub defender_type: &'a Option<i32>,
-    pub diffuser_type: &'a Option<i32>,
     pub mine_type: &'a Option<i32>,
-    pub blk_type: &'a i32,
-    pub building_category: &'a BuildingCategory,
+    pub category: &'a BlockCategory,
+    pub building_type: &'a Option<i32>,
 }
 
 #[derive(Queryable, Clone, Debug, Serialize)]
@@ -306,22 +303,6 @@ pub struct AttackerType {
     pub max_health: i32,
     pub speed: i32,
     pub amt_of_emps: i32,
-}
-
-#[derive(Insertable)]
-#[diesel(table_name = drone_usage)]
-pub struct NewDroneUsage<'a> {
-    pub attacker_id: &'a i32,
-    pub map_id: &'a i32,
-    pub drone_x: &'a i32,
-    pub drone_y: &'a i32,
-}
-
-#[derive(Queryable, Clone, Debug, Serialize)]
-pub struct DroneUsage {
-    pub id: i32,
-    pub attacker_id: i32,
-    pub map_id: i32,
-    pub drone_x: i32,
-    pub drone_y: i32,
+    pub level: i32,
+    pub cost: i32,
 }

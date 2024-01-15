@@ -6,15 +6,15 @@ use crate::api::util::{GameHistoryEntry, GameHistoryResponse};
 use crate::constants::*;
 use crate::error::DieselError;
 use crate::models::{
-    AttackerType, BuildingCategory, BuildingType, Game, LevelsFixture, MapLayout, MapSpaces,
-    NewAttackerPath, NewDroneUsage, NewGame, NewSimulationLog, User,
+    AttackerType, BlockCategory, Game, LevelsFixture, MapLayout, NewAttackerPath, NewGame,
+    NewSimulationLog, User,
 };
 use crate::schema::user;
-use crate::simulation::{RenderAttacker, RenderDiffuser, RenderMine, RenderRobot};
+use crate::simulation::{RenderAttacker, RenderMine};
 use crate::simulation::{RenderDefender, Simulator};
 use crate::util::function;
 use anyhow::{Context, Result};
-use chrono::{Local, NaiveTime};
+use chrono::Local;
 use diesel::dsl::exists;
 use diesel::prelude::*;
 use diesel::select;
@@ -24,16 +24,10 @@ use std::collections::{HashMap, HashSet};
 use std::io::Write;
 
 #[derive(Debug, Serialize)]
-pub struct DroneResponse {
-    pub defense_positions: Vec<DefensePosition>,
-    pub no_of_drones: i32,
-}
-
-#[derive(Debug, Serialize)]
 pub struct DefensePosition {
     pub y_coord: i32,
     pub x_coord: i32,
-    pub building_category: BuildingCategory,
+    pub block_category: BlockCategory,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -43,32 +37,10 @@ pub struct NewAttack {
     pub attackers: Vec<NewAttacker>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
-pub struct DronePosition {
-    pub y_coord: i32,
-    pub x_coord: i32,
-    pub defender_id: i32,
-}
-
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct NewAttacker {
     pub attacker_type: i32,
     pub attacker_path: Vec<NewAttackerPath>,
-}
-
-/// checks if the attack is allowed at current time
-pub fn is_attack_allowed_now() -> bool {
-    let start_time = NaiveTime::parse_from_str(ATTACK_START_TIME, "%H:%M:%S").unwrap();
-    let end_time = NaiveTime::parse_from_str(ATTACK_END_TIME, "%H:%M:%S").unwrap();
-    let current_time = Local::now().naive_local().time();
-    current_time >= start_time && current_time <= end_time
-}
-
-pub fn is_test_base_allowed_now() -> bool {
-    let start_time = NaiveTime::parse_from_str(DEFENSE_START_TIME, "%H:%M:%S").unwrap();
-    let end_time = NaiveTime::parse_from_str(DEFENSE_END_TIME, "%H:%M:%S").unwrap();
-    let current_time = Local::now().naive_local().time();
-    current_time >= start_time && current_time <= end_time
 }
 
 pub fn get_valid_emp_ids(conn: &mut PgConnection) -> Result<HashSet<i32>> {
@@ -99,11 +71,11 @@ pub fn get_map_id(
 }
 
 pub fn get_valid_road_paths(map_id: i32, conn: &mut PgConnection) -> Result<HashSet<(i32, i32)>> {
-    use crate::schema::{building_type, map_spaces};
+    use crate::schema::{block_type, map_spaces};
     let valid_road_paths: HashSet<(i32, i32)> = map_spaces::table
-        .inner_join(building_type::table)
+        .inner_join(block_type::table)
         .filter(map_spaces::map_id.eq(map_id))
-        .filter(building_type::blk_type.eq(ROAD_ID))
+        .filter(block_type::building_type.eq(ROAD_ID))
         .select((map_spaces::x_coordinate, map_spaces::y_coordinate))
         .load::<(i32, i32)>(conn)
         .map_err(|err| DieselError {
@@ -199,7 +171,7 @@ pub fn add_game(
         map_layout_id: &map_layout_id,
         attack_score: &0,
         defend_score: &0,
-        robots_destroyed: &0,
+        artifacts_collected: &0,
         damage_done: &0,
         emps_used: &0,
         is_attacker_alive: &false,
@@ -238,14 +210,14 @@ pub fn fetch_attack_history(
                 attacker: UserDetail {
                     user_id: attacker.id,
                     username: attacker.username.to_string(),
-                    overall_rating: attacker.overall_rating,
-                    avatar: attacker.avatar,
+                    trophies: attacker.trophies,
+                    avatar_id: attacker.avatar_id,
                 },
                 defender: UserDetail {
                     user_id: defender.id,
                     username: defender.username,
-                    overall_rating: defender.overall_rating,
-                    avatar: defender.avatar,
+                    trophies: defender.trophies,
+                    avatar_id: defender.avatar_id,
                 },
                 is_replay_available,
             })
@@ -274,14 +246,14 @@ pub fn fetch_top_attacks(user_id: i32, conn: &mut PgConnection) -> Result<GameHi
                 attacker: UserDetail {
                     user_id: attacker.id,
                     username: attacker.username,
-                    overall_rating: attacker.overall_rating,
-                    avatar: attacker.avatar,
+                    trophies: attacker.trophies,
+                    avatar_id: attacker.avatar_id,
                 },
                 defender: UserDetail {
                     user_id: defender.id,
                     username: defender.username,
-                    overall_rating: defender.overall_rating,
-                    avatar: defender.avatar,
+                    trophies: defender.trophies,
+                    avatar_id: defender.avatar_id,
                 },
                 is_replay_available,
             })
@@ -366,24 +338,6 @@ pub fn run_simulation(
         writeln!(content, "{defender_id},{x_position},{y_position}")?;
     }
 
-    let diffuser_positions = simulator.get_diffuser_position();
-
-    for position in diffuser_positions {
-        let RenderDiffuser {
-            diffuser_id,
-            x_position,
-            y_position,
-            is_alive,
-            ..
-        } = position;
-        writeln!(content, "diffuser {diffuser_id}")?;
-        writeln!(content, "id,is_alive,x,y")?;
-        writeln!(
-            content,
-            "{diffuser_id},{is_alive},{x_position},{y_position}"
-        )?;
-    }
-
     let mines = simulator.get_mines();
 
     for mine in mines {
@@ -455,31 +409,6 @@ pub fn run_simulation(
             }
         }
 
-        for (diffuser_id, diffuser) in simulated_frame.diffusers {
-            writeln!(content, "diffuser {diffuser_id}")?;
-            writeln!(
-                content,
-                "id,is_alive,x,y,type,emp_id,attacker_id,is_diffuse"
-            )?;
-            for defender_position in diffuser {
-                let RenderDiffuser {
-                    diffuser_id,
-                    x_position,
-                    y_position,
-                    is_alive,
-                    diffuser_type,
-                    emp_attacker_id,
-                    emp_path_id,
-                    is_diffuse,
-                } = defender_position;
-                writeln!(
-                    content,
-                    "{diffuser_id},{is_alive},{x_position},{y_position},{diffuser_type},{emp_path_id},{emp_attacker_id},{is_diffuse}"
-
-                )?;
-            }
-        }
-
         for (mine_id, mine) in simulated_frame.mines {
             writeln!(content, "mine {mine_id}")?;
             writeln!(content, "id,is_activated,mine_type")?;
@@ -490,21 +419,9 @@ pub fn run_simulation(
             )?;
         }
 
-        writeln!(content, "robots")?;
-        writeln!(content, "id,health,x,y,in_building")?;
-        for robot in simulated_frame.robots {
-            let RenderRobot {
-                id,
-                health,
-                x_position,
-                y_position,
-                in_building,
-            } = robot;
-            writeln!(
-                content,
-                "{id},{health},{x_position},{y_position},{in_building}"
-            )?;
-        }
+        /*
+        position of robots
+         */
     }
     //TODO: Change is_alive to no_of_attackers_alive and emps_used too
     let (attack_score, defend_score) = simulator.get_scores();
@@ -513,7 +430,6 @@ pub fn run_simulation(
         diesel::update(game::table.find(game_id))
             .set((
                 game::damage_done.eq(simulator.get_damage_done()),
-                game::robots_destroyed.eq(simulator.get_no_of_robots_destroyed()),
                 game::is_attacker_alive.eq(true),
                 game::emps_used.eq(1),
                 game::attack_score.eq(attack_score),
@@ -622,24 +538,6 @@ pub fn run_test_base_simulation(
         writeln!(content, "{defender_id},{x_position},{y_position}")?;
     }
 
-    let diffuser_positions = simulator.get_diffuser_position();
-
-    for position in diffuser_positions {
-        let RenderDiffuser {
-            diffuser_id,
-            x_position,
-            y_position,
-            is_alive,
-            ..
-        } = position;
-        writeln!(content, "diffuser {diffuser_id}")?;
-        writeln!(content, "id,is_alive,x,y")?;
-        writeln!(
-            content,
-            "{diffuser_id},{is_alive},{x_position},{y_position}"
-        )?;
-    }
-
     let mines = simulator.get_mines();
 
     for mine in mines {
@@ -711,31 +609,6 @@ pub fn run_test_base_simulation(
             }
         }
 
-        for (diffuser_id, diffuser) in simulated_frame.diffusers {
-            writeln!(content, "diffuser {diffuser_id}")?;
-            writeln!(
-                content,
-                "id,is_alive,x,y,type,emp_id,attacker_id,is_diffuse"
-            )?;
-            for defender_position in diffuser {
-                let RenderDiffuser {
-                    diffuser_id,
-                    x_position,
-                    y_position,
-                    is_alive,
-                    diffuser_type,
-                    emp_attacker_id,
-                    emp_path_id,
-                    is_diffuse,
-                } = defender_position;
-                writeln!(
-                    content,
-                    "{diffuser_id},{is_alive},{x_position},{y_position},{diffuser_type},{emp_path_id},{emp_attacker_id},{is_diffuse}"
-
-                )?;
-            }
-        }
-
         for (mine_id, mine) in simulated_frame.mines {
             writeln!(content, "mine {mine_id}")?;
             writeln!(content, "id,is_activated,mine_type")?;
@@ -746,21 +619,9 @@ pub fn run_test_base_simulation(
             )?;
         }
 
-        writeln!(content, "robots")?;
-        writeln!(content, "id,health,x,y,in_building")?;
-        for robot in simulated_frame.robots {
-            let RenderRobot {
-                id,
-                health,
-                x_position,
-                y_position,
-                in_building,
-            } = robot;
-            writeln!(
-                content,
-                "{id},{health},{x_position},{y_position},{in_building}"
-            )?;
-        }
+        /*
+        position of robots
+         */
     }
     //TODO: Change is_alive to no_of_attackers_alive and emps_used too
     let damage = simulator.get_damage_done();
@@ -788,93 +649,10 @@ pub fn get_attacker_types(conn: &mut PgConnection) -> Result<HashMap<i32, Attack
                     max_health: attacker.max_health,
                     speed: attacker.speed,
                     amt_of_emps: attacker.amt_of_emps,
+                    level: attacker.level,
+                    cost: attacker.cost,
                 },
             )
         })
         .collect::<HashMap<i32, AttackerType>>())
-}
-
-pub fn get_buildings(
-    map_id: i32,
-    conn: &mut PgConnection,
-) -> Result<Vec<(MapSpaces, BuildingType)>> {
-    use crate::schema::{building_type, map_spaces};
-    Ok(map_spaces::table
-        .inner_join(building_type::table)
-        .filter(map_spaces::map_id.eq(map_id))
-        .load::<(MapSpaces, BuildingType)>(conn)
-        .map_err(|err| DieselError {
-            table: "map_spaces",
-            function: function!(),
-            error: err,
-        })?)
-}
-
-pub fn get_already_used_drone_count(
-    map_id: i32,
-    attacker_id: i32,
-    conn: &mut PgConnection,
-) -> Result<i64> {
-    use crate::schema::drone_usage;
-    Ok(drone_usage::table
-        .filter(drone_usage::map_id.eq(map_id))
-        .filter(drone_usage::attacker_id.eq(attacker_id))
-        .count()
-        .get_result(conn)
-        .map_err(|err| DieselError {
-            table: "drone_usage",
-            function: function!(),
-            error: err,
-        })?)
-}
-
-pub fn get_defense_details(
-    attacker_id: i32,
-    drone_position: DronePosition,
-    map_id: i32,
-    conn: &mut PgConnection,
-    map_spaces: &[(MapSpaces, BuildingType)],
-    drone_count: i32,
-) -> Result<DroneResponse> {
-    use crate::schema::drone_usage;
-    let drone_usage = NewDroneUsage {
-        attacker_id: &attacker_id,
-        map_id: &map_id,
-        drone_x: &drone_position.x_coord,
-        drone_y: &drone_position.y_coord,
-    };
-
-    diesel::insert_into(drone_usage::table)
-        .values(drone_usage)
-        .execute(conn)
-        .map_err(|err| DieselError {
-            table: "drone_usage",
-            function: function!(),
-            error: err,
-        })?;
-
-    let mut defense_positions = Vec::new();
-
-    for (map_space, building_type) in map_spaces.iter() {
-        if !(building_type.building_category == BuildingCategory::Mine
-            || building_type.building_category == BuildingCategory::Diffuser)
-        {
-            continue;
-        }
-        let (drone_x, drone_y) = (drone_position.x_coord, drone_position.y_coord);
-        let (pos_x, pos_y) = (map_space.x_coordinate, map_space.y_coordinate);
-        let distance = (drone_x - pos_x).pow(2) + (drone_y - pos_y).pow(2);
-        if distance < DRONE_RADIUS.pow(2) {
-            defense_positions.push(DefensePosition {
-                y_coord: pos_y,
-                x_coord: pos_x,
-                building_category: building_type.building_category,
-            })
-        }
-    }
-
-    Ok(DroneResponse {
-        defense_positions,
-        no_of_drones: DRONE_LIMIT_PER_BASE - drone_count - 1,
-    })
 }
