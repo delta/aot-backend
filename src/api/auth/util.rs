@@ -15,19 +15,6 @@ use std::env;
 
 use super::TokenClaims;
 
-pub fn get_user_by_username(conn: &mut PgConnection, username: &str) -> Result<Option<User>> {
-    let user = user::table
-        .filter(user::username.eq(username))
-        .first::<User>(conn)
-        .optional()
-        .map_err(|err| DieselError {
-            table: "user",
-            function: function!(),
-            error: err,
-        })?;
-    Ok(user)
-}
-
 pub fn client() -> BasicClient {
     let google_client_id = ClientId::new(
         env::var("GOOGLE_OAUTH_CLIENT_ID").expect("Google oauth client id must be set!"),
@@ -59,7 +46,7 @@ pub fn generate_jwt_token(id: i32) -> Result<(String, String)> {
     let jwt_secret = env::var("JWT_SECRET").expect("JWT secret must be set!");
     let now = Utc::now();
     let iat = now.timestamp() as usize;
-    let jwt_max_age: i64 = env::var("JWT_MAX_AGE")
+    let jwt_max_age: i64 = env::var("MAX_AGE")
         .expect("JWT max age must be set!")
         .parse()
         .expect("JWT max age must be an integer!");

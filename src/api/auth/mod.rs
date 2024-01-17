@@ -81,32 +81,6 @@ async fn login(
     pg_pool: Data<PgPool>,
     redis_pool: Data<RedisPool>,
 ) -> Result<impl Responder> {
-    let username = request.username.clone();
-    let mut pg_conn = pg_pool
-        .get()
-        .map_err(|err| error::handle_error(err.into()))?;
-
-    let user = web::block(move || util::get_user_by_username(&mut pg_conn, &username))
-        .await?
-        .map_err(|err| error::handle_error(err.into()))?;
-    if let Some(user) = user {
-        if !user.is_pragyan {
-            return Ok(Json(LoginResponse {
-                user_id: user.id,
-                username: user.username,
-                name: user.name,
-                avatar_id: user.avatar_id,
-                attacks_won: user.attacks_won,
-                defenses_won: user.defenses_won,
-                trophies: user.trophies,
-                artifacts: user.artifacts,
-                email: user.email,
-            }));
-        }
-    } else {
-        return Err(ErrorUnauthorized("Invalid Credentials"));
-    }
-
     let LoginRequest { username, password } = request.into_inner();
     // Pragyan users need to login with email
     let email = username.to_lowercase();
