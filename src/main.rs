@@ -1,4 +1,4 @@
-use crate::api::{attack, auth, defense, game, user};
+use crate::api::{attack, auth, defense, game, user,validator};
 use actix_cors::Cors;
 use actix_session::{
     config::PersistentSession, storage::RedisActorSessionStore, SessionMiddleware,
@@ -75,6 +75,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(Data::new(pg_pool.clone()))
             .app_data(Data::new(redis_pool.clone()))
             .route("/", web::get().to(HttpResponse::Ok))
+            .route("/validator", web::get().to(validator::ws_validator_handler))
             .service(web::scope("/attack").configure(attack::routes))
             .service(
                 web::scope("/user")
