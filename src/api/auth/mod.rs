@@ -8,6 +8,7 @@ use actix_web::{HttpResponse, Result};
 use oauth2::reqwest::http_client;
 use oauth2::{AuthorizationCode, CsrfToken, Scope};
 use oauth2::{PkceCodeChallenge, PkceCodeVerifier, TokenResponse};
+use redis::Commands;
 use reqwest::header::{AUTHORIZATION, LOCATION};
 use serde::{Deserialize, Serialize};
 use std::env;
@@ -15,6 +16,7 @@ pub mod authentication_token;
 pub mod session;
 mod util;
 
+use self::authentication_token::AuthenticationToken;
 use self::pragyan::PragyanMessage;
 use actix_web::error::ErrorUnauthorized;
 
@@ -24,6 +26,7 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
     cfg.service(web::resource("/login").route(web::post().to(login)))
         .service(web::resource("/logout").route(web::get().to(logout)))
         .service(web::resource("/oauth2-login").route(web::get().to(oauth2_login)))
+        .service(web::resource("/get-user").route(web::get().to(get_user)))
         .service(web::resource("/login/callback").route(web::get().to(login_callback)));
 }
 
@@ -126,9 +129,41 @@ async fn login(
     }
 }
 
-async fn logout(session: Session) -> impl Responder {
+#[derive(Deserialize, Serialize)]
+struct LogoutRequest {
+    user_id: i32,
+}
+
+async fn logout(
+    user: AuthenticationToken,
+    session: Session,
+    redis_pool: Data<RedisPool>,
+) -> Result<impl Responder> {
+    let user_id = user.id;
+    // get redis connection from redis pool
+    let mut redis_conn = match redis_pool.get() {
+        Ok(conn) => conn,
+        Err(_) => {
+            return Err(ErrorInternalServerError(
+                "Error in getting redis connection",
+            ))
+        }
+    };
+
+    // delete user id from redis db
+    let del: Result<i32, redis::RedisError> = redis_conn.del(user_id);
+    match del {
+        Ok(_) => log::info!("User id deleted from redis"),
+        Err(_) => {
+            return Err(ErrorInternalServerError(
+                "Error in deleting user id from redis",
+            ));
+        }
+    };
+
+    // clear the session cookie
     session.clear();
-    HttpResponse::NoContent().finish()
+    Ok(HttpResponse::NoContent().finish())
 }
 
 async fn oauth2_login(session: Session) -> impl Responder {
@@ -160,7 +195,25 @@ async fn oauth2_login(session: Session) -> impl Responder {
         .append_header(("GOOGLE_CSRF_TOKEN", csrf_token.secret().to_string()))
         .finish()
 }
+async fn get_user(user: AuthenticationToken, pool: Data<PgPool>) -> Result<impl Responder> {
+    let mut pool_conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+    let user_id = user.id;
+    let user = web::block(move || util::fetch_user_from_db(&mut pool_conn, user_id))
+        .await?
+        .map_err(|err| error::handle_error(err.into()))?;
 
+    Ok(Json(LoginResponse {
+        user_id: user.id,
+        username: user.username,
+        name: user.name,
+        avatar_id: user.avatar_id,
+        attacks_won: user.attacks_won,
+        defenses_won: user.defenses_won,
+        trophies: user.trophies,
+        artifacts: user.artifacts,
+        email: user.email,
+    }))
+}
 async fn login_callback(
     session: Session,
     params: Query<QueryCode>,
@@ -229,27 +282,62 @@ async fn login_callback(
     };
     let email = userinfo.email;
     let name = userinfo.name;
+
     //checking if the user exists in db else creating a new user
     let user = web::block(move || {
         let mut conn = pg_pool.get()?;
-        let mut redis_conn = redis_pool.get()?;
-        util::get_oauth_user(&mut conn, &mut redis_conn, &email, &name)
+        util::get_oauth_user(&mut conn, &email, &name)
     })
     .await?
     .map_err(|err| error::handle_error(err.into()))?;
 
-    //generating jwt token and cookie
+    //get redis connection from redis pool
+    let mut redis_conn = match redis_pool.get() {
+        Ok(conn) => conn,
+        Err(_) => {
+            return Err(ErrorInternalServerError(
+                "Error in getting redis connection",
+            ))
+        }
+    };
+
+    // check if user is logged in on any other device by checking redis db
+    let is_loggedin: Result<i32, redis::RedisError> = redis_conn.exists(user.id);
+    match is_loggedin {
+        Ok(i) => {
+            if i == 1 {
+                return Err(ErrorUnauthorized(
+                    "User already logged in on another device",
+                ));
+            }
+        }
+        Err(_) => {
+            log::info!("User not logged in on any other device")
+        }
+    };
+    // if not add ther user id to redis db
+    match redis_conn.set(user.id, 0) {
+        Ok(value_set) => value_set,
+        Err(_) => {
+            return Err(ErrorInternalServerError(
+                "Error in setting user id in redis",
+            ))
+        }
+    };
+
+    //generating jwt token
     let (token, expiring_time) = util::generate_jwt_token(user.id).unwrap();
 
     let frontend_origin = env::var("FRONTEND_URL").expect("Frontend origin must be set!");
 
+    // insert the jwt token in the session cookie
     session
         .insert("token", token.clone())
         .expect("Failed to insert token in session");
 
-    //the user will be redirected to the frontend_origin with the cookie and jwt in the header.
+    //the user will be redirected to the frontend_origin with jwt in the header.
     Ok(HttpResponse::Found()
-        .append_header((LOCATION, frontend_origin + "/auth"))
+        .append_header((LOCATION, frontend_origin + "/"))
         .append_header((AUTHORIZATION, token))
         .append_header(("expiry_time", expiring_time))
         .json(Json(LoginResponse {

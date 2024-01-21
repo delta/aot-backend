@@ -6,11 +6,9 @@ use std::{
 use actix_session::SessionExt;
 use actix_web::{dev::Payload, error::ErrorUnauthorized, Error, FromRequest, HttpRequest};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
-use serde::{Deserialize, Serialize};
 
 use super::TokenClaims;
 
-#[derive(Serialize, Deserialize)]
 pub struct AuthenticationToken {
     pub id: i32,
 }
