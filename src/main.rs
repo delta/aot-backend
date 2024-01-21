@@ -49,9 +49,9 @@ async fn main() -> std::io::Result<()> {
     let conn = &mut pg_pool.get().expect("Could not get connection from pool");
     conn.run_pending_migrations(MIGRATIONS).unwrap();
     let max_age: i64 = env::var("MAX_AGE_IN_MINUTES")
-        .expect("JWT max age must be set!")
+        .expect("max age must be set!")
         .parse()
-        .expect("JWT max age must be an integer!");
+        .expect("max age must be an integer!");
     HttpServer::new(move || {
         App::new()
             .wrap(

@@ -41,18 +41,38 @@ pub fn client() -> BasicClient {
     )
     .set_redirect_uri(RedirectUrl::new(redirect_url).expect("Invalid redirect URL"))
 }
-
-pub fn generate_jwt_token(id: i32) -> Result<(String, String)> {
-    let jwt_secret = env::var("JWT_SECRET").expect("JWT secret must be set!");
+pub fn fetch_user_from_db(pg_conn: &mut PgConnection, id: i32) -> Result<User> {
+    let user = user::table
+        .filter(user::id.eq(&id))
+        .first::<User>(pg_conn)
+        .map_err(|err| DieselError {
+            table: "user",
+            function: function!(),
+            error: err,
+        })?;
+    Ok(user)
+}
+pub fn generate_jwt_token(id: i32) -> Result<(String, String, String)> {
+    let jwt_secret = env::var("COOKIE_KEY").expect("COOKIE_KEY must be set!");
     let now = Utc::now();
     let iat = now.timestamp() as usize;
-    let jwt_max_age: i64 = env::var("MAX_AGE")
+    let jwt_max_age: i64 = env::var("MAX_AGE_IN_MINUTES")
         .expect("JWT max age must be set!")
         .parse()
         .expect("JWT max age must be an integer!");
     let token_expiring_time = now + Duration::minutes(jwt_max_age);
     let exp = (token_expiring_time).timestamp() as usize;
-    let claims: TokenClaims = TokenClaims { id, exp, iat };
+    let device: String = rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(4)
+        .map(char::from)
+        .collect();
+    let claims: TokenClaims = TokenClaims {
+        id,
+        device: device.clone(),
+        exp,
+        iat,
+    };
 
     let token_result = encode(
         &Header::default(),
@@ -64,15 +84,10 @@ pub fn generate_jwt_token(id: i32) -> Result<(String, String)> {
         Err(e) => return Err(e.into()),
     };
 
-    Ok((token, exp.to_string()))
+    Ok((token, exp.to_string(), device))
 }
 
-pub fn get_oauth_user(
-    pg_conn: &mut PgConnection,
-    redis_conn: &mut RedisConn,
-    email: &str,
-    name: &str,
-) -> Result<User> {
+pub fn get_oauth_user(pg_conn: &mut PgConnection, email: &str, name: &str) -> Result<User> {
     // Already logged in before
     if let Some(user) = user::table
         .filter(user::email.eq(&email))
@@ -97,7 +112,7 @@ pub fn get_oauth_user(
             name,
             email,
             username,
-            is_pragyan: &true,
+            is_pragyan: &false,
             attacks_won: &0,
             defenses_won: &0,
             trophies: &INITIAL_RATING,
@@ -112,7 +127,6 @@ pub fn get_oauth_user(
                 function: function!(),
                 error: err,
             })?;
-        redis_conn.set(user.id, 0)?;
         Ok(user)
     }
 }
