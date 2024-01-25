@@ -1,10 +1,7 @@
 use super::{auth::session::AuthUser, error, PgPool};
-use actix_web::{error::ErrorBadRequest, web, Responder, Result};
-use self::util::{remove_game, NewAttack};
 use crate::api;
 use crate::models::{AttackerType, BuildingType, MineType, DefenderType};
-use actix_web::error::ErrorBadRequest;
-use actix_web::{web, HttpResponse, Responder, Result};
+use actix_web::{web, HttpResponse, Responder, Result, error::ErrorBadRequest, error::ErrorNotFound};
 use serde::{Deserialize, Serialize};
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
