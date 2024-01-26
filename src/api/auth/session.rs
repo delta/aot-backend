@@ -52,7 +52,7 @@ impl FromRequest for AuthUser {
         let user_id = token.claims.id;
         let device = token.claims.device;
         let device_from_token: String = match redis_conn.get(user_id) {
-            Ok(mobile) => mobile,
+            Ok(device_id) => device_id,
             Err(_) => return ready(Err(error::AuthError::Session.into())),
         };
         if device != *device_from_token {
