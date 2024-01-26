@@ -1,4 +1,4 @@
-use super::auth::authentication_token::AuthenticationToken;
+use super::auth::session::AuthUser;
 use super::{PgPool, RedisPool};
 use crate::api::error;
 use crate::models::UpdateUser;
@@ -73,9 +73,9 @@ async fn register(
 async fn update_user(
     user_details: Json<UpdateUser>,
     pool: Data<PgPool>,
-    user: AuthenticationToken,
+    user: AuthUser,
 ) -> Result<impl Responder> {
-    let user_id = user.id;
+    let user_id = user.0;
     let username = user_details.username.clone();
     if let Some(username) = username {
         let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;

@@ -12,20 +12,14 @@ use redis::Commands;
 use reqwest::header::{AUTHORIZATION, LOCATION};
 use serde::{Deserialize, Serialize};
 use std::env;
-pub mod authentication_token;
 pub mod session;
 mod util;
 
-use self::authentication_token::AuthenticationToken;
-use self::pragyan::PragyanMessage;
-use actix_web::error::ErrorUnauthorized;
-
-mod pragyan;
+use self::session::AuthUser;
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
-    cfg.service(web::resource("/login").route(web::post().to(login)))
+    cfg.service(web::resource("/login").route(web::get().to(login)))
         .service(web::resource("/logout").route(web::get().to(logout)))
-        .service(web::resource("/oauth2-login").route(web::get().to(oauth2_login)))
         .service(web::resource("/get-user").route(web::get().to(get_user)))
         .service(web::resource("/login/callback").route(web::get().to(login_callback)));
 }
@@ -42,21 +36,10 @@ pub struct LoginResponse {
     pub artifacts: i32,
     pub email: String,
 }
-#[derive(Deserialize)]
-struct LoginRequest {
-    username: String,
-    password: String,
-}
-
 #[derive(Debug, Deserialize)]
 pub struct QueryCode {
     pub state: String,
     pub code: String,
-}
-
-#[derive(Debug, Serialize)]
-pub struct GoogleLoginResponse {
-    pub csrf_state: String,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -64,11 +47,6 @@ pub struct UserInfoFromGoogle {
     name: String,
     email: String,
     picture: String,
-}
-
-#[derive(Serialize)]
-pub struct CallbackResponse {
-    expiry_time: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -79,95 +57,27 @@ pub struct TokenClaims {
     pub exp: usize,
 }
 
-async fn login(
-    request: web::Json<LoginRequest>,
-    session: Session,
-    pg_pool: Data<PgPool>,
-    redis_pool: Data<RedisPool>,
-) -> Result<impl Responder> {
-    let LoginRequest { username, password } = request.into_inner();
-    // Pragyan users need to login with email
-    let email = username.to_lowercase();
-    let pragyan_auth = pragyan::auth(email, password)
-        .await
-        .map_err(error::handle_error)?;
-    match pragyan_auth.status_code {
-        200 => {
-            if let PragyanMessage::Success(pragyan_user) = pragyan_auth.message {
-                let name = pragyan_user.user_fullname.clone();
-                let user = web::block(move || {
-                    let mut conn = pg_pool.get()?;
-                    let mut redis_conn = redis_pool.get()?;
-                    let email = username.clone();
-                    util::get_pragyan_user(&mut conn, &mut redis_conn, &email, &name)
-                })
-                .await?
-                .map_err(|err| error::handle_error(err.into()))?;
-                session::set(&session, user.id, true).map_err(error::handle_error)?;
-                Ok(Json(LoginResponse {
-                    user_id: user.id,
-                    username: user.username,
-                    name: user.name,
-                    avatar_id: user.avatar_id,
-                    attacks_won: user.attacks_won,
-                    defenses_won: user.defenses_won,
-                    trophies: user.trophies,
-                    artifacts: user.artifacts,
-                    email: user.email,
-                }))
-            } else {
-                Err(anyhow::anyhow!(
-                    "Unexpected error in Pragyan auth: {:?}",
-                    pragyan_auth
-                ))
-                .map_err(|err| error::handle_error(err.into()))?
-            }
-        }
-        203 => Err(ErrorUnauthorized("Pragyan account not verified")),
-        _ => Err(ErrorUnauthorized(
-            "Invalid username/Pragyan email or password",
-        )),
-    }
-}
-
-#[derive(Deserialize, Serialize)]
-struct LogoutRequest {
-    user_id: i32,
-}
-
 async fn logout(
-    user: AuthenticationToken,
+    user: AuthUser,
     session: Session,
     redis_pool: Data<RedisPool>,
 ) -> Result<impl Responder> {
-    let user_id = user.id;
+    let user_id = user.0;
     // get redis connection from redis pool
-    let mut redis_conn = match redis_pool.get() {
-        Ok(conn) => conn,
-        Err(_) => {
-            return Err(ErrorInternalServerError(
-                "Error in getting redis connection",
-            ))
-        }
-    };
-
+    let mut redis_conn = redis_pool
+        .get()
+        .map_err(|err| error::handle_error(err.into()))?;
     // delete user id from redis db
-    let del: Result<i32, redis::RedisError> = redis_conn.del(user_id);
-    match del {
-        Ok(_) => log::info!("User id deleted from redis"),
-        Err(_) => {
-            return Err(ErrorInternalServerError(
-                "Error in deleting user id from redis",
-            ));
-        }
-    };
+    redis_conn
+        .del(user_id)
+        .map_err(|err| error::handle_error(err.into()))?;
 
     // clear the session cookie
     session.clear();
     Ok(HttpResponse::NoContent().finish())
 }
 
-async fn oauth2_login(session: Session) -> impl Responder {
+async fn login(session: Session) -> impl Responder {
     //generate pkce code verifier and challenge
     let (pkce_code_challenge, pkce_code_verifier) = PkceCodeChallenge::new_random_sha256();
 
@@ -196,9 +106,9 @@ async fn oauth2_login(session: Session) -> impl Responder {
         .append_header(("GOOGLE_CSRF_TOKEN", csrf_token.secret().to_string()))
         .finish()
 }
-async fn get_user(user: AuthenticationToken, pool: Data<PgPool>) -> Result<impl Responder> {
+async fn get_user(user: AuthUser, pool: Data<PgPool>) -> Result<impl Responder> {
     let mut pool_conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-    let user_id = user.id;
+    let user_id = user.0;
     let user = web::block(move || util::fetch_user_from_db(&mut pool_conn, user_id))
         .await?
         .map_err(|err| error::handle_error(err.into()))?;
@@ -251,14 +161,14 @@ async fn login_callback(
         ))?;
 
     //exchanging the authorization code for the access token
-    let token_result = util::client()
+    let access_token = util::client()
         .exchange_code(code)
         .set_pkce_verifier(pkce_verifier)
-        .request(http_client);
-    let access_token = match token_result {
-        Ok(token_result) => token_result.access_token().secret().clone(),
-        Err(e) => return Err(ErrorInternalServerError(e.to_string())),
-    };
+        .request(http_client)
+        .map_err(|err| error::handle_error(err.into()))?
+        .access_token()
+        .secret()
+        .clone();
     let url =
         env::var("GOOGLE_OAUTH_USER_INFO_URL").expect("GOOGLE_OAUTH_USER_INFO_URL must be set"); //url for getting user info from google
 
@@ -270,17 +180,11 @@ async fn login_callback(
         .send()
         .await;
 
-    let userinfo: UserInfoFromGoogle = match response {
-        Ok(response) => match response.json().await {
-            Ok(json_response_from_google) => json_response_from_google,
-            Err(e) => return Err(ErrorInternalServerError(e.to_string())),
-        },
-        Err(_) => {
-            return Err(ErrorInternalServerError(
-                "Error in getting user info from google",
-            ))
-        }
-    };
+    let userinfo: UserInfoFromGoogle = response
+        .map_err(|err| error::handle_error(err.into()))?
+        .json()
+        .await
+        .map_err(|err| error::handle_error(err.into()))?;
     let email = userinfo.email;
     let name = userinfo.name;
 

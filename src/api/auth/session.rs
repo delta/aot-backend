@@ -1,95 +1,64 @@
-use crate::api::{error::AuthError, RedisConn, RedisPool};
-use actix_session::{Session, SessionExt};
-use actix_web::{dev::Payload, web::Data, FromRequest, HttpRequest};
-use futures::future::{err, ok, Ready};
+use std::{
+    env,
+    future::{ready, Ready},
+};
+
+use actix_session::SessionExt;
+use actix_web::{dev::Payload, web::Data, Error, FromRequest, HttpRequest};
+use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use redis::Commands;
-use std::time::{SystemTime, UNIX_EPOCH};
+
+use crate::api::{error, RedisPool};
+
+use super::TokenClaims;
 
 pub struct AuthUser(pub i32);
 
 impl FromRequest for AuthUser {
-    type Error = AuthError;
-    type Future = Ready<Result<AuthUser, AuthError>>;
+    type Error = Error;
+    type Future = Ready<Result<Self, Self::Error>>;
 
     fn from_request(req: &HttpRequest, _: &mut Payload) -> Self::Future {
         let session = req.get_session();
-        let pool = req
-            .app_data::<Data<RedisPool>>()
-            .unwrap()
-            .get_ref()
-            .to_owned();
-        match pool.get() {
-            Ok(conn) => match get_authenticated_user(&session, conn) {
-                Ok(user) => ok(AuthUser(user)),
-                Err(error) => err(error),
+        let redis_pool: Data<RedisPool> = req.app_data::<Data<RedisPool>>().unwrap().clone();
+        let mut redis_conn = match redis_pool.get() {
+            Ok(conn) => conn,
+            Err(_) => return ready(Err(error::AuthError::Session.into())),
+        };
+
+        let auth_token: String = match session.get::<String>("token") {
+            Ok(auth_token) => match auth_token {
+                Some(token) => token,
+                None => return ready(Err(error::AuthError::Session.into())),
             },
-            Err(error) => err(AuthError::Internal(error.into())),
+            Err(_) => return ready(Err(error::AuthError::Session.into())),
+        };
+
+        if auth_token.is_empty() {
+            return ready(Err(error::AuthError::Session.into()));
         }
-    }
-}
 
-pub struct UnverifiedUser(pub i32);
+        let secret: String = env::var("COOKIE_KEY").unwrap_or("".to_string());
 
-impl FromRequest for UnverifiedUser {
-    type Error = AuthError;
-    type Future = Ready<Result<UnverifiedUser, AuthError>>;
+        let token = match decode::<TokenClaims>(
+            &auth_token,
+            &DecodingKey::from_secret(secret.as_str().as_ref()),
+            &Validation::new(Algorithm::HS256),
+        ) {
+            Ok(token) => token,
+            Err(_) => return ready(Err(error::AuthError::Session.into())),
+        };
 
-    fn from_request(req: &HttpRequest, _: &mut Payload) -> Self::Future {
-        let session = req.get_session();
-        let pool = req
-            .app_data::<Data<RedisPool>>()
-            .unwrap()
-            .get_ref()
-            .to_owned();
-        match pool.get() {
-            Ok(conn) => match get_unverified_user(&session, conn) {
-                Ok(user) => ok(UnverifiedUser(user)),
-                Err(error) => err(error),
-            },
-            Err(error) => err(AuthError::Internal(error.into())),
-        }
-    }
-}
-
-fn get_authenticated_user(session: &Session, conn: RedisConn) -> Result<i32, AuthError> {
-    let user_id = get_unverified_user(session, conn)?;
-    session
-        .get::<bool>("is_verified")
-        .map_err(|_| AuthError::UnVerified)?
-        .ok_or(AuthError::UnVerified)?;
-    Ok(user_id)
-}
-
-fn get_unverified_user(session: &Session, mut conn: RedisConn) -> Result<i32, AuthError> {
-    let user_id = session
-        .get::<i32>("user")
-        .map_err(|_| AuthError::Session)?
-        .ok_or(AuthError::Session)?;
-    let created_at = session
-        .get::<u64>("created_at")
-        .map_err(|_| AuthError::Session)?
-        .ok_or(AuthError::Session)?;
-    let last_pw_reset: Option<u64> = conn.get(user_id)?;
-    if let Some(last_pw_reset) = last_pw_reset {
-        if last_pw_reset < created_at {
-            return Ok(user_id);
+        let user_id = token.claims.id;
+        let device = token.claims.device;
+        let device_from_token: String = match redis_conn.get(user_id) {
+            Ok(mobile) => mobile,
+            Err(_) => return ready(Err(error::AuthError::Session.into())),
+        };
+        if device != *device_from_token {
+            ready(Err(error::AuthError::Session.into()))
         } else {
-            return Err(AuthError::Session);
+            ready(Ok(AuthUser(user_id)))
         }
     }
-    conn.set(user_id, created_at)?;
-    Ok(user_id)
-}
-
-pub fn set(
-    session: &Session,
-    user_id: i32,
-    is_verified: bool,
-) -> Result<(), Box<dyn std::error::Error>> {
-    session.insert("user", user_id)?;
-    session.insert("is_verified", is_verified)?;
-    let created_at = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
-    session.insert("created_at", created_at)?;
-    session.renew();
-    Ok(())
 }
