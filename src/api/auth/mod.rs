@@ -1,15 +1,14 @@
 use super::{PgPool, RedisPool};
 use crate::api::error;
 use actix_session::Session;
-use actix_web::error::{ErrorBadRequest, ErrorInternalServerError};
-use actix_web::web::{self, Data, Json, Query};
+use actix_web::error::ErrorInternalServerError;
+use actix_web::web::{self, Data, Json};
 use actix_web::Responder;
 use actix_web::{HttpResponse, Result};
 use oauth2::reqwest::http_client;
-use oauth2::{AuthorizationCode, CsrfToken, Scope};
-use oauth2::{PkceCodeChallenge, PkceCodeVerifier, TokenResponse};
+use oauth2::AuthorizationCode;
+use oauth2::TokenResponse;
 use redis::Commands;
-use reqwest::header::{AUTHORIZATION, LOCATION};
 use serde::{Deserialize, Serialize};
 use std::env;
 pub mod authentication_token;
@@ -24,10 +23,9 @@ mod pragyan;
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
     cfg.service(web::resource("/login").route(web::post().to(login)))
-        .service(web::resource("/logout").route(web::get().to(logout)))
-        .service(web::resource("/oauth2-login").route(web::get().to(oauth2_login)))
-        .service(web::resource("/get-user").route(web::get().to(get_user)))
-        .service(web::resource("/login/callback").route(web::get().to(login_callback)));
+        .service(web::resource("/logout").route(web::post().to(logout)))
+        .service(web::resource("/oauth2-login").route(web::post().to(oauth2_login)))
+        .service(web::resource("/get-user").route(web::get().to(get_user)));
 }
 
 #[derive(Serialize)]
@@ -46,6 +44,11 @@ pub struct LoginResponse {
 struct LoginRequest {
     username: String,
     password: String,
+}
+
+#[derive(Deserialize)]
+struct OauthLoginRequest {
+    code: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -141,60 +144,20 @@ async fn logout(
 ) -> Result<impl Responder> {
     let user_id = user.id;
     // get redis connection from redis pool
-    let mut redis_conn = match redis_pool.get() {
-        Ok(conn) => conn,
-        Err(_) => {
-            return Err(ErrorInternalServerError(
-                "Error in getting redis connection",
-            ))
-        }
-    };
+    let mut redis_conn = redis_pool
+        .get()
+        .map_err(|err| error::handle_error(err.into()))?;
 
     // delete user id from redis db
-    let del: Result<i32, redis::RedisError> = redis_conn.del(user_id);
-    match del {
-        Ok(_) => log::info!("User id deleted from redis"),
-        Err(_) => {
-            return Err(ErrorInternalServerError(
-                "Error in deleting user id from redis",
-            ));
-        }
-    };
+    redis_conn
+        .del(user_id)
+        .map_err(|err| error::handle_error(err.into()))?;
 
     // clear the session cookie
     session.clear();
     Ok(HttpResponse::NoContent().finish())
 }
 
-async fn oauth2_login(session: Session) -> impl Responder {
-    //generate pkce code verifier and challenge
-    let (pkce_code_challenge, pkce_code_verifier) = PkceCodeChallenge::new_random_sha256();
-
-    // Store the PKCE code verifier in the user's session.
-    session
-        .insert("pkce_code_verifier", pkce_code_verifier)
-        .expect("Failed to insert PKCE code verifier in session");
-
-    // Generate the authorization URL to which we'll redirect the user.
-    let (authorize_url, csrf_token) = util::client()
-        .authorize_url(CsrfToken::new_random)
-        .add_scope(Scope::new("email".to_string()))
-        .add_scope(Scope::new("openid".to_string()))
-        .add_scope(Scope::new("profile".to_string()))
-        .set_pkce_challenge(pkce_code_challenge)
-        .url();
-
-    // Store the CSRF token in the user's session.
-    session
-        .insert("csrf_token", csrf_token.clone())
-        .expect("Failed to insert CSRF token in session");
-
-    // Redirect the user to the authorization URL sent in the below json response.
-    HttpResponse::Found()
-        .append_header((LOCATION, authorize_url.to_string()))
-        .append_header(("GOOGLE_CSRF_TOKEN", csrf_token.secret().to_string()))
-        .finish()
-}
 async fn get_user(user: AuthenticationToken, pool: Data<PgPool>) -> Result<impl Responder> {
     let mut pool_conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let user_id = user.id;
@@ -214,50 +177,23 @@ async fn get_user(user: AuthenticationToken, pool: Data<PgPool>) -> Result<impl 
         email: user.email,
     }))
 }
-async fn login_callback(
+async fn oauth2_login(
     session: Session,
-    params: Query<QueryCode>,
+    request: web::Json<OauthLoginRequest>,
     pg_pool: Data<PgPool>,
     redis_pool: Data<RedisPool>,
 ) -> Result<impl Responder> {
-    //extracting the authorization code from the query parameters in the callback url
-    let code = AuthorizationCode::new(params.code.clone());
-
-    //extracting the csrf token from the query parameters in the callback url
-    let state = params.state.clone();
-    if state.is_empty() {
-        return Err(ErrorBadRequest("Invalid state"));
-    }
-
-    //extracting the csrf token from the session
-    let state_from_session = session
-        .get::<CsrfToken>("csrf_token")
-        .map_err(|_| ErrorInternalServerError("Error in getting csrf token from session"))?
-        .ok_or(ErrorInternalServerError(
-            "Error in getting csrf token from session",
-        ))?;
-
-    //check if both the csrf token in the query parameters and the csrf token in the session are same
-    if state != *state_from_session.secret() {
-        return Err(ErrorBadRequest("Invalid state"));
-    }
-
-    let pkce_verifier = session
-        .get::<PkceCodeVerifier>("pkce_code_verifier")
-        .map_err(|_| ErrorInternalServerError("Error in getting pkce code verifier from session"))?
-        .ok_or(ErrorInternalServerError(
-            "Error in getting pkce code verifier from session",
-        ))?;
+    //getting the auth code from request body
+    let code = AuthorizationCode::new(request.code.clone());
 
     //exchanging the authorization code for the access token
-    let token_result = util::client()
-        .exchange_code(code)
-        .set_pkce_verifier(pkce_verifier)
-        .request(http_client);
-    let access_token = match token_result {
-        Ok(token_result) => token_result.access_token().secret().clone(),
-        Err(e) => return Err(ErrorInternalServerError(e.to_string())),
-    };
+    let token_result = util::client().exchange_code(code).request(http_client);
+    let access_token = token_result
+        .map_err(|err| error::handle_error(err.into()))?
+        .access_token()
+        .secret()
+        .clone();
+
     let url =
         env::var("GOOGLE_OAUTH_USER_INFO_URL").expect("GOOGLE_OAUTH_USER_INFO_URL must be set"); //url for getting user info from google
 
@@ -269,17 +205,12 @@ async fn login_callback(
         .send()
         .await;
 
-    let userinfo: UserInfoFromGoogle = match response {
-        Ok(response) => match response.json().await {
-            Ok(json_response_from_google) => json_response_from_google,
-            Err(e) => return Err(ErrorInternalServerError(e.to_string())),
-        },
-        Err(_) => {
-            return Err(ErrorInternalServerError(
-                "Error in getting user info from google",
-            ))
-        }
-    };
+    let userinfo: UserInfoFromGoogle = response
+        .map_err(|err| error::handle_error(err.into()))?
+        .json()
+        .await
+        .map_err(|err| error::handle_error(err.into()))?;
+
     let email = userinfo.email;
     let name = userinfo.name;
 
@@ -292,14 +223,9 @@ async fn login_callback(
     .map_err(|err| error::handle_error(err.into()))?;
 
     //get redis connection from redis pool
-    let mut redis_conn = match redis_pool.get() {
-        Ok(conn) => conn,
-        Err(_) => {
-            return Err(ErrorInternalServerError(
-                "Error in getting redis connection",
-            ))
-        }
-    };
+    let mut redis_conn = redis_pool
+        .get()
+        .map_err(|err| error::handle_error(err.into()))?;
 
     // check if user is logged in on any other device by checking redis db
     let is_loggedin: Result<i32, redis::RedisError> = redis_conn.exists(user.id);
@@ -309,36 +235,30 @@ async fn login_callback(
                 return Err(ErrorUnauthorized(
                     "User already logged in on another device",
                 ));
+            } else {
+                log::info!("User not logged in on any other device");
             }
         }
         Err(_) => {
-            log::info!("User not logged in on any other device")
-        }
-    };
-    // if not add ther user id to redis db
-    match redis_conn.set(user.id, 0) {
-        Ok(value_set) => value_set,
-        Err(_) => {
             return Err(ErrorInternalServerError(
-                "Error in setting user id in redis",
+                "Error in checking user id in redis",
             ))
         }
     };
+    // if not add ther user id to redis db
+    redis_conn
+        .set(user.id, 0)
+        .map_err(|err| error::handle_error(err.into()))?;
 
     //generating jwt token
     let (token, expiring_time) = util::generate_jwt_token(user.id).unwrap();
-
-    let frontend_origin = env::var("FRONTEND_URL").expect("Frontend origin must be set!");
 
     // insert the jwt token in the session cookie
     session
         .insert("token", token.clone())
         .expect("Failed to insert token in session");
 
-    //the user will be redirected to the frontend_origin with jwt in the header.
     Ok(HttpResponse::Found()
-        .append_header((LOCATION, frontend_origin + "/"))
-        .append_header((AUTHORIZATION, token))
         .append_header(("expiry_time", expiring_time))
         .json(Json(LoginResponse {
             user_id: user.id,
