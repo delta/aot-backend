@@ -1,5 +1,6 @@
 use self::util::{remove_game, NewAttack};
 use super::auth::session::AuthUser;
+use super::validator::ws_validator_handler;
 use super::{error, PgPool};
 use crate::api;
 use crate::api::util::HistoryboardQuery;
@@ -13,93 +14,93 @@ pub mod util;
 mod validate;
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
-    cfg.service(web::resource("").route(web::post().to(create_attack)))
+    cfg.service(web::resource("").route(web::post().to(ws_validator_handler)))
         .service(web::resource("/history").route(web::get().to(attack_history)))
         .service(web::resource("/top").route(web::get().to(get_top_attacks)))
         .service(web::resource("/testbase").route(web::post().to(test_base)));
 }
 
-async fn create_attack(
-    new_attack: web::Json<NewAttack>,
-    pool: web::Data<PgPool>,
-    user: AuthUser,
-) -> Result<impl Responder> {
-    let attacker_id = user.0;
-    let attackers = new_attack.attackers.clone();
+// async fn create_attack(
+//     new_attack: web::Json<NewAttack>,
+//     pool: web::Data<PgPool>,
+//     user: AuthUser,
+// ) -> Result<impl Responder> {
+//     let attacker_id = user.0;
+//     let attackers = new_attack.attackers.clone();
 
-    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-    let defender_id = new_attack.defender_id;
-    let (level, map) = web::block(move || {
-        let level = api::util::get_current_levels_fixture(&mut conn)?;
-        let map = util::get_map_id(&defender_id, &level.id, &mut conn)?;
-        Ok((level, map)) as anyhow::Result<(LevelsFixture, Option<i32>)>
-    })
-    .await?
-    .map_err(|err| error::handle_error(err.into()))?;
+//     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+//     let defender_id = new_attack.defender_id;
+//     let (level, map) = web::block(move || {
+//         let level = api::util::get_current_levels_fixture(&mut conn)?;
+//         let map = util::get_map_id(&defender_id, &level.id, &mut conn)?;
+//         Ok((level, map)) as anyhow::Result<(LevelsFixture, Option<i32>)>
+//     })
+//     .await?
+//     .map_err(|err| error::handle_error(err.into()))?;
 
-    let map_id = if let Some(map) = map {
-        map
-    } else {
-        return Err(ErrorBadRequest("Invalid base"));
-    };
+//     let map_id = if let Some(map) = map {
+//         map
+//     } else {
+//         return Err(ErrorBadRequest("Invalid base"));
+//     };
 
-    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-    let (valid_road_paths, valid_emp_ids, is_attack_allowed, attacker_types) =
-        web::block(move || {
-            let is_attack_allowed = util::is_attack_allowed(attacker_id, defender_id, &mut conn)?;
-            let valid_emp_ids: HashSet<i32> = util::get_valid_emp_ids(&mut conn)?;
-            let valid_road_paths = util::get_valid_road_paths(map_id, &mut conn)?;
-            let attacker_types = util::get_attacker_types(&mut conn)?;
-            Ok((
-                valid_road_paths,
-                valid_emp_ids,
-                is_attack_allowed,
-                attacker_types,
-            ))
-                as anyhow::Result<(
-                    HashSet<(i32, i32)>,
-                    HashSet<i32>,
-                    bool,
-                    HashMap<i32, AttackerType>,
-                )>
-        })
-        .await?
-        .map_err(|err| error::handle_error(err.into()))?;
+//     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+//     let (valid_road_paths, valid_emp_ids, is_attack_allowed, attacker_types) =
+//         web::block(move || {
+//             let is_attack_allowed = util::is_attack_allowed(attacker_id, defender_id, &mut conn)?;
+//             let valid_emp_ids: HashSet<i32> = util::get_valid_emp_ids(&mut conn)?;
+//             let valid_road_paths = util::get_valid_road_paths(map_id, &mut conn)?;
+//             let attacker_types = util::get_attacker_types(&mut conn)?;
+//             Ok((
+//                 valid_road_paths,
+//                 valid_emp_ids,
+//                 is_attack_allowed,
+//                 attacker_types,
+//             ))
+//                 as anyhow::Result<(
+//                     HashSet<(i32, i32)>,
+//                     HashSet<i32>,
+//                     bool,
+//                     HashMap<i32, AttackerType>,
+//                 )>
+//         })
+//         .await?
+//         .map_err(|err| error::handle_error(err.into()))?;
 
-    if !is_attack_allowed {
-        return Err(ErrorBadRequest("Attack not allowed"));
-    }
+//     if !is_attack_allowed {
+//         return Err(ErrorBadRequest("Attack not allowed"));
+//     }
 
-    validate::is_attack_valid(
-        &new_attack,
-        valid_road_paths,
-        valid_emp_ids,
-        &level.no_of_bombs,
-        &level.no_of_attackers,
-        &attacker_types,
-    )
-    .map_err(ErrorBadRequest)?;
+//     validate::is_attack_valid(
+//         &new_attack,
+//         valid_road_paths,
+//         valid_emp_ids,
+//         &level.no_of_bombs,
+//         &level.no_of_attackers,
+//         &attacker_types,
+//     )
+//     .map_err(ErrorBadRequest)?;
 
-    let file_content = web::block(move || {
-        let mut conn = pool.get()?;
-        let game_id = util::add_game(attacker_id, &new_attack, map_id, &mut conn)?;
-        let sim_result = util::run_simulation(game_id, map_id, attackers, &mut conn);
-        match sim_result {
-            Ok(file_content) => Ok(file_content),
-            Err(_) => {
-                remove_game(game_id, &mut conn)?;
-                Err(anyhow::anyhow!(
-                    "Failed to run simulation for game {}",
-                    game_id
-                ))
-            }
-        }
-    })
-    .await?
-    .map_err(|err| error::handle_error(err.into()))?;
+//     let file_content = web::block(move || {
+//         let mut conn = pool.get()?;
+//         let game_id = util::add_game(attacker_id, &new_attack, map_id, &mut conn)?;
+//         let sim_result = util::run_simulation(game_id, map_id, attackers, &mut conn);
+//         match sim_result {
+//             Ok(file_content) => Ok(file_content),
+//             Err(_) => {
+//                 remove_game(game_id, &mut conn)?;
+//                 Err(anyhow::anyhow!(
+//                     "Failed to run simulation for game {}",
+//                     game_id
+//                 ))
+//             }
+//         }
+//     })
+//     .await?
+//     .map_err(|err| error::handle_error(err.into()))?;
 
-    Ok(HttpResponse::Ok().body(file_content))
-}
+//     Ok(HttpResponse::Ok().body(file_content))
+// }
 
 async fn attack_history(
     pool: web::Data<PgPool>,
