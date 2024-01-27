@@ -1,13 +1,10 @@
 mod util;
 
-
 use crate::api::validator::util::{Attacker, Base, Message, MyWebSocket, Payload};
 use actix_web::{web, Error, HttpRequest, HttpResponse};
 use actix_web_actors::ws;
 use serde_json;
 use actix::prelude::*;
-
-
 
 impl Actor for MyWebSocket {
     type Context = ws::WebsocketContext<Self>;

@@ -15,6 +15,7 @@ use crate::schema::user;
 use crate::simulation::{RenderAttacker, RenderMine};
 use crate::simulation::{RenderDefender, Simulator};
 use crate::util::function;
+use crate::validator::state::Coords;
 use anyhow::{Context, Result};
 use chrono::Local;
 use diesel::dsl::exists;
@@ -43,6 +44,21 @@ pub struct NewAttack {
 pub struct NewAttacker {
     pub attacker_type: i32,
     pub attacker_path: Vec<NewAttackerPath>,
+}
+
+#[derive(Deserialize)]
+pub struct BombType {
+    pub id: i32,
+    pub bomb_x: i32,
+    pub bomb_y: i32,
+}
+
+#[derive(Deserialize)]
+pub struct FrameDetails {
+    pub frame_no: i32,
+    pub attacker_delta: Coords,
+    pub attacker_type: i32,
+    pub bombs_placed: Vec<BombType>,
 }
 
 pub fn get_valid_emp_ids(conn: &mut PgConnection) -> Result<HashSet<i32>> {
