@@ -17,8 +17,7 @@ use self::session::AuthUser;
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
     cfg.service(web::resource("/login").route(web::post().to(login)))
-        .service(web::resource("/logout").route(web::post().to(logout)))
-        .service(web::resource("/get-user").route(web::get().to(get_user)));
+        .service(web::resource("/logout").route(web::post().to(logout)));
 }
 
 #[derive(Serialize)]
@@ -79,32 +78,13 @@ async fn logout(
     Ok(HttpResponse::NoContent().finish())
 }
 
-async fn get_user(user: AuthUser, pool: Data<PgPool>) -> Result<impl Responder> {
-    let mut pool_conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-    let user_id = user.0;
-    let user = web::block(move || util::fetch_user_from_db(&mut pool_conn, user_id))
-        .await?
-        .map_err(|err| error::handle_error(err.into()))?;
-
-    Ok(Json(LoginResponse {
-        user_id: user.id,
-        username: user.username,
-        name: user.name,
-        avatar_id: user.avatar_id,
-        attacks_won: user.attacks_won,
-        defenses_won: user.defenses_won,
-        trophies: user.trophies,
-        artifacts: user.artifacts,
-        email: user.email,
-    }))
-}
 async fn login(
     session: Session,
     req: Json<LoginRequest>,
     pg_pool: Data<PgPool>,
     redis_pool: Data<RedisPool>,
 ) -> Result<impl Responder> {
-    //extracting the authorization code from the query parameters in the callback url
+    //extracting the authorization code from the request body
     let code = AuthorizationCode::new(req.code.clone());
 
     //exchanging the authorization code for the access token
@@ -115,6 +95,7 @@ async fn login(
         .access_token()
         .secret()
         .clone();
+
     let url =
         env::var("GOOGLE_OAUTH_USER_INFO_URL").expect("GOOGLE_OAUTH_USER_INFO_URL must be set"); //url for getting user info from google
 
@@ -152,7 +133,7 @@ async fn login(
 
     //set device id in redis db
     redis_conn
-        .set(user.id, device)
+        .set(user.id, device + &expiring_time)
         .map_err(|err| error::handle_error(err.into()))?;
 
     // insert the jwt token in the session cookie
@@ -160,7 +141,7 @@ async fn login(
         .insert("token", token.clone())
         .expect("Failed to insert token in session");
 
-    Ok(HttpResponse::Found()
+    Ok(HttpResponse::Ok()
         .append_header(("expiry_time", expiring_time))
         .json(Json(LoginResponse {
             user_id: user.id,

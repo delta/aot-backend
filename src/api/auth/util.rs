@@ -39,17 +39,7 @@ pub fn client() -> BasicClient {
     )
     .set_redirect_uri(RedirectUrl::new(redirect_url).expect("Invalid redirect URL"))
 }
-pub fn fetch_user_from_db(pg_conn: &mut PgConnection, id: i32) -> Result<User> {
-    let user = user::table
-        .filter(user::id.eq(&id))
-        .first::<User>(pg_conn)
-        .map_err(|err| DieselError {
-            table: "user",
-            function: function!(),
-            error: err,
-        })?;
-    Ok(user)
-}
+
 pub fn generate_jwt_token(id: i32) -> Result<(String, String, String)> {
     let jwt_secret = env::var("COOKIE_KEY").expect("COOKIE_KEY must be set!");
     let now = Utc::now();

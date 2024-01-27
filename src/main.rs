@@ -1,5 +1,3 @@
-use std::env;
-
 use crate::api::{attack, auth, defense, game, user};
 use actix_cors::Cors;
 use actix_session::{
@@ -48,7 +46,7 @@ async fn main() -> std::io::Result<()> {
 
     let conn = &mut pg_pool.get().expect("Could not get connection from pool");
     conn.run_pending_migrations(MIGRATIONS).unwrap();
-    let max_age: i64 = env::var("MAX_AGE_IN_MINUTES")
+    let max_age: i64 = std::env::var("MAX_AGE_IN_MINUTES")
         .expect("max age must be set!")
         .parse()
         .expect("max age must be an integer!");
