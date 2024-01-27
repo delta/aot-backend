@@ -9,7 +9,6 @@ use thiserror::Error;
 #[derive(Debug, Display, Error)]
 pub enum AuthError {
     Session,
-    UnVerified,
     UserNotFound,
     Internal(Box<dyn std::error::Error + Send + Sync>),
 }
@@ -18,7 +17,6 @@ impl ResponseError for AuthError {
     fn error_response(&self) -> actix_web::HttpResponse {
         match self {
             AuthError::Session => ErrorUnauthorized("Session Error. Please login again.").into(),
-            AuthError::UnVerified => ErrorUnauthorized("Please verify your account.").into(),
             AuthError::UserNotFound => ErrorNotFound("User Not Found").into(),
             AuthError::Internal(err) => handle_error(err.to_string().into()).into(),
         }
