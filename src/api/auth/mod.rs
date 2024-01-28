@@ -1,6 +1,5 @@
 use super::{PgPool, RedisPool};
 use crate::api::error;
-use actix_session::Session;
 use actix_web::web::{self, Data, Json};
 use actix_web::Responder;
 use actix_web::{HttpResponse, Result};
@@ -58,11 +57,7 @@ pub struct TokenClaims {
     pub exp: usize,
 }
 
-async fn logout(
-    user: AuthUser,
-    session: Session,
-    redis_pool: Data<RedisPool>,
-) -> Result<impl Responder> {
+async fn logout(user: AuthUser, redis_pool: Data<RedisPool>) -> Result<impl Responder> {
     let user_id = user.0;
     // get redis connection from redis pool
     let mut redis_conn = redis_pool
@@ -73,13 +68,10 @@ async fn logout(
         .del(user_id)
         .map_err(|err| error::handle_error(err.into()))?;
 
-    // clear the session cookie
-    session.clear();
     Ok(HttpResponse::NoContent().finish())
 }
 
 async fn login(
-    session: Session,
     req: Json<LoginRequest>,
     pg_pool: Data<PgPool>,
     redis_pool: Data<RedisPool>,
@@ -136,13 +128,9 @@ async fn login(
         .set(user.id, device + &expiring_time)
         .map_err(|err| error::handle_error(err.into()))?;
 
-    // insert the jwt token in the session cookie
-    session
-        .insert("token", token.clone())
-        .expect("Failed to insert token in session");
-
     Ok(HttpResponse::Ok()
         .append_header(("expiry_time", expiring_time))
+        .append_header(("token", token))
         .json(Json(LoginResponse {
             user_id: user.id,
             username: user.username,

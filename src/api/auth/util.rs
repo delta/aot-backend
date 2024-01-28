@@ -57,7 +57,7 @@ pub fn generate_jwt_token(id: i32) -> Result<(String, String, String)> {
         .collect();
     let claims: TokenClaims = TokenClaims {
         id,
-        device: device.clone(),
+        device: device.clone() + &exp.to_string(),
         exp,
         iat,
     };
