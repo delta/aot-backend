@@ -1,17 +1,15 @@
 #[derive(Debug, Display, Error)]
-pub enum AuthError {
-    Session,
-    UnVerified,
-    UserNotFound,
+pub enum ValidatorError {
+    Frame,
+    Event,
     Internal(Box<dyn std::error::Error + Send + Sync>),
 }
 
 impl ResponseError for AuthError {
     fn error_response(&self) -> actix_web::HttpResponse {
         match self {
-            AuthError::Session => ErrorUnauthorized("Session Error. Please login again.").into(),
-            AuthError::UnVerified => ErrorUnauthorized("Please verify your account.").into(),
-            AuthError::UserNotFound => ErrorNotFound("User Not Found").into(),
+            ValidatorError::Frame => ErrorUnauthorized("Session Error. Please login again.").into(),
+            ValidatorError::Event => ErrorUnauthorized("Please verify your account.").into(),
             AuthError::Internal(err) => handle_error(err.to_string().into()).into(),
         }
     }
