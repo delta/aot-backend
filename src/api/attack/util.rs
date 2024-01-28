@@ -15,7 +15,7 @@ use crate::schema::user;
 use crate::simulation::{RenderAttacker, RenderMine};
 use crate::simulation::{RenderDefender, Simulator};
 use crate::util::function;
-use crate::validator::state::Coords;
+use crate::validator::util::Coords;
 use anyhow::{Context, Result};
 use chrono::Local;
 use diesel::dsl::exists;

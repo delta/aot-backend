@@ -1,36 +1,11 @@
 use crate::api::attack::util::FrameDetails;
 use anyhow::{Result, Ok};
-use serde::Serialize;
 
-use self::state::{Coords, State};
+use self::util::{Coords, ValidatorResponse};
 
 pub mod state;
-
-#[derive(Serialize)]
-pub struct MineDetails {
-    pub id: i32,
-    pub pos: Coords,
-    pub radius: i32,
-    pub damage: i32,
-}
-
-#[derive(Serialize)]
-pub struct BuildingDetails {
-    pub id: i32,
-    pub current_hp: i32,
-    pub artifacts_obtained: i32,
-}
-
-#[derive(Serialize)]
-pub struct ValidatorResponse {
-    pub frame_no: i32,
-    pub attacker_pos: Coords,
-    pub mines_triggered: Vec<MineDetails>,
-    pub buildings_damaged: Vec<BuildingDetails>,
-    pub artifacts_gained: i32,
-    pub state: Option<State>,
-    pub is_sync: bool,
-}
+pub mod util;
+pub mod error;
 
 pub fn game_handler(game_id: i32, frame: &FrameDetails) -> Result<ValidatorResponse> {
     // redis for storing mapping
