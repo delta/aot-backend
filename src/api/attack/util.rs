@@ -56,7 +56,7 @@ pub struct BombType {
 #[derive(Deserialize)]
 pub struct FrameDetails {
     pub frame_no: i32,
-    pub attacker_delta: Coords,
+    pub attacker_delta: Vec<Coords>,
     pub attacker_type: i32,
     pub bombs_placed: Vec<BombType>,
 }

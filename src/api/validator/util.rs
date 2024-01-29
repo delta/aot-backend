@@ -1,15 +1,11 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Coordinate {
-    pub x: i32,
-    pub y: i32,
-}
+use crate::validator::util::Coords;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Payload {
-    pub attacker: Coordinate,
-    pub defenders: Vec<Coordinate>,
+    pub attacker: Coords,
+    pub defenders: Vec<Coords>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
