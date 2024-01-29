@@ -14,7 +14,7 @@ pub mod util;
 mod validate;
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
-    cfg.service(web::resource("").route(web::post().to(ws_validator_handler)))
+    cfg.service(web::resource("").route(web::get().to(ws_validator_handler)))
         .service(web::resource("/history").route(web::get().to(attack_history)))
         .service(web::resource("/top").route(web::get().to(get_top_attacks)))
         .service(web::resource("/testbase").route(web::post().to(test_base)));

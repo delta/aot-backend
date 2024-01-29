@@ -1,6 +1,6 @@
 mod util;
 
-use crate::api::validator::util::{Attacker, Base, Message, MyWebSocket, Payload};
+use crate::api::validator::util::{ActionType, Attacker, Base, SocketRequest, MyWebSocket};
 use actix_web::{web, Error, HttpRequest, HttpResponse};
 use actix_web_actors::ws;
 use serde_json;
@@ -10,10 +10,12 @@ impl Actor for MyWebSocket {
     type Context = ws::WebsocketContext<Self>;
 
     fn started(&mut self, ctx: &mut Self::Context) {
+        println!("Websocket started");
         ctx.text("Websocket started");
     }
 
     fn stopped(&mut self, ctx: &mut Self::Context) {
+        println!("Websocket stopped");
         ctx.text("Websocket stopped");
     }
 }
@@ -24,13 +26,19 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for MyWebSocket {
             Ok(ws::Message::Ping(msg)) => ctx.pong(&msg),
             Ok(ws::Message::Text(text)) => {
                 // Parse the received JSON message
-                if let Ok(message) = serde_json::from_str::<Message>(&text) {
-                    if message.message_type == "update" {
-                        self.update(&message.payload, ctx);
+                println!("Received JSON message: {}", text);
+                if let Ok(request) = serde_json::from_str::<SocketRequest>(&text) {
+                    
+                    if request.action_type == ActionType::PLACE_ATTACKER {
+                        println!("Placing attacker");
+                    } else if request.action_type == ActionType::IDLE {
+                        println!("Idle");
                     } else {
+                        println!("Invalid JSON input");
                         ctx.text("Invalid JSON input");
                     }
                 } else {
+                    println!("Error parsing JSON");
                     ctx.text("Error parsing JSON");
                 }
             }
@@ -40,9 +48,9 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for MyWebSocket {
 }
 
 impl MyWebSocket {
-    fn update(&mut self, payload: &Payload, ctx: &mut ws::WebsocketContext<Self>) {
+    fn update(&mut self, request: SocketRequest, ctx: &mut ws::WebsocketContext<Self>) {
         // Update the attacker's position
-        print!("Updating attacker position");
+        println!("Updating attacker position");
         //if cannot update attackerposition
         ctx.text("Error updating attacker position");
     }

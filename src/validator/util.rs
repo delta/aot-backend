@@ -65,9 +65,9 @@ pub struct ValidatorResponse {
     pub is_sync: bool,
 }
 
-pub fn is_road(pos: &Coords) -> bool {
-    // create user_map_space with id and block_type_id stored with the map_id for base (also redis?)
-    let block_type_id = user_map_space[pos.x][pos.y].block_type_id;
-    // have a global block_types (same as BlockType table) (redis)
-    block_types[block_type_id][BUILDING_TYPE_INDEX] == ROAD_ID
-}
+// pub fn is_road(pos: &Coords) -> bool {
+//     // create user_map_space with id and block_type_id stored with the map_id for base (also redis?)
+//     let block_type_id = user_map_space[pos.x][pos.y].block_type_id;
+//     // have a global block_types (same as BlockType table) (redis)
+//     block_types[block_type_id][BUILDING_TYPE_INDEX] == ROAD_ID
+// }
