@@ -59,7 +59,7 @@ impl State {
         for i in 0..self.defenders.len() {
             if self.defenders[i].id == defender_id {
                 self.defenders[i].is_alive = false;
-                break;
+                // break;
             }
         }
     }
@@ -97,9 +97,9 @@ impl State {
             }
             new_pos.x += coord.x;
             new_pos.y += coord.y;
-            if util::is_road(&new_pos) {
-                // tile not road error
-            }
+            // if util::is_road(&new_pos) {
+            //     // tile not road error
+            // }
         }
         self.attacker_movement_update(&new_pos);
     }
