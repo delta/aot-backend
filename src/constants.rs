@@ -6,6 +6,7 @@ pub const MAP_SIZE: usize = 40;
 pub const TOTAL_ATTACKS_PER_LEVEL: i64 = 4;
 pub const TOTAL_ATTACKS_ON_A_BASE: i64 = 4;
 pub const ROAD_ID: i32 = 0;
+pub const BUILDING_TYPE_INDEX: i32 = 99999999;
 pub const INITIAL_RATING: i32 = 1000;
 pub const WIN_THRESHOLD: i32 = 50;
 pub const SCALE_FACTOR: f32 = 20.0;
