@@ -1,11 +1,11 @@
 use crate::api::attack::util::FrameDetails;
-use anyhow::{Result, Ok};
+use anyhow::{Ok, Result};
 
 use self::util::{Coords, ValidatorResponse};
 
+pub mod error;
 pub mod state;
 pub mod util;
-pub mod error;
 
 pub fn game_handler(game_id: i32, frame: &FrameDetails) -> Result<ValidatorResponse> {
     // redis for storing mapping

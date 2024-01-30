@@ -15,8 +15,8 @@ mod error;
 mod models;
 mod schema;
 mod simulation;
-mod validator;
 mod util;
+mod validator;
 
 #[macro_use]
 extern crate diesel;

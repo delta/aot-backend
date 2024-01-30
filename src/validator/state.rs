@@ -1,5 +1,5 @@
+use crate::validator::util::{Attacker, Coords, Defender};
 use serde::Serialize;
-use crate::validator::util::{Attacker, Defender, Coords};
 
 use super::util;
 
@@ -13,14 +13,11 @@ pub struct State {
     pub bombs_left: i32,
     pub damage_percentage: f32,
     pub artifacts: i32,
-    pub defenders: Vec<Defender>
+    pub defenders: Vec<Defender>,
 }
 
 impl State {
-    pub fn new(
-        attacker_user_id: i32,
-        defender_user_id: i32,
-    ) -> State {
+    pub fn new(attacker_user_id: i32, defender_user_id: i32) -> State {
         State {
             frame_no: 0,
             attacker_user_id: attacker_user_id,
@@ -92,7 +89,7 @@ impl State {
 
         let mut new_pos = attacker.attacker_pos.clone();
         for coord in attacker_delta {
-            if !(coord.x.abs() <= 1 && coord.y.abs() <= 1) || (coord.x !=0 && coord.y != 0) {
+            if !(coord.x.abs() <= 1 && coord.y.abs() <= 1) || (coord.x != 0 && coord.y != 0) {
                 // movement out of bounds error
             }
             new_pos.x += coord.x;
