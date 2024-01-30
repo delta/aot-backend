@@ -1,10 +1,12 @@
 mod util;
 
-use crate::api::validator::util::{ActionType, Attacker, Base, SocketRequest, MyWebSocket};
+use crate::api::validator::util::{
+    ActionType, Attacker, Base, MyWebSocket, ResultType, SocketRequest, SocketResponse,
+};
+use actix::prelude::*;
 use actix_web::{web, Error, HttpRequest, HttpResponse};
 use actix_web_actors::ws;
 use serde_json;
-use actix::prelude::*;
 
 impl Actor for MyWebSocket {
     type Context = ws::WebsocketContext<Self>;
@@ -12,6 +14,27 @@ impl Actor for MyWebSocket {
     fn started(&mut self, ctx: &mut Self::Context) {
         println!("Websocket started");
         ctx.text("Websocket started");
+
+        let response = SocketResponse {
+            frame_number: 0,
+            result_type: ResultType::GAME_OVER,
+            is_alive: None,
+            attacker_health: None,
+            exploded_mines: Vec::new(),
+            triggered_defenders: Vec::new(),
+            defender_damaged: None,
+            damaged_buildings: Vec::new(),
+            artifacts_gained: Vec::new(),
+            is_sync: false,
+            state: None,
+            is_game_over: true,
+        };
+        if let Ok(json_response) = serde_json::to_string(&response) {
+            ctx.text(json_response);
+        } else {
+            println!("Error serializing JSON");
+            ctx.text("Error serializing JSON");
+        }
     }
 
     fn stopped(&mut self, ctx: &mut Self::Context) {
@@ -28,7 +51,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for MyWebSocket {
                 // Parse the received JSON message
                 println!("Received JSON message: {}", text);
                 if let Ok(request) = serde_json::from_str::<SocketRequest>(&text) {
-                    
+                    println!("Parsed JSON message: {:?}", request);
                     if request.action_type == ActionType::PLACE_ATTACKER {
                         println!("Placing attacker");
                     } else if request.action_type == ActionType::IDLE {
@@ -56,8 +79,10 @@ impl MyWebSocket {
     }
 }
 
-pub async fn ws_validator_handler(req: HttpRequest, stream: web::Payload) -> Result<HttpResponse, Error> {
-
+pub async fn ws_validator_handler(
+    req: HttpRequest,
+    stream: web::Payload,
+) -> Result<HttpResponse, Error> {
     // passing initial states to websocket
     let attacker = Attacker {
         x: 0,

@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::{constants::ROAD_ID, validator::state::State};
+use serde::{Deserialize, Serialize};
 
 // Structs present in the state
 #[derive(Debug, Serialize, Deserialize, Clone)]
