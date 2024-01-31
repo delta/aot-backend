@@ -10,12 +10,9 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
 }
 
 async fn list_leaderboard(
-    user: AuthUser,
     query: web::Query<LeaderboardQuery>,
     pool: web::Data<PgPool>,
 ) -> Result<impl Responder> {
-    let user_id = user.0;
-
     let page = query.page.unwrap_or(1);
     let limit = query.limit.unwrap_or(20);
     if page <= 0 || limit <= 0 {
@@ -23,13 +20,12 @@ async fn list_leaderboard(
     }
     let response = web::block(move || {
         let mut conn = pool.get()?;
-        util::get_leaderboard(page, limit, user_id, &mut conn)
+        util::get_leaderboard(page, limit, &mut conn)
     })
     .await?
     .map_err(|err| error::handle_error(err.into()))?;
     Ok(web::Json(response))
 }
-
 async fn get_replay(
     game_id: web::Path<i32>,
     pool: web::Data<PgPool>,

@@ -2,6 +2,7 @@ use self::util::{remove_game, NewAttack};
 use super::auth::session::AuthUser;
 use super::{error, PgPool};
 use crate::api;
+use crate::api::util::HistoryboardQuery;
 use crate::models::{AttackerType, LevelsFixture};
 use actix_web::error::ErrorBadRequest;
 use actix_web::{web, HttpResponse, Responder, Result};
@@ -13,7 +14,7 @@ mod validate;
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
     cfg.service(web::resource("").route(web::post().to(create_attack)))
-        .service(web::resource("/{attacker_id}/history").route(web::get().to(attack_history)))
+        .service(web::resource("/history").route(web::get().to(attack_history)))
         .service(web::resource("/top").route(web::get().to(get_top_attacks)))
         .service(web::resource("/testbase").route(web::post().to(test_base)));
 }
@@ -101,15 +102,19 @@ async fn create_attack(
 }
 
 async fn attack_history(
-    attacker_id: web::Path<i32>,
     pool: web::Data<PgPool>,
     user: AuthUser,
+    query: web::Query<HistoryboardQuery>,
 ) -> Result<impl Responder> {
     let user_id = user.0;
-    let attacker_id = attacker_id.into_inner();
+    let page = query.page.unwrap_or(1);
+    let limit = query.limit.unwrap_or(20);
+    if page <= 0 || limit <= 0 {
+        return Err(ErrorBadRequest("Invalid query params"));
+    }
     let response = web::block(move || {
         let mut conn = pool.get()?;
-        util::fetch_attack_history(attacker_id, user_id, &mut conn)
+        util::fetch_attack_history(user_id, page, limit, &mut conn)
     })
     .await?
     .map_err(|err| error::handle_error(err.into()))?;

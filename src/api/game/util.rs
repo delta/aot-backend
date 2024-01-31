@@ -1,7 +1,4 @@
-use crate::api::error::AuthError;
-use crate::api::user::util::fetch_user;
 use crate::api::util::{can_show_replay, get_current_levels_fixture};
-use crate::constants::TOTAL_ATTACKS_ON_A_BASE;
 use crate::error::DieselError;
 use crate::models::{Game, LevelsFixture, MapLayout, SimulationLog};
 use crate::util::function;
@@ -9,7 +6,14 @@ use anyhow::Result;
 use diesel::prelude::*;
 use diesel::{PgConnection, QueryDsl};
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+
+#[derive(Queryable, Deserialize, Serialize)]
+pub struct UserDetail {
+    pub user_id: i32,
+    pub username: String,
+    pub trophies: i32,
+    pub avatar_id: i32,
+}
 
 #[derive(Deserialize)]
 pub struct LeaderboardQuery {
@@ -24,76 +28,24 @@ pub struct LeaderboardResponse {
 }
 
 #[derive(Queryable, Deserialize, Serialize)]
-pub struct UserDetail {
-    pub user_id: i32,
-    pub username: String,
-    pub trophies: i32,
-    pub avatar_id: i32,
-}
-
-#[derive(Queryable, Deserialize, Serialize)]
 pub struct LeaderboardEntry {
-    pub attacker: UserDetail,
-    pub defender: UserDetail,
-    pub can_be_attacked: bool,
+    pub user_id: i32,
+    pub name: String,
+    pub trophies: i32,
+    pub artifacts: i32,
+    pub attacks_won: i32,
+    pub defenses_won: i32,
+    pub avatar_url: String,
 }
 
 pub fn get_leaderboard(
     page: i64,
     limit: i64,
-    user_id: i32,
     conn: &mut PgConnection,
 ) -> Result<LeaderboardResponse> {
-    use crate::schema::{game, map_layout, user};
+    use crate::schema::{map_layout, user};
 
     let level_id: i32 = get_current_levels_fixture(conn)?.id;
-    let no_of_times_attacked: HashMap<i32, i64> = game::table
-        .inner_join(map_layout::table)
-        .select(game::defend_id)
-        .filter(map_layout::level_id.eq(level_id))
-        .load::<i32>(conn)
-        .map_err(|err| DieselError {
-            table: "game_join_map_layout",
-            function: function!(),
-            error: err,
-        })?
-        .into_iter()
-        .fold(HashMap::new(), |mut hashmap, defender_id| {
-            *hashmap.entry(defender_id).or_insert(0) += 1;
-            hashmap
-        });
-    let user = fetch_user(conn, user_id)?.ok_or(AuthError::UserNotFound)?;
-    let already_attacked: HashSet<i32> = game::table
-        .inner_join(map_layout::table)
-        .select(game::defend_id)
-        .filter(map_layout::level_id.eq(level_id))
-        .filter(game::attack_id.eq(user_id))
-        .load::<i32>(conn)
-        .map_err(|err| DieselError {
-            table: "game_join_map_layout",
-            function: function!(),
-            error: err,
-        })?
-        .into_iter()
-        .collect();
-    let attacker = map_layout::table
-        .filter(map_layout::player.eq(user_id))
-        .filter(map_layout::level_id.eq(level_id))
-        .filter(map_layout::is_valid.eq(true))
-        .select(map_layout::player)
-        .first::<i32>(conn)
-        .optional()
-        .map_err(|err| DieselError {
-            table: "map_layout",
-            function: function!(),
-            error: err,
-        })?;
-    let can_be_attacked = |defender_id: i32, map_valid: Option<bool>| {
-        *no_of_times_attacked.get(&defender_id).unwrap_or(&0) < TOTAL_ATTACKS_ON_A_BASE
-            && map_valid.unwrap_or(false)
-            && !already_attacked.contains(&defender_id)
-            && attacker.is_some()
-    };
 
     let total_entries: i64 = user::table
         .count()
@@ -103,7 +55,7 @@ pub fn get_leaderboard(
             function: function!(),
             error: err,
         })?;
-    let offset: i64 = (page - 1) * limit;
+    let off_set: i64 = (page - 1) * limit;
     let last_page: i64 = (total_entries as f64 / limit as f64).ceil() as i64;
 
     let leaderboard_entries = user::table
@@ -115,15 +67,18 @@ pub fn get_leaderboard(
         )
         .select((
             user::id,
-            user::username,
+            user::name,
             user::trophies,
+            user::artifacts,
+            user::attacks_won,
+            user::defenses_won,
             user::avatar_id,
-            map_layout::is_valid.nullable(),
+            //map_layout::is_valid.nullable(),
         ))
         .order_by(user::trophies.desc())
-        .offset(offset)
+        .offset(off_set)
         .limit(limit)
-        .load::<(i32, String, i32, i32, Option<bool>)>(conn)
+        .load::<(i32, String, i32, i32, i32, i32, i32)>(conn)
         .map_err(|err| DieselError {
             table: "user_join_map_layout",
             function: function!(),
@@ -131,20 +86,16 @@ pub fn get_leaderboard(
         })?
         .into_iter()
         .map(
-            |(user_id, username, trophies, avatar_id, map_valid)| LeaderboardEntry {
-                defender: UserDetail {
-                    user_id,
-                    username,
+            |(id, name, trophies, artifacts, attacks_won, defenses_won, avatar_id)| {
+                LeaderboardEntry {
+                    user_id: id,
+                    name,
                     trophies,
-                    avatar_id,
-                },
-                attacker: UserDetail {
-                    user_id: user.id,
-                    username: user.username.to_string(),
-                    trophies: user.trophies,
-                    avatar_id: user.avatar_id,
-                },
-                can_be_attacked: can_be_attacked(user_id, map_valid),
+                    artifacts,
+                    attacks_won,
+                    defenses_won,
+                    avatar_url: avatar_id.to_string(),
+                }
             },
         )
         .collect();

@@ -3,7 +3,6 @@ pub mod auth;
 pub mod defense;
 pub mod error;
 pub mod game;
-pub mod leaderboard;
 pub mod user;
 pub mod util;
 

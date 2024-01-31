@@ -2,6 +2,7 @@ use super::auth::session::AuthUser;
 use super::user::util::fetch_user;
 use super::PgPool;
 use crate::api::error;
+use crate::api::util::HistoryboardQuery;
 use crate::models::*;
 use actix_web::error::{ErrorBadRequest, ErrorNotFound};
 use actix_web::web::{self, Data, Json};
@@ -22,8 +23,8 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
     .service(web::resource("/top").route(web::get().to(get_top_defenses)))
     .service(web::resource("/save").route(web::put().to(confirm_base_details)))
     .service(web::resource("/game/{id}").route(web::get().to(get_game_base_details)))
+    .service(web::resource("/history").route(web::get().to(defense_history)))
     .service(web::resource("/{defender_id}").route(web::get().to(get_other_base_details)))
-    .service(web::resource("/{defender_id}/history").route(web::get().to(defense_history)))
     .app_data(Data::new(web::JsonConfig::default().limit(1024 * 1024)));
 }
 
@@ -178,15 +179,19 @@ async fn confirm_base_details(
 }
 
 async fn defense_history(
-    defender_id: web::Path<i32>,
-    pool: web::Data<PgPool>,
     user: AuthUser,
+    query: web::Query<HistoryboardQuery>,
+    pool: web::Data<PgPool>,
 ) -> Result<impl Responder> {
     let user_id = user.0;
-    let defender_id = defender_id.into_inner();
+    let page = query.page.unwrap_or(1);
+    let limit = query.limit.unwrap_or(20);
+    if page <= 0 || limit <= 0 {
+        return Err(ErrorBadRequest("Invalid query params"));
+    }
     let response = web::block(move || {
         let mut conn = pool.get()?;
-        util::fetch_defense_history(defender_id, user_id, &mut conn)
+        util::fetch_defense_historyboard(user_id, page, limit, &mut conn)
     })
     .await?
     .map_err(|err| error::handle_error(err.into()))?;

@@ -6,6 +6,7 @@ use crate::api::error::AuthError;
 use crate::api::game::util::UserDetail;
 use crate::api::user::util::fetch_user;
 use crate::api::util::GameHistoryEntry;
+use crate::api::util::{HistoryboardEntry, HistoryboardResponse};
 use crate::api::{self};
 use crate::constants::ROAD_ID;
 use crate::models::*;
@@ -379,7 +380,56 @@ pub fn set_map_invalid(conn: &mut PgConnection, map_id: i32) -> Result<()> {
     Ok(())
 }
 
-pub fn fetch_defense_history(
+pub fn fetch_defense_historyboard(
+    user_id: i32,
+    page: i64,
+    limit: i64,
+    conn: &mut PgConnection,
+) -> Result<HistoryboardResponse> {
+    use crate::schema::{game, levels_fixture, map_layout};
+
+    let joined_table = game::table.inner_join(map_layout::table.inner_join(levels_fixture::table));
+
+    let total_entries: i64 = joined_table
+        .filter(game::defend_id.eq(user_id))
+        .count()
+        .get_result(conn)
+        .map_err(|err| DieselError {
+            table: "game",
+            function: function!(),
+            error: err,
+        })?;
+    let off_set: i64 = (page - 1) * limit;
+    let last_page: i64 = (total_entries as f64 / limit as f64).ceil() as i64;
+
+    let games_result: Result<Vec<HistoryboardEntry>> = joined_table
+        .filter(game::defend_id.eq(user_id))
+        .offset(off_set)
+        .limit(limit)
+        .load::<(Game, (MapLayout, LevelsFixture))>(conn)
+        .map_err(|err| DieselError {
+            table: "game",
+            function: function!(),
+            error: err,
+        })?
+        .into_iter()
+        .map(|(game, (_map_layout, _levels_fixture))| {
+            Ok(HistoryboardEntry {
+                opponent_user_id: game.id,
+                is_attack: false,
+                damage_percent: game.damage_done,
+                result: "none".to_string(),
+                artifacts_taken: game.artifacts_collected,
+                trophies_taken: game.defend_score,
+                match_id: game.id,
+            })
+        })
+        .collect();
+    let games = games_result?;
+    Ok(HistoryboardResponse { games, last_page })
+}
+
+/* pub fn fetch_defense_history(
     defender_id: i32,
     user_id: i32,
     conn: &mut PgConnection,
@@ -420,7 +470,7 @@ pub fn fetch_defense_history(
         .collect();
     let games = games_result?;
     Ok(GameHistoryResponse { games })
-}
+} */
 
 pub fn fetch_top_defenses(user_id: i32, conn: &mut PgConnection) -> Result<GameHistoryResponse> {
     use crate::schema::{game, levels_fixture, map_layout};
