@@ -4,10 +4,10 @@ use crate::validator::util::Coords;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SocketRequest {
-    pub frame_number: u32,
+    pub frame_number: i32,
     pub action_type: ActionType,
-    pub attacker_id: Option<u32>,
-    pub bomb_id: Option<u32>,
+    pub attacker_id: Option<i32>,
+    pub bomb_id: Option<i32>,
     pub start_position: Option<Coords>,
     pub attacker_path: Vec<Coords>,
     pub bomb_positions: Vec<Coords>,
@@ -16,7 +16,7 @@ pub struct SocketRequest {
 
 #[derive(Serialize, Deserialize)]
 pub struct SocketResponse {
-    pub frame_number: u32,
+    pub frame_number: i32,
     pub result_type: ResultType,
     pub is_alive: Option<bool>,
     pub attacker_health: Option<i32>,
@@ -28,6 +28,7 @@ pub struct SocketResponse {
     pub is_sync: bool,
     pub state: Option<GameStateResponse>,
     pub is_game_over: bool,
+    pub message: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -51,49 +52,31 @@ pub enum ResultType {
 
 #[derive(Serialize, Deserialize)]
 pub struct MineResponse {
-    pub id: u32,
+    pub id: i32,
     pub position: Coords,
     pub damage: i32,
+    pub radius: i32,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct DefenderResponse {
-    pub id: u32,
+    pub id: i32,
     pub position: Coords,
     pub damage: i32,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct BuildingResponse {
-    pub id: u32,
+    pub id: i32,
     pub position: Coords,
     pub hp: i32,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct ArtifactsResponse {
-    pub buildingId: u32,
+    pub buildingId: i32,
     pub amount: i32,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct GameStateResponse {}
-
-#[derive(Debug, Default)]
-pub struct Attacker {
-    pub x: i32,
-    pub y: i32,
-    pub health: i32,
-    pub direction: String,
-    pub speed: i32,
-}
-
-#[derive(Debug, Default)]
-pub struct Base {
-    pub id: i32,
-}
-
-pub struct MyWebSocket {
-    pub attacker: Attacker,
-    pub base: Base,
-}

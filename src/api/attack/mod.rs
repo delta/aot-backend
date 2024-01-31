@@ -1,12 +1,13 @@
 use self::util::{remove_game, NewAttack};
 use super::auth::session::AuthUser;
-use super::validator::ws_validator_handler;
 use super::{error, PgPool};
 use crate::api;
 use crate::api::util::HistoryboardQuery;
+use crate::api::socket::Socket;
 use crate::models::{AttackerType, LevelsFixture};
 use actix_web::error::ErrorBadRequest;
-use actix_web::{web, HttpResponse, Responder, Result};
+use actix_web::{web, Error, HttpRequest, HttpResponse, Responder, Result};
+use actix_web_actors::ws;
 use std::collections::{HashMap, HashSet};
 
 mod rating;
@@ -14,10 +15,14 @@ pub mod util;
 mod validate;
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
-    cfg.service(web::resource("").route(web::get().to(ws_validator_handler)))
+    cfg.service(web::resource("").route(web::get().to(socket_handler)))
         .service(web::resource("/history").route(web::get().to(attack_history)))
         .service(web::resource("/top").route(web::get().to(get_top_attacks)))
         .service(web::resource("/testbase").route(web::post().to(test_base)));
+}
+
+async fn socket_handler(req: HttpRequest, stream: web::Payload) -> Result<HttpResponse, Error> {
+    ws::start(Socket { game_id: 0 }, &req, stream)
 }
 
 // async fn create_attack(
