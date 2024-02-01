@@ -35,7 +35,7 @@ pub struct LeaderboardEntry {
     pub artifacts: i32,
     pub attacks_won: i32,
     pub defenses_won: i32,
-    pub avatar_url: String,
+    pub avatar_url: i32,
 }
 
 pub fn get_leaderboard(
@@ -94,7 +94,7 @@ pub fn get_leaderboard(
                     artifacts,
                     attacks_won,
                     defenses_won,
-                    avatar_url: avatar_id.to_string(),
+                    avatar_url: avatar_id,
                 }
             },
         )

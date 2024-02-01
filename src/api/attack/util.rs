@@ -220,7 +220,8 @@ pub fn fetch_attack_history(
         .limit(limit)
         .load::<(Game, (MapLayout, LevelsFixture), User)>(conn)?
         .into_iter()
-        .map(|(game, (_, _levels_fixture), _defender)| {
+        .map(|(game, (_, levels_fixture), _defender)| {
+            let is_replay_available = api::util::can_show_replay(user_id, &game, &levels_fixture);
             Ok(HistoryboardEntry {
                 opponent_user_id: game.defend_id,
                 is_attack: true,
@@ -229,6 +230,7 @@ pub fn fetch_attack_history(
                 artifacts_taken: game.artifacts_collected,
                 trophies_taken: game.attack_score,
                 match_id: game.id,
+                replay_availability: is_replay_available,
             })
         })
         .collect();

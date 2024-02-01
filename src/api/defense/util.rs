@@ -413,64 +413,23 @@ pub fn fetch_defense_historyboard(
             error: err,
         })?
         .into_iter()
-        .map(|(game, (_map_layout, _levels_fixture))| {
+        .map(|(game, (_map_layout, levels_fixture))| {
+            let is_replay_available = api::util::can_show_replay(user_id, &game, &levels_fixture);
             Ok(HistoryboardEntry {
-                opponent_user_id: game.id,
+                opponent_user_id: game.attack_id,
                 is_attack: false,
                 damage_percent: game.damage_done,
                 result: "none".to_string(),
                 artifacts_taken: game.artifacts_collected,
                 trophies_taken: game.defend_score,
                 match_id: game.id,
+                replay_availability: is_replay_available,
             })
         })
         .collect();
     let games = games_result?;
     Ok(HistoryboardResponse { games, last_page })
 }
-
-/* pub fn fetch_defense_history(
-    defender_id: i32,
-    user_id: i32,
-    conn: &mut PgConnection,
-) -> Result<GameHistoryResponse> {
-    use crate::schema::{game, levels_fixture, map_layout};
-
-    let joined_table = game::table.inner_join(map_layout::table.inner_join(levels_fixture::table));
-    let games_result: Result<Vec<GameHistoryEntry>> = joined_table
-        .filter(game::defend_id.eq(defender_id))
-        .load::<(Game, (MapLayout, LevelsFixture))>(conn)
-        .map_err(|err| DieselError {
-            table: "game",
-            function: function!(),
-            error: err,
-        })?
-        .into_iter()
-        .map(|(game, (_, levels_fixture))| {
-            let is_replay_available = api::util::can_show_replay(user_id, &game, &levels_fixture);
-            let attacker = fetch_user(conn, game.attack_id)?.ok_or(AuthError::UserNotFound)?;
-            let defender = fetch_user(conn, game.defend_id)?.ok_or(AuthError::UserNotFound)?;
-            Ok(GameHistoryEntry {
-                game,
-                attacker: UserDetail {
-                    user_id: attacker.id,
-                    username: attacker.username,
-                    trophies: attacker.trophies,
-                    avatar_id: attacker.avatar_id,
-                },
-                defender: UserDetail {
-                    user_id: defender.id,
-                    username: defender.username,
-                    trophies: defender.trophies,
-                    avatar_id: defender.avatar_id,
-                },
-                is_replay_available,
-            })
-        })
-        .collect();
-    let games = games_result?;
-    Ok(GameHistoryResponse { games })
-} */
 
 pub fn fetch_top_defenses(user_id: i32, conn: &mut PgConnection) -> Result<GameHistoryResponse> {
     use crate::schema::{game, levels_fixture, map_layout};

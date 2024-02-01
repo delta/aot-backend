@@ -30,6 +30,7 @@ pub struct HistoryboardEntry {
     pub artifacts_taken: i32,
     pub trophies_taken: i32,
     pub match_id: i32,
+    pub replay_availability: bool,
 }
 
 #[derive(Deserialize, Serialize)]
