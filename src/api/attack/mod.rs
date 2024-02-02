@@ -15,10 +15,27 @@ pub mod util;
 mod validate;
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
-    cfg.service(web::resource("").route(web::get().to(socket_handler)))
+    cfg.service(web::resource("").route(web::get().to(init_attack)))
+        .service(web::resource("/start").route(web::get().to(socket_handler)))
         .service(web::resource("/history").route(web::get().to(attack_history)))
         .service(web::resource("/top").route(web::get().to(get_top_attacks)))
         .service(web::resource("/testbase").route(web::post().to(test_base)));
+}
+
+async fn init_attack(pool: web::Data<PgPool>, user: AuthUser) -> Result<impl Responder> {
+    //Check if user is valid
+
+    //Find another user to attack based on trophies
+
+    //Fetch user's base and shortest paths
+
+    //Create new game
+
+    //Create socket actor and store the base details, shortest paths and user id
+
+    //Return the user's base and shortest path
+
+    Ok(HttpResponse::Ok().body("Attack service is running"))
 }
 
 async fn socket_handler(req: HttpRequest, stream: web::Payload) -> Result<HttpResponse, Error> {
