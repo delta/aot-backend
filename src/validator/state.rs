@@ -5,6 +5,7 @@ use crate::{
     simulation::defense::defender,
     validator::util::{Attacker, Bomb, Coords, Defender, Mine},
 };
+
 use serde::Serialize;
 
 use super::util;
@@ -137,9 +138,9 @@ impl State {
                     Some(self);
                 }
 
-                // if util::is_road(&new_pos) {
-                //     // tile not road error
-                // }
+                if !util::is_road(&coord) {
+                    // tile not road error
+                }
             }
 
             for defender in defenders_current {
@@ -154,13 +155,34 @@ impl State {
                     self.defender_death_update(defender.id);
                 }
             }
+            
+            if attacker_current.bombs.len() - attacker.bombs.len() > 1 {
+                return Some(self);
+            }
+            for bomb in attacker_current.bombs {
+                if bomb.is_dropped {
+                    self.bomb_blast(bomb);
+                }
+                
+            }
 
+              
+
+
+// 
             // if attacker_current.bombs[attacker_current.bombs.len()-1].is_dropped {
             //     //dropped a bomb
             //     //damage buildings
             //     if attacker.bombs[attacker.bombs.len()-1].damage != attacker_current.bombs[attacker_current.bombs.len()-1].damage {
             //         return Some(self);
             //     }
+            //     if attacker.bombs[attacker.bombs.len()-1].blast_radius != attacker_current.bombs[attacker_current.bombs.len()-1].blast_radius {
+            //         return Some(self);
+            //     }
+
+                
+            // }
+
 
             // }
 
@@ -189,6 +211,12 @@ impl State {
                     self.defender_movement_update(defender.id, defender.defender_pos);
                 }
             }
+            for defender in defenders {
+                if !util::is_road(&defender.defender_pos) {
+                    // tile not road error
+                }
+            }
+          
             return None;
         }
     }
@@ -221,31 +249,21 @@ impl State {
         }
     }
 
-    pub fn bomb_blast(&mut self, frame_no: i32, bomb: Bomb) -> Option<&Self> {
-        if (frame_no - self.frame_no) != 1 {
-            Some(self) // invalid frame error
-        } else {
-            self.frame_no += 1;
+    pub fn bomb_blast(&mut self, bomb: Bomb) -> Option<&Self> {
+       
+          if(bomb.blast_radius != self.attacker.as_ref().unwrap().bombs[0].blast_radius){
+              return Some(self);
+          }
+            if(bomb.damage != self.attacker.as_ref().unwrap().bombs[0].damage){
+                return Some(self);
+            }
+       
 
-            // if(attacker_bomb_current){
+            if util::is_road(&bomb.pos) {
+                // tile not road error
+            }
 
-            // }
-
-            // if(attacker_current.is_none()) {
-            //     // invalid event error
-            //     Some(self);
-            // }
-
-            // if self.attacker.as_mut().unwrap().bomb.id != -1 {
-            //     // invalid event error
-            //     Some(self);
-            // }
-            // if util::is_road(&bomb_pos) {
-            //     // tile not road error
-            // }
-
-            return None;
-        }
+           return None;
     }
 
     // bomb placement

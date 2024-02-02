@@ -14,6 +14,7 @@ pub struct Bomb {
     pub blast_radius: i32,
     pub damage: i32,
     pub is_dropped: bool,
+    pub pos: Coords,
 }
 
 pub struct Mine {
