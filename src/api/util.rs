@@ -26,7 +26,6 @@ pub struct HistoryboardEntry {
     pub opponent_user_id: i32,
     pub is_attack: bool,
     pub damage_percent: i32,
-    pub result: String,
     pub artifacts_taken: i32,
     pub trophies_taken: i32,
     pub match_id: i32,

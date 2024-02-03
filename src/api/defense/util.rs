@@ -388,10 +388,11 @@ pub fn fetch_defense_historyboard(
 ) -> Result<HistoryboardResponse> {
     use crate::schema::{game, levels_fixture, map_layout};
 
-    let joined_table = game::table.inner_join(map_layout::table.inner_join(levels_fixture::table));
+    let joined_table = game::table
+        .filter(game::defend_id.eq(user_id))
+        .inner_join(map_layout::table.inner_join(levels_fixture::table));
 
     let total_entries: i64 = joined_table
-        .filter(game::defend_id.eq(user_id))
         .count()
         .get_result(conn)
         .map_err(|err| DieselError {
@@ -403,7 +404,6 @@ pub fn fetch_defense_historyboard(
     let last_page: i64 = (total_entries as f64 / limit as f64).ceil() as i64;
 
     let games_result: Result<Vec<HistoryboardEntry>> = joined_table
-        .filter(game::defend_id.eq(user_id))
         .offset(off_set)
         .limit(limit)
         .load::<(Game, (MapLayout, LevelsFixture))>(conn)
@@ -413,14 +413,13 @@ pub fn fetch_defense_historyboard(
             error: err,
         })?
         .into_iter()
-        .map(|(game, (_map_layout, levels_fixture))| {
+        .map(|(game, (_, levels_fixture))| {
             let is_replay_available = api::util::can_show_replay(user_id, &game, &levels_fixture);
             Ok(HistoryboardEntry {
                 opponent_user_id: game.attack_id,
                 is_attack: false,
                 damage_percent: game.damage_done,
-                result: "none".to_string(),
-                artifacts_taken: game.artifacts_collected,
+                artifacts_taken: -game.artifacts_collected,
                 trophies_taken: game.defend_score,
                 match_id: game.id,
                 replay_availability: is_replay_available,

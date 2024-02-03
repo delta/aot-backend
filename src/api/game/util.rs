@@ -1,4 +1,4 @@
-use crate::api::util::{can_show_replay, get_current_levels_fixture};
+use crate::api::util::can_show_replay;
 use crate::error::DieselError;
 use crate::models::{Game, LevelsFixture, MapLayout, SimulationLog};
 use crate::util::function;
@@ -43,9 +43,7 @@ pub fn get_leaderboard(
     limit: i64,
     conn: &mut PgConnection,
 ) -> Result<LeaderboardResponse> {
-    use crate::schema::{map_layout, user};
-
-    let level_id: i32 = get_current_levels_fixture(conn)?.id;
+    use crate::schema::user;
 
     let total_entries: i64 = user::table
         .count()
@@ -59,12 +57,6 @@ pub fn get_leaderboard(
     let last_page: i64 = (total_entries as f64 / limit as f64).ceil() as i64;
 
     let leaderboard_entries = user::table
-        .left_join(
-            map_layout::table.on(map_layout::player
-                .eq(user::id)
-                .and(map_layout::level_id.eq(level_id))
-                .and(map_layout::is_valid.eq(true))),
-        )
         .select((
             user::id,
             user::name,
@@ -73,7 +65,6 @@ pub fn get_leaderboard(
             user::attacks_won,
             user::defenses_won,
             user::avatar_id,
-            //map_layout::is_valid.nullable(),
         ))
         .order_by(user::trophies.desc())
         .offset(off_set)

@@ -103,10 +103,10 @@ async fn create_attack(
 
 async fn attack_history(
     pool: web::Data<PgPool>,
-    user: AuthUser,
+    //user: AuthUser,
     query: web::Query<HistoryboardQuery>,
 ) -> Result<impl Responder> {
-    let user_id = user.0;
+    let user_id = 77;
     let page = query.page.unwrap_or(1);
     let limit = query.limit.unwrap_or(20);
     if page <= 0 || limit <= 0 {
