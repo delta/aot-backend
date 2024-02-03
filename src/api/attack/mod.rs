@@ -23,9 +23,20 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
 }
 
 async fn init_attack(pool: web::Data<PgPool>, user: AuthUser) -> Result<impl Responder> {
-    //Check if user is valid
+    let attacker_id = user.0;
+    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
 
-    //Find another user to attack based on trophies
+    let random_opponent_id = web::block(move || {
+        let opponent_id = util::get_random_opponent_id(attacker_id, &mut conn)?;
+        Ok(opponent_id) as anyhow::Result<Option<i32>>
+    })
+    .await?
+    .map_err(|err| error::handle_error(err.into()))?;
+    if random_opponent_id.is_none() {
+        return Err(ErrorBadRequest("No opponent found"));
+    }
+
+    let opponent_id = random_opponent_id.unwrap();
 
     //Fetch user's base and shortest paths
 
