@@ -21,6 +21,7 @@ use diesel::dsl::exists;
 use diesel::prelude::*;
 use diesel::select;
 use diesel::PgConnection;
+use rand::seq::IteratorRandom;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::io::Write;
@@ -664,4 +665,36 @@ pub fn get_attacker_types(conn: &mut PgConnection) -> Result<HashMap<i32, Attack
             )
         })
         .collect::<HashMap<i32, AttackerType>>())
+}
+
+pub fn get_random_opponent_id(attacker_id: i32, conn: &mut PgConnection) -> Result<Option<i32>> {
+    let sorted_users: Vec<(i32, i32)> = user::table
+        .order_by(user::trophies.asc())
+        .select((user::id, user::trophies))
+        .load::<(i32, i32)>(conn)?;
+
+    let attacker_index = sorted_users
+        .iter()
+        .position(|(id, _)| *id == attacker_id)
+        .unwrap_or_default();
+    let less_or_equal_trophies = sorted_users
+        .iter()
+        .take(attacker_index)
+        .rev()
+        .take(5)
+        .cloned()
+        .collect::<Vec<_>>();
+    let more_or_equal_trophies = sorted_users
+        .iter()
+        .skip(attacker_index + 1)
+        .take(5)
+        .cloned()
+        .collect::<Vec<_>>();
+    let random_opponent = less_or_equal_trophies
+        .iter()
+        .chain(&more_or_equal_trophies)
+        .choose(&mut rand::thread_rng())
+        .map(|&(id, _)| id);
+
+    Ok(random_opponent)
 }
