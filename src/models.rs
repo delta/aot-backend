@@ -198,7 +198,8 @@ pub struct ShortestPath {
     pub source_y: i32,
     pub dest_x: i32,
     pub dest_y: i32,
-    pub pathlist: String,
+    pub next_hop_x: i32,
+    pub next_hop_y: i32,
 }
 
 #[derive(Insertable)]
@@ -209,7 +210,8 @@ pub struct NewShortestPath {
     pub source_y: i32,
     pub dest_x: i32,
     pub dest_y: i32,
-    pub pathlist: String,
+    pub next_hop_x: i32,
+    pub next_hop_y: i32,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Queryable)]

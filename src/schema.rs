@@ -171,7 +171,8 @@ diesel::table! {
         source_y -> Int4,
         dest_x -> Int4,
         dest_y -> Int4,
-        pathlist -> Varchar,
+        next_hop_x -> Int4,
+        next_hop_y -> Int4,
     }
 }
 

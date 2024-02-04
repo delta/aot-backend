@@ -127,7 +127,7 @@ impl Defenders {
     ) -> Result<()> {
         let Defenders(defenders) = self;
         let attackers = &mut attacker_manager.attackers;
-        let shortest_paths = &building_manager.shortest_paths;
+        // let shortest_paths = &building_manager.shortest_paths;
 
         let mut defender_without_target: HashSet<i32> = HashSet::new();
         for defender in defenders.iter_mut() {
@@ -142,7 +142,7 @@ impl Defenders {
                         Self::generate_movement_sequence(attacker.speed, defender.speed);
                     let mut current_attacker_pos = attacker.path_in_current_frame.len() - 1;
                     if !attacker.path_in_current_frame[0].is_alive {
-                        Self::reassign_defender(defender, shortest_paths)?;
+                        // Self::reassign_defender(defender, shortest_paths)?;
                         defender.move_defender_to_hut();
                         defender.target_id = None;
                         let mut split_at_index: usize = 1;
@@ -195,32 +195,32 @@ impl Defenders {
                 }
             }
         }
-        for defender in defenders.iter_mut() {
-            if defender.is_alive && defender_without_target.contains(&defender.id) {
-                Self::assign_defender(defender, attackers, shortest_paths)?;
-            }
-        }
+        // for defender in defenders.iter_mut() {
+        //     if defender.is_alive && defender_without_target.contains(&defender.id) {
+        //         Self::assign_defender(defender, attackers, shortest_paths)?;
+        //     }
+        // }
         Ok(())
     }
 
-    pub fn reassign_defender(
-        defender: &mut Defender,
-        shortest_paths: &HashMap<SourceDest, Vec<(i32, i32)>>,
-    ) -> Result<()> {
-        let (defender_pos_x, defender_pos_y) = defender.path[defender.path.len() - 1];
-        let source_dest = SourceDest {
-            source_x: defender_pos_x,
-            source_y: defender_pos_y,
-            dest_x: defender.hut_x,
-            dest_y: defender.hut_y,
-        };
-        defender.path = shortest_paths
-            .get(&source_dest)
-            .ok_or(ShortestPathNotFoundError(source_dest))?
-            .clone();
-        defender.path.reverse();
-        Ok(())
-    }
+    // pub fn reassign_defender(
+    //     defender: &mut Defender,
+    //     shortest_paths: &HashMap<SourceDest, Vec<(i32, i32)>>,
+    // ) -> Result<()> {
+    //     let (defender_pos_x, defender_pos_y) = defender.path[defender.path.len() - 1];
+    //     let source_dest = SourceDest {
+    //         source_x: defender_pos_x,
+    //         source_y: defender_pos_y,
+    //         dest_x: defender.hut_x,
+    //         dest_y: defender.hut_y,
+    //     };
+    //     defender.path = shortest_paths
+    //         .get(&source_dest)
+    //         .ok_or(ShortestPathNotFoundError(source_dest))?
+    //         .clone();
+    //     defender.path.reverse();
+    //     Ok(())
+    // }
 
     pub fn assign_defender(
         defender: &mut Defender,

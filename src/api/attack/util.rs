@@ -1,29 +1,34 @@
-use crate::api;
+use crate::api::defense::util::{fetch_map_layout, get_map_details_for_attack, DefenseResponse};
 use crate::api::error::AuthError;
 use crate::api::game::util::UserDetail;
 use crate::api::user::util::fetch_user;
 use crate::api::util::{
     GameHistoryEntry, GameHistoryResponse, HistoryboardEntry, HistoryboardResponse,
 };
+use crate::api::{self, RedisConn};
 use crate::constants::*;
 use crate::error::DieselError;
 use crate::models::{
     AttackerType, BlockCategory, Game, LevelsFixture, MapLayout, NewAttackerPath, NewGame,
-    NewSimulationLog, User,
+    NewSimulationLog, ShortestPath, User,
 };
 use crate::schema::user;
+use crate::simulation::blocks::{Coords, SourceDest};
 use crate::simulation::{RenderAttacker, RenderMine};
 use crate::simulation::{RenderDefender, Simulator};
 use crate::util::function;
 use anyhow::{Context, Result};
-use chrono::Local;
+use chrono::{Duration, Local, Utc};
 use diesel::dsl::exists;
 use diesel::prelude::*;
 use diesel::select;
 use diesel::PgConnection;
+use jsonwebtoken::{encode, EncodingKey, Header};
 use rand::seq::IteratorRandom;
+use redis::Commands;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
+use std::env;
 use std::io::Write;
 
 #[derive(Debug, Serialize)]
@@ -46,21 +51,24 @@ pub struct NewAttacker {
     pub attacker_path: Vec<NewAttackerPath>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AttackToken {
+    pub attacker_id: i32,
+    pub defender_id: i32,
+    pub iat: usize,
+    pub exp: usize,
+}
+
 pub fn get_valid_emp_ids(conn: &mut PgConnection) -> Result<HashSet<i32>> {
     use crate::schema::attack_type;
     let valid_emp_ids = HashSet::from_iter(attack_type::table.select(attack_type::id).load(conn)?);
     Ok(valid_emp_ids)
 }
 
-pub fn get_map_id(
-    defender_id: &i32,
-    level_id: &i32,
-    conn: &mut PgConnection,
-) -> Result<Option<i32>> {
+pub fn get_map_id(defender_id: &i32, conn: &mut PgConnection) -> Result<Option<i32>> {
     use crate::schema::map_layout;
     let map_id = map_layout::table
         .filter(map_layout::player.eq(defender_id))
-        .filter(map_layout::level_id.eq(level_id))
         .filter(map_layout::is_valid.eq(true))
         .select(map_layout::id)
         .first::<i32>(conn)
@@ -160,7 +168,7 @@ pub fn is_attack_allowed(
 
 pub fn add_game(
     attacker_id: i32,
-    new_attack: &NewAttack,
+    defender_id: i32,
     map_layout_id: i32,
     conn: &mut PgConnection,
 ) -> Result<i32> {
@@ -170,7 +178,7 @@ pub fn add_game(
 
     let new_game = NewGame {
         attack_id: &attacker_id,
-        defend_id: &new_attack.defender_id,
+        defend_id: &defender_id,
         map_layout_id: &map_layout_id,
         attack_score: &0,
         defend_score: &0,
@@ -667,6 +675,13 @@ pub fn get_attacker_types(conn: &mut PgConnection) -> Result<HashMap<i32, Attack
         .collect::<HashMap<i32, AttackerType>>())
 }
 
+#[derive(Serialize)]
+pub struct AttackResponse {
+    pub base: DefenseResponse,
+    pub shortest_paths: HashMap<SourceDest, Coords>,
+    pub attack_token: String,
+}
+
 pub fn get_random_opponent_id(attacker_id: i32, conn: &mut PgConnection) -> Result<Option<i32>> {
     let sorted_users: Vec<(i32, i32)> = user::table
         .order_by(user::trophies.asc())
@@ -697,4 +712,90 @@ pub fn get_random_opponent_id(attacker_id: i32, conn: &mut PgConnection) -> Resu
         .map(|&(id, _)| id);
 
     Ok(random_opponent)
+}
+
+pub fn get_shortest_paths(
+    conn: &mut PgConnection,
+    map_id: i32,
+) -> Result<HashMap<SourceDest, Coords>> {
+    use crate::schema::shortest_path::dsl::*;
+    let results = shortest_path
+        .filter(base_id.eq(map_id))
+        .load::<ShortestPath>(conn)
+        .map_err(|err| DieselError {
+            table: "shortest_path",
+            function: function!(),
+            error: err,
+        })?;
+    let mut shortest_paths: HashMap<SourceDest, Coords> = HashMap::new();
+    for path in results {
+        shortest_paths.insert(
+            SourceDest {
+                source_x: path.source_x,
+                source_y: path.source_y,
+                dest_x: path.dest_x,
+                dest_y: path.dest_y,
+            },
+            Coords {
+                x: path.next_hop_x,
+                y: path.next_hop_y,
+            },
+        );
+    }
+    Ok(shortest_paths)
+}
+
+pub fn get_opponent_base_details(
+    defender_id: i32,
+    conn: &mut PgConnection,
+) -> Result<DefenseResponse> {
+    let map = fetch_map_layout(conn, &defender_id)?;
+
+    let response = get_map_details_for_attack(conn, map)?;
+
+    Ok(response)
+}
+
+pub fn add_to_redis(user_id: i32, game_id: i32, mut redis_conn: RedisConn) -> Result<()> {
+    redis_conn
+        .set(user_id, game_id)
+        .map_err(|err| anyhow::anyhow!("Failed to set key: {}", err))?;
+    Ok(())
+}
+
+pub fn get_from_redis(user_id: i32, mut redis_conn: RedisConn) -> Result<Option<i32>> {
+    let game_id: Option<i32> = redis_conn
+        .get(user_id)
+        .map_err(|err| anyhow::anyhow!("Failed to get key: {}", err))?;
+    Ok(game_id)
+}
+
+pub fn generate_attack_token(attacker_id: i32, defender_id: i32) -> Result<String> {
+    let jwt_secret = env::var("COOKIE_KEY").expect("COOKIE_KEY must be set!");
+    let now = Utc::now();
+    let iat = now.timestamp() as usize;
+    let jwt_max_age: i64 = env::var("ATTACK_TOKEN_AGE_IN_MINUTES")
+        .expect("JWT max age must be set!")
+        .parse()
+        .expect("JWT max age must be an integer!");
+    let token_expiring_time = now + Duration::minutes(jwt_max_age);
+    let exp = (token_expiring_time).timestamp() as usize;
+    let token: AttackToken = AttackToken {
+        attacker_id,
+        defender_id,
+        exp,
+        iat,
+    };
+
+    let token_result = encode(
+        &Header::default(),
+        &token,
+        &EncodingKey::from_secret(jwt_secret.as_ref()),
+    );
+    let token = match token_result {
+        Ok(token) => token,
+        Err(e) => return Err(e.into()),
+    };
+
+    Ok(token)
 }
