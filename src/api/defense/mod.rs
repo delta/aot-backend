@@ -11,7 +11,7 @@ use serde::Deserialize;
 use std::collections::HashMap;
 
 mod shortest_path;
-mod util;
+pub mod util;
 mod validate;
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
@@ -169,7 +169,7 @@ async fn confirm_base_details(
     web::block(move || {
         let mut conn = pool.get()?;
         util::put_base_details(&map_spaces, &map, &mut conn)?;
-        util::calculate_shortest_paths(&mut conn, map.id, &buildings)?;
+        util::calculate_shortest_paths(&mut conn, map.id)?;
         util::set_map_valid(&mut conn, map.id)
     })
     .await?

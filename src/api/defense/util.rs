@@ -232,6 +232,7 @@ pub fn get_map_details_for_attack(
         .into_iter()
         .map(|(mut map_space, block_type)| {
             if block_type.building_type == ROAD_ID {
+                // to detect mine
                 map_space.block_type_id = ROAD_ID;
                 map_space
             } else {
@@ -586,11 +587,7 @@ pub fn fetch_attacker_types(conn: &mut PgConnection) -> Result<Vec<AttackerType>
         })?)
 }
 
-pub fn calculate_shortest_paths(
-    conn: &mut PgConnection,
-    map_id: i32,
-    buildings: &Vec<BuildingType>,
-) -> Result<()> {
+pub fn calculate_shortest_paths(conn: &mut PgConnection, map_id: i32) -> Result<()> {
     use crate::schema::shortest_path::dsl::*;
 
     diesel::delete(shortest_path.filter(base_id.eq(map_id)))
@@ -600,7 +597,7 @@ pub fn calculate_shortest_paths(
             function: function!(),
             error: err,
         })?;
-    run_shortest_paths(conn, map_id, buildings)?;
+    run_shortest_paths(conn, map_id)?;
 
     Ok(())
 }

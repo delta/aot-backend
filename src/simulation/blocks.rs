@@ -7,6 +7,7 @@ use crate::util::function;
 use anyhow::Result;
 use diesel::prelude::*;
 use diesel::{PgConnection, QueryDsl};
+use serde::Serialize;
 use std::collections::HashMap;
 
 // #[derive(Debug)]
@@ -23,7 +24,7 @@ pub struct Block {
     pub population: i32,
 }
 
-#[derive(Debug, Eq, Hash, PartialEq)]
+#[derive(Debug, Eq, Hash, PartialEq, Serialize)]
 pub struct SourceDest {
     pub source_x: i32,
     pub source_y: i32,
@@ -31,10 +32,16 @@ pub struct SourceDest {
     pub dest_y: i32,
 }
 
+#[derive(Debug, Serialize)]
+pub struct Coords {
+    pub x: i32,
+    pub y: i32,
+}
+
 #[derive(Debug)]
 pub struct BuildingsManager {
     pub blocks: HashMap<i32, Block>,
-    pub shortest_paths: HashMap<SourceDest, Vec<(i32, i32)>>,
+    pub shortest_paths: HashMap<SourceDest, Coords>,
     pub buildings_grid: [[i32; MAP_SIZE]; MAP_SIZE],
 }
 
@@ -97,10 +104,10 @@ impl BuildingsManager {
     // }
 
     // get all shortest paths with string pathlist converted to vector of i32 tuples
-    fn get_shortest_paths(
+    pub fn get_shortest_paths(
         conn: &mut PgConnection,
         map_id: i32,
-    ) -> Result<HashMap<SourceDest, Vec<(i32, i32)>>> {
+    ) -> Result<HashMap<SourceDest, Coords>> {
         use crate::schema::shortest_path::dsl::*;
         let results = shortest_path
             .filter(base_id.eq(map_id))
@@ -110,16 +117,8 @@ impl BuildingsManager {
                 function: function!(),
                 error: err,
             })?;
-        let mut shortest_paths: HashMap<SourceDest, Vec<(i32, i32)>> = HashMap::new();
+        let mut shortest_paths: HashMap<SourceDest, Coords> = HashMap::new();
         for path in results {
-            let path_list: Vec<(i32, i32)> = path.pathlist[1..path.pathlist.len() - 1]
-                .split(")(")
-                .map(|s| {
-                    let path_coordinate: Vec<i32> =
-                        s.split(',').map(|x| x.parse().unwrap()).collect();
-                    (path_coordinate[0], path_coordinate[1])
-                })
-                .collect();
             shortest_paths.insert(
                 SourceDest {
                     source_x: path.source_x,
@@ -127,7 +126,10 @@ impl BuildingsManager {
                     dest_x: path.dest_x,
                     dest_y: path.dest_y,
                 },
-                path_list,
+                Coords {
+                    x: path.next_hop_x,
+                    y: path.next_hop_y,
+                },
             );
         }
         Ok(shortest_paths)
