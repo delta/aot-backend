@@ -6,6 +6,7 @@ use crate::api::error::AuthError;
 use crate::api::game::util::UserDetail;
 use crate::api::user::util::fetch_user;
 use crate::api::util::GameHistoryEntry;
+use crate::api::util::{HistoryboardEntry, HistoryboardResponse};
 use crate::api::{self};
 use crate::constants::ROAD_ID;
 use crate::models::*;
@@ -379,16 +380,32 @@ pub fn set_map_invalid(conn: &mut PgConnection, map_id: i32) -> Result<()> {
     Ok(())
 }
 
-pub fn fetch_defense_history(
-    defender_id: i32,
+pub fn fetch_defense_historyboard(
     user_id: i32,
+    page: i64,
+    limit: i64,
     conn: &mut PgConnection,
-) -> Result<GameHistoryResponse> {
+) -> Result<HistoryboardResponse> {
     use crate::schema::{game, levels_fixture, map_layout};
 
-    let joined_table = game::table.inner_join(map_layout::table.inner_join(levels_fixture::table));
-    let games_result: Result<Vec<GameHistoryEntry>> = joined_table
-        .filter(game::defend_id.eq(defender_id))
+    let joined_table = game::table
+        .filter(game::defend_id.eq(user_id))
+        .inner_join(map_layout::table.inner_join(levels_fixture::table));
+
+    let total_entries: i64 = joined_table
+        .count()
+        .get_result(conn)
+        .map_err(|err| DieselError {
+            table: "game",
+            function: function!(),
+            error: err,
+        })?;
+    let off_set: i64 = (page - 1) * limit;
+    let last_page: i64 = (total_entries as f64 / limit as f64).ceil() as i64;
+
+    let games_result: Result<Vec<HistoryboardEntry>> = joined_table
+        .offset(off_set)
+        .limit(limit)
         .load::<(Game, (MapLayout, LevelsFixture))>(conn)
         .map_err(|err| DieselError {
             table: "game",
@@ -398,28 +415,19 @@ pub fn fetch_defense_history(
         .into_iter()
         .map(|(game, (_, levels_fixture))| {
             let is_replay_available = api::util::can_show_replay(user_id, &game, &levels_fixture);
-            let attacker = fetch_user(conn, game.attack_id)?.ok_or(AuthError::UserNotFound)?;
-            let defender = fetch_user(conn, game.defend_id)?.ok_or(AuthError::UserNotFound)?;
-            Ok(GameHistoryEntry {
-                game,
-                attacker: UserDetail {
-                    user_id: attacker.id,
-                    username: attacker.username,
-                    trophies: attacker.trophies,
-                    avatar_id: attacker.avatar_id,
-                },
-                defender: UserDetail {
-                    user_id: defender.id,
-                    username: defender.username,
-                    trophies: defender.trophies,
-                    avatar_id: defender.avatar_id,
-                },
-                is_replay_available,
+            Ok(HistoryboardEntry {
+                opponent_user_id: game.attack_id,
+                is_attack: false,
+                damage_percent: game.damage_done,
+                artifacts_taken: -game.artifacts_collected,
+                trophies_taken: game.defend_score,
+                match_id: game.id,
+                replay_availability: is_replay_available,
             })
         })
         .collect();
     let games = games_result?;
-    Ok(GameHistoryResponse { games })
+    Ok(HistoryboardResponse { games, last_page })
 }
 
 pub fn fetch_top_defenses(user_id: i32, conn: &mut PgConnection) -> Result<GameHistoryResponse> {

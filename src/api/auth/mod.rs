@@ -4,7 +4,7 @@ use actix_session::Session;
 use actix_web::web::{self, Data, Json};
 use actix_web::Responder;
 use actix_web::{HttpResponse, Result};
-use oauth2::reqwest::http_client;
+use oauth2::reqwest::async_http_client;
 use oauth2::AuthorizationCode;
 use oauth2::TokenResponse;
 use redis::Commands;
@@ -90,7 +90,8 @@ async fn login(
     //exchanging the authorization code for the access token
     let access_token = util::client()
         .exchange_code(code)
-        .request(http_client)
+        .request_async(async_http_client)
+        .await
         .map_err(|err| error::handle_error(err.into()))?
         .access_token()
         .secret()
