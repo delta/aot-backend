@@ -1,7 +1,7 @@
 use crate::constants::*;
 use crate::error::DieselError;
 use crate::models::*;
-use crate::schema::{block_type, building_type, map_spaces, shortest_path};
+use crate::schema::{block_type, map_spaces, shortest_path};
 use crate::util::function;
 use anyhow::Result;
 use array2d::Array2D;

@@ -5,27 +5,27 @@ pub mod error;
 pub mod state;
 pub mod util;
 
-pub fn game_handler(game_id: i32, socket_request: &SocketRequest) -> Result<SocketResponse> {
+pub fn game_handler(_game_id: i32, socket_request: &SocketRequest) -> Result<SocketResponse> {
     // redis for storing mapping
     // fetch validator instance (has redis)
     // iterate through input data and call appropriate instance functions
     // form response and send
 
-    if socket_request.action_type == ActionType::PLACE_ATTACKER {
+    if socket_request.action_type == ActionType::PlaceAttacker {
         // place_attacker
-    } else if socket_request.action_type == ActionType::MOVE_ATTACKER {
+    } else if socket_request.action_type == ActionType::MoveAttacker {
         // move_attacker
-    } else if socket_request.action_type == ActionType::PLACE_BOMBS {
+    } else if socket_request.action_type == ActionType::PlaceBombs {
         // place_bombs
-    } else if socket_request.action_type == ActionType::IDLE {
+    } else if socket_request.action_type == ActionType::Idle {
         // idle (waiting for user to choose next attacker)
-    } else if socket_request.action_type == ActionType::TERMINATE {
+    } else if socket_request.action_type == ActionType::Terminate {
         // terminate
     }
 
     let socket_response = SocketResponse {
         frame_number: socket_request.frame_number,
-        result_type: ResultType::GAME_OVER,
+        result_type: ResultType::GameOver,
         is_alive: None,
         attacker_health: None,
         exploded_mines: Vec::new(),
