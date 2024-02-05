@@ -1,58 +1,51 @@
 // use crate::{constants::ROAD_ID, validator::state::State};
-use crate::{ validator::state::State};
+use crate::validator::state::State;
 use serde::{Deserialize, Serialize};
 
 // Structs present in the state
-#[derive(Debug, Serialize, Deserialize, Clone, Hash, Eq, PartialEq,Copy)]
-pub struct Coords {
+#[derive(Debug, Serialize, Deserialize, Clone, Hash, Eq, PartialEq, Copy)]
+pub struct Coordinates {
     pub x: i32,
     pub y: i32,
 }
 
-#[derive(Serialize,Clone,Copy)]
+#[derive(Serialize, Clone, Copy)]
 pub struct Bomb {
     pub id: i32,
     pub blast_radius: i32,
     pub damage: i32,
-    pub pos: Coords,
+    pub pos: Coordinates,
     pub is_dropped: bool,
 }
-#[derive(Serialize)]
-pub struct Mine {
-    pub id: i32,
-    pub pos: Coords,
-    pub blast_radius: i32,
-    pub damage: i32,
-}
 
-#[derive(Serialize,Clone)]
+#[derive(Serialize, Clone)]
 pub struct Attacker {
     pub id: i32,
-    pub attacker_pos: Coords,
+    pub attacker_pos: Coordinates,
     pub attacker_health: i32,
     pub attacker_speed: i32,
-    pub path_in_current_frame: Vec<Coords>,
+    pub path_in_current_frame: Vec<Coordinates>,
     pub bombs: Vec<Bomb>,
 }
 
 #[derive(Serialize)]
-pub struct Defender {
+pub struct DefenderDetails {
     pub id: i32,
     pub radius: i32,
     pub speed: i32,
     pub damage: i32,
-    pub defender_pos: Coords,
+    pub defender_pos: Coordinates,
     pub is_alive: bool,
     pub damage_dealt: bool,
     pub target_id: Option<i32>,
-    pub path_in_current_frame: Vec<Coords>,
+    pub path_in_current_frame: Vec<Coordinates>,
 }
 
 // Structs for sending response
 #[derive(Serialize)]
 pub struct MineDetails {
     pub id: i32,
-    pub pos: Coords,
+    pub pos: Coordinates,
     pub radius: i32,
     pub damage: i32,
 }
@@ -63,14 +56,14 @@ pub struct BuildingDetails {
     pub current_hp: i32,
     pub total_hp: i32,
     pub artifacts_obtained: i32,
-    pub tile: Coords,
-    pub dimensions: Coords
+    pub tile: Coordinates,
+    pub width: i32,
 }
 
 #[derive(Serialize)]
 pub struct ValidatorResponse {
     pub frame_no: i32,
-    pub attacker_pos: Coords,
+    pub attacker_pos: Coordinates,
     pub mines_triggered: Vec<MineDetails>,
     pub buildings_damaged: Vec<BuildingDetails>,
     pub artifacts_gained: i32,

@@ -1,8 +1,11 @@
 pub mod util;
 
+use std::collections::HashMap;
+
 use crate::{
     api::socket::util::{ResultType, SocketRequest, SocketResponse},
-    validator::game_handler,
+    simulation::blocks::{Coords, SourceDest},
+    validator::{game_handler, state::State},
 };
 use actix::prelude::*;
 use actix_web_actors::ws;
@@ -10,6 +13,8 @@ use serde_json;
 
 pub struct Socket {
     pub game_id: i32,
+    pub game_state: State, // Has buildings, mines too
+    pub shortest_paths: HashMap<SourceDest, Coords>,
 }
 
 impl Actor for Socket {

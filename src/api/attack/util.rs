@@ -1,3 +1,4 @@
+use crate::api::auth::TokenClaims;
 use crate::api::defense::util::{fetch_map_layout, get_map_details_for_attack, DefenseResponse};
 use crate::api::error::AuthError;
 use crate::api::game::util::UserDetail;
@@ -9,22 +10,25 @@ use crate::api::{self, RedisConn};
 use crate::constants::*;
 use crate::error::DieselError;
 use crate::models::{
-    AttackerType, BlockCategory, Game, LevelsFixture, MapLayout, NewAttackerPath, NewGame,
-    NewSimulationLog, ShortestPath, User,
+    Artifact, AttackerType, BlockCategory, BlockType, BuildingType, DefenderType, Game,
+    LevelsFixture, MapLayout, MapSpaces, MineType, NewAttackerPath, NewGame, NewSimulationLog,
+    ShortestPath, User,
 };
 use crate::schema::user;
 use crate::simulation::blocks::{Coords, SourceDest};
 use crate::simulation::{RenderAttacker, RenderMine};
 use crate::simulation::{RenderDefender, Simulator};
 use crate::util::function;
+use crate::validator::util::{self, BuildingDetails, Coordinates, DefenderDetails, MineDetails};
 use anyhow::{Context, Result};
 use chrono::{Duration, Local, Utc};
 use diesel::dsl::exists;
 use diesel::prelude::*;
 use diesel::select;
 use diesel::PgConnection;
-use jsonwebtoken::{encode, EncodingKey, Header};
+use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use rand::seq::IteratorRandom;
+use redis::geo::Coord;
 use redis::Commands;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -770,7 +774,7 @@ pub fn get_from_redis(user_id: i32, mut redis_conn: RedisConn) -> Result<Option<
     Ok(game_id)
 }
 
-pub fn generate_attack_token(attacker_id: i32, defender_id: i32) -> Result<String> {
+pub fn encode_attack_token(attacker_id: i32, defender_id: i32) -> Result<String> {
     let jwt_secret = env::var("COOKIE_KEY").expect("COOKIE_KEY must be set!");
     let now = Utc::now();
     let iat = now.timestamp() as usize;
@@ -799,3 +803,160 @@ pub fn generate_attack_token(attacker_id: i32, defender_id: i32) -> Result<Strin
 
     Ok(token)
 }
+
+pub fn decode_user_token(token: &str) -> Result<i32> {
+    let jwt_secret = env::var("COOKIE_KEY").expect("COOKIE_KEY must be set!");
+    let token_data = decode::<TokenClaims>(
+        &token,
+        &DecodingKey::from_secret(jwt_secret.as_str().as_ref()),
+        &Validation::new(Algorithm::HS256),
+    )
+    .map_err(|err| anyhow::anyhow!("Failed to decode token: {}", err))?;
+
+    Ok(token_data.claims.id)
+}
+
+pub fn decode_attack_token(token: &str) -> Result<AttackToken> {
+    let jwt_secret = env::var("COOKIE_KEY").expect("COOKIE_KEY must be set!");
+    let token_data = decode::<AttackToken>(
+        &token,
+        &DecodingKey::from_secret(jwt_secret.as_str().as_ref()),
+        &Validation::new(Algorithm::HS256),
+    )
+    .map_err(|err| anyhow::anyhow!("Failed to decode token: {}", err))?;
+
+    Ok(token_data.claims)
+}
+
+pub fn get_mines(conn: &mut PgConnection, map_id: i32) -> Result<Vec<MineDetails>> {
+    use crate::schema::{block_type, map_spaces, mine_type};
+
+    let joined_table = map_spaces::table
+        .filter(map_spaces::map_id.eq(map_id))
+        .inner_join(block_type::table.inner_join(mine_type::table));
+
+    let mines: Vec<MineDetails> = joined_table
+        .load::<(MapSpaces, (BlockType, MineType))>(conn)?
+        .into_iter()
+        .enumerate()
+        .map(|(mine_id, (map_space, (_, mine_type)))| MineDetails {
+            id: mine_id as i32,
+            damage: mine_type.damage,
+            radius: mine_type.radius,
+            pos: Coordinates {
+                x: map_space.x_coordinate,
+                y: map_space.y_coordinate,
+            },
+        })
+        .collect();
+
+    Ok(mines)
+}
+
+pub fn get_defenders(conn: &mut PgConnection, map_id: i32) -> Result<Vec<DefenderDetails>> {
+    use crate::schema::{block_type, building_type, defender_type, map_spaces};
+    let result: Vec<(MapSpaces, (BlockType, BuildingType, DefenderType))> = map_spaces::table
+        .inner_join(
+            block_type::table
+                .inner_join(building_type::table)
+                .inner_join(defender_type::table),
+        )
+        .filter(map_spaces::map_id.eq(map_id))
+        .load::<(MapSpaces, (BlockType, BuildingType, DefenderType))>(conn)
+        .map_err(|err| DieselError {
+            table: "map_spaces",
+            function: function!(),
+            error: err,
+        })?;
+
+    let mut defenders: Vec<DefenderDetails> = Vec::new();
+
+    for (defender_id, (map_space, (_, _, defender_type))) in result.iter().enumerate() {
+        let (hut_x, hut_y) = (map_space.x_coordinate, map_space.y_coordinate);
+        let path = vec![(hut_x, hut_y)];
+        defenders.push(DefenderDetails {
+            id: defender_id as i32 + 1,
+            radius: defender_type.radius,
+            speed: defender_type.speed,
+            damage: defender_type.damage,
+            defender_pos: Coordinates { x: hut_x, y: hut_y },
+            is_alive: true,
+            damage_dealt: false,
+            target_id: None,
+            path_in_current_frame: Vec::new(),
+        })
+    }
+    // Sorted to handle multiple defenders attack same attacker at same frame
+    defenders.sort_by(|defender_1, defender_2| (defender_2.damage).cmp(&defender_1.damage));
+    Ok(defenders)
+}
+
+pub fn get_buildings(conn: &mut PgConnection, map_id: i32) -> Result<Vec<BuildingDetails>> {
+    use crate::schema::{block_type, building_type, map_spaces};
+
+    let joined_table = map_spaces::table
+        .inner_join(block_type::table.inner_join(building_type::table))
+        .filter(map_spaces::map_id.eq(map_id))
+        .filter(building_type::id.ne(ROAD_ID));
+
+    let buildings: Vec<BuildingDetails> = joined_table
+        .load::<(MapSpaces, (BlockType, BuildingType))>(conn)
+        .map_err(|err| DieselError {
+            table: "map_spaces",
+            function: function!(),
+            error: err,
+        })?
+        .into_iter()
+        .map(|(map_space, (_, building_type))| BuildingDetails {
+            id: map_space.id,
+            // current_hp: building_type.hp,
+            // total_hp: building_type.hp,
+            current_hp: 0,
+            total_hp: 0,
+            artifacts_obtained: 0,
+            tile: Coordinates {
+                x: map_space.x_coordinate,
+                y: map_space.y_coordinate,
+            },
+            width: building_type.width,
+        })
+        .collect();
+
+    Ok(buildings)
+}
+
+// pub fn get_super_buildings(conn: &mut PgConnection, map_id: i32) -> Result<Vec<BuildingDetails>> {
+//     use crate::schema::{block_type, building_type, map_spaces, artifact};
+
+//     let buildings: Vec<BuildingDetails> = map_spaces::table
+//     .inner_join(block_type::table.inner_join(building_type::table))
+//     .filter(map_spaces::map_id.eq(map_id))
+//     .filter(building_type::id.ne(ROAD_ID))
+//     .left_join(artifact::table)
+//     .select((
+//         map_spaces::all_columns,
+//         block_type::all_columns,
+//         building_type::all_columns,
+//         artifact::count,
+//     ))
+//     .load::<(MapSpaces, BlockType, BuildingType, i64)>(conn)
+//     .map_err(|err| DieselError {
+//         table: "map_spaces",
+//         function: function!(),
+//         error: err,
+//     })?
+//     .into_iter()
+//     .map(|(map_space, _, building_type, artifact_count)| BuildingDetails {
+//         id: map_space.id,
+//         current_hp: 0,
+//         total_hp: 0,
+//         artifacts_obtained: artifact_count,
+//         tile: Coordinates {
+//             x: map_space.x_coordinate,
+//             y: map_space.y_coordinate,
+//         },
+//         width: building_type.width,
+//     })
+//     .collect();
+
+// }

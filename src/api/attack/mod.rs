@@ -7,6 +7,8 @@ use crate::api::socket::Socket;
 use crate::api::util::HistoryboardQuery;
 use crate::models::{AttackerType, LevelsFixture};
 use crate::simulation::blocks::{Coords, SourceDest};
+use crate::validator::state::State;
+use crate::validator::util::{BuildingDetails, DefenderDetails, MineDetails};
 use actix_web::error::ErrorBadRequest;
 use actix_web::web::{Data, Json};
 use actix_web::{web, Error, HttpRequest, HttpResponse, Responder, Result};
@@ -113,7 +115,7 @@ async fn init_attack(
     .await?
     .map_err(|err| error::handle_error(err.into()))?;
 
-    let attack_token = util::generate_attack_token(attacker_id, opponent_id).unwrap();
+    let attack_token = util::encode_attack_token(attacker_id, opponent_id).unwrap();
     let response: AttackResponse = AttackResponse {
         base: opponent_base,
         shortest_paths,
@@ -124,44 +126,113 @@ async fn init_attack(
 }
 
 async fn socket_handler(
-    // pool: web::Data<PgPool>,
+    pool: web::Data<PgPool>,
     redis_pool: Data<RedisPool>,
     req: HttpRequest,
     stream: web::Payload,
-    user: AuthUser,
 ) -> Result<HttpResponse, Error> {
-    println!("User id: {}", user.0);
-    let user_id_str = req
-        .query_string()
-        .strip_prefix("user_id=")
-        .ok_or_else(|| ErrorBadRequest("'user_id' not found in the query string"))?;
-    let user_id: i32 = user_id_str
-        .parse()
-        .map_err(|_| ErrorBadRequest("Failed to parse 'user_id' into an integer"))?;
+    //From the req.query_string() get the user_token and attack_token
+    //query_string() will be like this: user_token=123&attack_token=456
 
-    // //Create new game
-    // let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+    let user_token = req.query_string().split("&").collect::<Vec<&str>>()[0]
+        .split("=")
+        .collect::<Vec<&str>>()[1];
+    let attack_token = req.query_string().split("&").collect::<Vec<&str>>()[1]
+        .split("=")
+        .collect::<Vec<&str>>()[1];
 
-    // let game_id = web::block(move || {
-    //     Ok(util::add_game(attacker_id, opponent_id, map_id, &mut conn)?) as anyhow::Result<i32>
-    // })
-    // .await?
-    // .map_err(|err| error::handle_error(err.into()))?;
+    let attacker_id = util::decode_user_token(user_token).unwrap();
+    let attack_token_data = util::decode_attack_token(attack_token).unwrap();
 
-    // //Store the game id in redis
-    // let redis_conn = redis_pool.get().map_err(|err| error::handle_error(err.into()))?;
-    // if let Err(_) = util::add_to_redis(attacker_id, game_id, redis_conn) {
-    //     return Err(ErrorBadRequest("Internal Server Error"));
-    // }
+    if attacker_id != attack_token_data.attacker_id {
+        return Err(ErrorBadRequest("User not authorised"));
+    }
 
+    let defender_id = attack_token_data.defender_id;
+
+    //Fetch map_id of the defender
+    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+
+    let map = web::block(move || {
+        let map = util::get_map_id(&defender_id, &mut conn)?;
+        Ok(map) as anyhow::Result<Option<i32>>
+    })
+    .await?
+    .map_err(|err| error::handle_error(err.into()))?;
+
+    let map_id = if let Some(map) = map {
+        map
+    } else {
+        return Err(ErrorBadRequest("Invalid base"));
+    };
+
+    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+
+    let shortest_paths = web::block(move || {
+        Ok(util::get_shortest_paths(&mut conn, map_id)?)
+            as anyhow::Result<HashMap<SourceDest, Coords>>
+    })
+    .await?
+    .map_err(|err| error::handle_error(err.into()))?;
+
+    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+    //Create game
+    let game_id = web::block(move || {
+        Ok(util::add_game(attacker_id, defender_id, map_id, &mut conn)?) as anyhow::Result<i32>
+    })
+    .await?
+    .map_err(|err| error::handle_error(err.into()))?;
+
+    //Fetch base details and shortest paths data
+    //Fetch defender details, fetch defender details
+
+    //Store the game id in redis
     let redis_conn = redis_pool
         .get()
         .map_err(|err| error::handle_error(err.into()))?;
-    if let Ok(Some(game_id)) = util::get_from_redis(user_id, redis_conn) {
-        ws::start(Socket { game_id }, &req, stream)
-    } else {
-        return Err(ErrorBadRequest("No game found for the user"));
+    if let Err(_) = util::add_to_redis(attacker_id, game_id, redis_conn) {
+        return Err(ErrorBadRequest("Internal Server Error"));
     }
+
+    // let redis_conn = redis_pool
+    //     .get()
+    //     .map_err(|err| error::handle_error(err.into()))?;
+    // if let Ok(Some(game_id)) = util::get_from_redis(user_id, redis_conn) {
+    //     // Maybe can start the websocket here
+    // } else {
+    //     return Err(ErrorBadRequest("No game found for the user"));
+    // }
+
+    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+    let defenders = web::block(move || {
+        Ok(util::get_defenders(&mut conn, map_id)?) as anyhow::Result<Vec<DefenderDetails>>
+    })
+    .await?
+    .map_err(|err| error::handle_error(err.into()))?;
+
+    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+    let mines = web::block(move || {
+        Ok(util::get_mines(&mut conn, map_id)?) as anyhow::Result<Vec<MineDetails>>
+    })
+    .await?
+    .map_err(|err| error::handle_error(err.into()))?;
+
+    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+    let buildings = web::block(move || {
+        Ok(util::get_buildings(&mut conn, map_id)?) as anyhow::Result<Vec<BuildingDetails>>
+    })
+    .await?
+    .map_err(|err| error::handle_error(err.into()))?;
+
+    ws::start(
+        Socket {
+            game_id,
+            game_state: State::new(attacker_id, defender_id, defenders, mines, buildings),
+            shortest_paths,
+        },
+        &req,
+        stream,
+    )
 }
 
 // async fn create_attack(
