@@ -36,8 +36,8 @@ pub enum ActionType {
     PlaceAttacker,
     MoveAttacker,
     PlaceBombs,
-    IDLE,
-    TERMINATE,
+    Idle,
+    Terminate,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -46,7 +46,7 @@ pub enum ResultType {
     DefendersDamaged,
     DefendersTriggered,
     BuildingsDamaged,
-    RESYNC,
+    Resync,
     GameOver,
 }
 

@@ -17,9 +17,9 @@ pub fn game_handler(_game_id: i32, socket_request: &SocketRequest) -> Result<Soc
         // move_attacker
     } else if socket_request.action_type == ActionType::PlaceBombs {
         // place_bombs
-    } else if socket_request.action_type == ActionType::IDLE {
+    } else if socket_request.action_type == ActionType::Idle {
         // idle (waiting for user to choose next attacker)
-    } else if socket_request.action_type == ActionType::TERMINATE {
+    } else if socket_request.action_type == ActionType::Terminate {
         // terminate
     }
 
