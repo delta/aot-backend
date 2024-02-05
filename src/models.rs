@@ -1,14 +1,19 @@
 use super::schema::*;
 use chrono::NaiveDateTime;
-use diesel_derive_enum::DbEnum;
 use serde::{Deserialize, Serialize};
 
-#[derive(DbEnum, Debug, Serialize, Clone, PartialEq, Copy)]
+#[derive(diesel_derive_enum::DbEnum, Debug, Serialize, Clone, PartialEq, Copy)]
 #[DieselTypePath = "crate::schema::sql_types::BlockCategory"]
 pub enum BlockCategory {
     Building,
     Defender,
     Mine,
+}
+#[derive(diesel_derive_enum::DbEnum, Debug, Serialize, Clone, PartialEq, Copy)]
+#[DieselTypePath = "crate::schema::sql_types::ItemCategory"]
+pub enum ItemCategory {
+    Attacker,
+    Block,
 }
 
 #[derive(Queryable, Serialize)]
@@ -55,6 +60,7 @@ pub struct BuildingType {
     pub capacity: i32,
     pub level: i32,
     pub cost: i32,
+    pub hp: i32,
 }
 
 #[derive(Insertable)]
@@ -66,6 +72,7 @@ pub struct NewBuildingType<'a> {
     pub capacity: &'a i32,
     pub level: &'a i32,
     pub cost: &'a i32,
+    pub hp: &'a i32,
 }
 
 #[derive(Queryable, Debug, Serialize, Deserialize)]
@@ -81,13 +88,16 @@ pub struct NewArtifact {
     pub count: i32,
 }
 
-#[derive(Queryable, Debug, Serialize, Deserialize)]
+#[derive(Queryable, Clone, Debug, Serialize)]
 pub struct AvailableBlocks {
     pub block_type_id: i32,
     pub user_id: i32,
+    pub attacker_type_id: i32,
+    pub category: ItemCategory,
+    pub id: i32,
 }
 
-#[derive(Deserialize, Insertable)]
+#[derive(Queryable, Clone, Debug, Serialize)]
 #[diesel(table_name = available_blocks)]
 pub struct NewAvailableBlocks {
     pub block_type_id: i32,
@@ -265,8 +275,6 @@ pub struct MineType {
     pub id: i32,
     pub radius: i32,
     pub damage: i32,
-    pub level: i32,
-    pub cost: i32,
 }
 
 #[derive(Queryable, Clone, Debug, Serialize)]
@@ -275,8 +283,6 @@ pub struct DefenderType {
     pub speed: i32,
     pub damage: i32,
     pub radius: i32,
-    pub level: i32,
-    pub cost: i32,
 }
 
 #[derive(Queryable, Clone, Debug, Serialize)]

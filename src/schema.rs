@@ -4,6 +4,10 @@ pub mod sql_types {
     #[derive(diesel::sql_types::SqlType)]
     #[diesel(postgres_type(name = "block_category"))]
     pub struct BlockCategory;
+
+    #[derive(diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "item_category"))]
+    pub struct ItemCategory;
 }
 
 diesel::table! {
@@ -34,9 +38,15 @@ diesel::table! {
 }
 
 diesel::table! {
-    available_blocks (user_id, block_type_id) {
-        block_type_id -> Int4,
+    use diesel::sql_types::*;
+    use super::sql_types::ItemCategory;
+
+    available_blocks (id) {
+        block_type_id -> Nullable<Int4>,
         user_id -> Int4,
+        attacker_type_id -> Nullable<Int4>,
+        category -> ItemCategory,
+        id -> Int4,
     }
 }
 
@@ -62,6 +72,7 @@ diesel::table! {
         capacity -> Int4,
         level -> Int4,
         cost -> Int4,
+        hp -> Int4,
     }
 }
 
@@ -71,8 +82,6 @@ diesel::table! {
         speed -> Int4,
         damage -> Int4,
         radius -> Int4,
-        level -> Int4,
-        cost -> Int4,
     }
 }
 
@@ -143,8 +152,6 @@ diesel::table! {
         id -> Int4,
         radius -> Int4,
         damage -> Int4,
-        level -> Int4,
-        cost -> Int4,
     }
 }
 
@@ -182,6 +189,7 @@ diesel::table! {
 }
 
 diesel::joinable!(artifact -> map_spaces (map_space_id));
+diesel::joinable!(available_blocks -> attacker_type (attacker_type_id));
 diesel::joinable!(available_blocks -> block_type (block_type_id));
 diesel::joinable!(available_blocks -> user (user_id));
 diesel::joinable!(block_type -> building_type (building_type));
