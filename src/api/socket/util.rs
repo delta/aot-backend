@@ -33,21 +33,21 @@ pub struct SocketResponse {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub enum ActionType {
-    PLACE_ATTACKER,
-    MOVE_ATTACKER,
-    PLACE_BOMBS,
+    PlaceAttacker,
+    MoveAttacker,
+    PlaceBombs,
     IDLE,
     TERMINATE,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub enum ResultType {
-    MINES_EXPLODED,
-    DEFENDERS_DAMAGED,
-    DEFENDERS_TRIGGERED,
-    BUILDINGS_DAMAGED,
+    MinesExploded,
+    DefendersDamaged,
+    DefendersTriggered,
+    BuildingsDamaged,
     RESYNC,
-    GAME_OVER,
+    GameOver,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -74,7 +74,7 @@ pub struct BuildingResponse {
 
 #[derive(Serialize, Deserialize)]
 pub struct ArtifactsResponse {
-    pub buildingId: i32,
+    pub building_id: i32,
     pub amount: i32,
 }
 

@@ -1,14 +1,15 @@
-use crate::{constants::ROAD_ID, validator::state::State};
+// use crate::{constants::ROAD_ID, validator::state::State};
+use crate::{ validator::state::State};
 use serde::{Deserialize, Serialize};
 
 // Structs present in the state
-#[derive(Debug, Serialize, Deserialize, Clone, Hash, Eq, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Hash, Eq, PartialEq,Copy)]
 pub struct Coords {
     pub x: i32,
     pub y: i32,
 }
 
-#[derive(Serialize,Clone)]
+#[derive(Serialize,Clone,Copy)]
 pub struct Bomb {
     pub id: i32,
     pub blast_radius: i32,
@@ -60,6 +61,7 @@ pub struct MineDetails {
 pub struct BuildingDetails {
     pub id: i32,
     pub current_hp: i32,
+    pub total_hp: i32,
     pub artifacts_obtained: i32,
     pub tile: Coords,
     pub dimensions: Coords

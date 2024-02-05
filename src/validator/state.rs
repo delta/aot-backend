@@ -1,9 +1,9 @@
-use std::{collections::HashSet, ptr::null};
-use std::cmp;
+use std::{collections::HashSet};
+// use std::cmp;
 
 use crate::{
-    schema::defender_type::damage,
-    simulation::defense::defender,
+    // schema::defender_type::damage,
+    // simulation::defense::defender,
     validator::util::{Attacker, Bomb, Coords, Defender, Mine,BuildingDetails},
 };
 
@@ -52,15 +52,15 @@ impl State {
     fn defender_movement_update(&mut self, defender_id: i32, defender_pos: Coords) {
         let attacker = self.attacker.as_mut().unwrap();
 
-        if (attacker.attacker_health > 0) {
+        if attacker.attacker_health > 0 {
             attacker.attacker_health = attacker.attacker_health - self.defenders[0].damage;
         }
 
         attacker.attacker_health = attacker.attacker_health - self.defenders[0].damage;
         for i in 0..self.defenders.len() {
             if self.defenders[i].id == defender_id {
-                if (defender_pos.x == attacker.attacker_pos.x
-                    && defender_pos.y == attacker.attacker_pos.y)
+                if defender_pos.x == attacker.attacker_pos.x
+                    && defender_pos.y == attacker.attacker_pos.y
                 {
                     attacker.attacker_health = attacker.attacker_health - self.defenders[i].damage;
                 }
@@ -70,10 +70,10 @@ impl State {
         }
     }
 
-    fn attacker_death_update(&mut self) {
-        self.attacker.as_mut().unwrap().attacker_pos = Coords { x: -1, y: -1 };
-        self.attacker_death_count += 1;
-    }
+    // fn attacker_death_update(&mut self) {
+    //     self.attacker.as_mut().unwrap().attacker_pos = Coords { x: -1, y: -1 };
+    //     self.attacker_death_count += 1;
+    // }
 
     fn defender_death_update(&mut self, defender_id: i32) {
         let attacker = self.attacker.as_mut().unwrap();
@@ -87,9 +87,9 @@ impl State {
         }
     }
 
-    fn mine_blast_update(&mut self, id: i32, damage_to_attacker: i32) {
+    fn mine_blast_update(&mut self, _id: i32, damage_to_attacker: i32) {
         let attacker = self.attacker.as_mut().unwrap();
-        if (attacker.attacker_health > 0) {
+        if attacker.attacker_health > 0 {
             attacker.attacker_health = attacker.attacker_health - self.defenders[0].damage;
         }
         attacker.attacker_health = std::cmp::max(0, attacker.attacker_health - damage_to_attacker);
@@ -99,10 +99,10 @@ impl State {
         }
     }
 
-    fn bomb_blast_update(&mut self, final_damage_percentage: f32, increase_artifacts: i32) {
-        self.damage_percentage = final_damage_percentage;
-        self.artifacts += increase_artifacts;
-    }
+    // fn bomb_blast_update(&mut self, final_damage_percentage: i32, increase_artifacts: i32) {
+    //     self.damage_percentage = final_damage_percentage;
+    //     self.artifacts += increase_artifacts;
+    // }
 
     //logic
 
@@ -255,19 +255,46 @@ impl State {
         if bomb.damage != self.attacker.as_ref().unwrap().bombs[0].damage {
             return Some(self);
         }
+        let total_hit_points = 20000;
+        
+        for (i,building) in self.buildings.iter_mut().enumerate() {
+            if building.current_hp != 0 {
+                       // let damage_buildings = self.calculate_damage_area(building, bomb);
+            let building_matrix: HashSet<Coords> = (building.tile.y..building.tile.y + building.dimensions.y)
+            .flat_map(|y| (building.tile.x..building.tile.x + building.dimensions.x).map(move |x| Coords { x, y }))
+            .collect();
+        
+            let bomb_matrix: HashSet<Coords> = (bomb.pos.y - bomb.blast_radius..bomb.pos.y + bomb.blast_radius + 1)
+            .flat_map(|y| (bomb.pos.x - bomb.blast_radius..bomb.pos.x + bomb.blast_radius + 1).map(move |x| Coords { x, y }))
+            .collect();
+        
+            let coinciding_coords_damage = building_matrix.intersection(&bomb_matrix).count();
+        
+            let damage_buildings:f32 = (coinciding_coords_damage as f32 / building_matrix.len() as f32) * 100.0;
 
-        for building in self.buildings.iter_mut() {
-            let damage_buildings = self.calculate_damage_area(building, bomb);
-            if(damage_buildings!=0) {
-                building.current_hp = building.current_hp - damage_buildings;
+            if damage_buildings!=0.0 {
+                let old_hp = building.current_hp;
+                let mut current_damage = (damage_buildings*building.total_hp as f32/100.0) as i32;
+                building.current_hp = building.current_hp - (damage_buildings*building.total_hp as f32/100.0) as i32;
                 if building.current_hp <= 0 {
                     building.current_hp = 0;
-                    building.artifacts_obtained = 1;
+                    current_damage = old_hp;
+                    self.artifacts += building.artifacts_obtained;
+                    self.damage_percentage += (current_damage as f32/total_hit_points as f32) * 100.0 as f32;
+
                 }
-                self.bomb_blast_update(damage_buildings as f32, building.artifacts_obtained);
+                else{
+                    self.damage_percentage += (current_damage as f32/total_hit_points as f32) * 100.0 as f32;
+                }
+              
             }
         }
+        else {
+            continue;
+        }
 
+            }
+     
         // if util::is_road(&bomb.pos) {
         //     // tile not road error
         // }
@@ -280,10 +307,10 @@ impl State {
 
     
 
-    pub fn calculate_damage_area(&mut self,building: BuildingDetails,bomb : Bomb) -> i32 {
+    pub fn calculate_damage_area(&mut self,building: &mut BuildingDetails,bomb : Bomb) -> i32 {
 
-    let mut building_matrix: Vec<Coords> = Vec::new();
-    let mut bomb_matrix: Vec<Coords> = Vec::new();
+    // let mut building_matrix: Vec<Coords> = Vec::new();
+    // let mut bomb_matrix: Vec<Coords> = Vec::new();
 
     // building will have top left coordinate and the x and y dimensions
     // for y in building.tile.y..building.tile.y+building.dimensions.y {

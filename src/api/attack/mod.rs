@@ -124,7 +124,7 @@ async fn init_attack(
 }
 
 async fn socket_handler(
-    pool: web::Data<PgPool>,
+    // pool: web::Data<PgPool>,
     redis_pool: Data<RedisPool>,
     req: HttpRequest,
     stream: web::Payload,

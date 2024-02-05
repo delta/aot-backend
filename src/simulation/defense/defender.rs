@@ -123,7 +123,7 @@ impl Defenders {
     pub fn simulate(
         &mut self,
         attacker_manager: &mut AttackManager,
-        building_manager: &mut BuildingsManager,
+        _building_manager: &mut BuildingsManager,
     ) -> Result<()> {
         let Defenders(defenders) = self;
         let attackers = &mut attacker_manager.attackers;

@@ -1,7 +1,7 @@
 pub mod util;
 
 use crate::{
-    api::socket::util::{ActionType, ResultType, SocketRequest, SocketResponse},
+    api::socket::util::{ResultType, SocketRequest, SocketResponse},
     validator::game_handler,
 };
 use actix::prelude::*;
@@ -21,7 +21,7 @@ impl Actor for Socket {
 
         let response = SocketResponse {
             frame_number: 0,
-            result_type: ResultType::GAME_OVER,
+            result_type: ResultType::GameOver,
             is_alive: None,
             attacker_health: None,
             exploded_mines: Vec::new(),
