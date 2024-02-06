@@ -17,6 +17,9 @@ use diesel::dsl::exists;
 use diesel::{prelude::*, select};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::result::Result::Ok as ResultOk;
+// use redis::Commands;  //Uncomment to check for user under attack//
+// use crate::api::RedisPool;
 
 #[derive(Serialize)]
 pub struct MineTypeResponse {
@@ -67,6 +70,36 @@ pub struct DefenceHistoryResponse {
     pub games: Vec<Game>,
 }
 
+#[derive(Deserialize, Serialize, Clone)]
+pub struct ArtifactReturn {
+    pub building_map_space_id: i32,
+    pub artifact_count: i32,
+    pub block_type_id: i32,
+    pub bank_map_space_id: i32,
+}
+
+#[derive(Deserialize, Serialize, Clone)]
+pub struct BankReturn {
+    pub bank_map_space_id: i32,
+    pub artifact_count: i32,
+}
+
+//Uncomment to check for user under attack//
+
+// pub fn check_user_under_attack(redis_pool: &RedisPool, user_id: &i32) -> Result<bool> {
+//     // Get a connection from the pool
+//     let mut conn = redis_pool.get()?;
+
+//     // Use the GET command to check if the user_id exists and is 'defender'
+//     let result: Option<String> = conn.get(user_id)?;
+
+//     match result {
+//         Some(_value) => Ok(true),
+//         //Some(value) if value == "defender_id" => Ok(true),
+//         _ => Ok(false),
+//     }
+// }
+
 pub fn defender_exists(defender: i32, conn: &mut PgConnection) -> Result<bool> {
     use crate::schema::user;
 
@@ -77,6 +110,219 @@ pub fn defender_exists(defender: i32, conn: &mut PgConnection) -> Result<bool> {
             function: function!(),
             error: err,
         })?)
+}
+
+pub fn transfer_artifacts_building(
+    conn: &mut PgConnection,
+    building_map_space_id: &i32,
+    bank_map_space_id: &i32,
+    new_building_artifact_count: &i32,
+    new_bank_artifact_count: &i32,
+) -> Result<()> {
+    use crate::schema::artifact;
+
+    diesel::update(artifact::table.filter(artifact::map_space_id.eq(building_map_space_id)))
+        .set(artifact::count.eq(new_building_artifact_count))
+        .execute(conn)
+        .map_err(|err| DieselError {
+            table: "map_spaces",
+            function: function!(),
+            error: err,
+        })
+        .unwrap();
+
+    diesel::update(artifact::table.filter(artifact::map_space_id.eq(bank_map_space_id)))
+        .set(artifact::count.eq(new_bank_artifact_count))
+        .execute(conn)
+        .map_err(|err| DieselError {
+            table: "map_spaces",
+            function: function!(),
+            error: err,
+        })
+        .unwrap();
+
+    Ok(())
+}
+
+pub fn create_artifact_record(
+    conn: &mut PgConnection,
+    map_space_id: &i32,
+    artifact_count: &i32,
+) -> Result<()> {
+    use crate::schema::artifact;
+
+    let new_artifact = NewArtifact {
+        map_space_id: *map_space_id,
+        count: *artifact_count,
+    };
+
+    diesel::insert_into(artifact::table)
+        .values(&new_artifact)
+        .execute(conn)
+        .map_err(|err| DieselError {
+            table: "artifact",
+            function: function!(),
+            error: err,
+        })?;
+
+    Ok(())
+}
+
+pub fn fetch_block_capacity(conn: &mut PgConnection, block_id: &i32) -> Result<i32> {
+    use crate::schema::{block_type, building_type};
+
+    Ok(block_type::table
+        .filter(block_type::id.eq(block_id))
+        .inner_join(building_type::table)
+        .select(building_type::capacity)
+        .first::<i32>(conn)
+        .map_err(|err| DieselError {
+            table: "block_type",
+            function: function!(),
+            error: err,
+        })?)
+}
+
+pub fn fetch_existing_artifacts_in_building(
+    conn: &mut PgConnection,
+    given_user_id: &i32,
+    given_map_space_id: &i32,
+    bank_block_type_id: &i32,
+) -> Result<ArtifactReturn> {
+    use crate::schema::{artifact, map_layout, map_spaces};
+
+    //TODO: To be replaced with matching the record based on current_map_layout_id for the user where the artifacts have to be changed
+    let filtered_layout_id = map_layout::table
+        .filter(map_layout::player.eq(&given_user_id))
+        .select(map_layout::id)
+        .first::<i32>(conn)
+        .map_err(|err| DieselError {
+            table: "map_layout",
+            function: function!(),
+            error: err,
+        })?;
+
+    let fetched_bank_map_space_id = map_spaces::table
+        .filter(map_spaces::map_id.eq(&filtered_layout_id))
+        .filter(map_spaces::block_type_id.eq(&bank_block_type_id))
+        .select(map_spaces::id)
+        .first::<i32>(conn)
+        .map_err(|err| DieselError {
+            table: "map_spaces",
+            function: function!(),
+            error: err,
+        })?;
+
+    let specific_artifact = map_spaces::table
+        .inner_join(artifact::table)
+        .filter(map_spaces::map_id.eq(&filtered_layout_id)) //Eg:1
+        .filter(map_spaces::id.eq(&given_map_space_id)) //Eg:1
+        .select((map_spaces::id, artifact::count, map_spaces::block_type_id))
+        .first::<(i32, i32, i32)>(conn)
+        .map(
+            |(building_map_space_id, artifact_count, block_type_id)| ArtifactReturn {
+                building_map_space_id,
+                artifact_count,
+                block_type_id,
+                bank_map_space_id: fetched_bank_map_space_id,
+            },
+        )
+        .map_err(|err| DieselError {
+            table: "map_spaces",
+            function: function!(),
+            error: err,
+        });
+    match specific_artifact {
+        ResultOk(specific_artifact) => Ok(specific_artifact.clone()),
+        Err(_e) => {
+            let new_artifact = NewArtifact {
+                map_space_id: *given_map_space_id,
+                count: 0,
+            };
+
+            diesel::insert_into(artifact::table)
+                .values(&new_artifact)
+                .execute(conn)
+                .map_err(|err| DieselError {
+                    table: "artifact",
+                    function: function!(),
+                    error: err,
+                })?;
+
+            let find_block_type_id = map_spaces::table
+                .filter(map_spaces::map_id.eq(&filtered_layout_id)) //Eg:1
+                .filter(map_spaces::id.eq(&given_map_space_id)) //Eg:1
+                .select(map_spaces::block_type_id)
+                .first::<i32>(conn)
+                .map_err(|err| DieselError {
+                    table: "map_spaces",
+                    function: function!(),
+                    error: err,
+                });
+
+            match find_block_type_id {
+                ResultOk(find_block_type_id) => Ok(ArtifactReturn {
+                    building_map_space_id: *given_map_space_id,
+                    artifact_count: 0,
+                    block_type_id: find_block_type_id,
+                    bank_map_space_id: fetched_bank_map_space_id,
+                }),
+                Err(_err) => Ok(ArtifactReturn {
+                    building_map_space_id: *given_map_space_id,
+                    artifact_count: 0,
+                    block_type_id: 0,
+                    bank_map_space_id: fetched_bank_map_space_id,
+                }),
+            }
+        }
+    }
+}
+
+pub fn fetch_existing_artifacts_in_bank(
+    conn: &mut PgConnection,
+    given_user_id: &i32,
+    given_map_space_id: &i32,
+) -> Result<BankReturn> {
+    use crate::schema::{artifact, map_layout, map_spaces};
+
+    let filtered_layout_id = map_layout::table
+        .filter(map_layout::player.eq(given_user_id))
+        .select(map_layout::id)
+        .first::<i32>(conn)
+        //.optional()
+        .map_err(|err| DieselError {
+            table: "map_layout",
+            function: function!(),
+            error: err,
+        })?;
+
+    let specific_artifact: Vec<BankReturn> = map_spaces::table
+        .inner_join(artifact::table)
+        .filter(map_spaces::map_id.eq(filtered_layout_id))
+        .filter(map_spaces::id.eq(given_map_space_id))
+        .load::<(MapSpaces, Artifact)>(conn)
+        .map_err(|err| DieselError {
+            table: "map_spaces",
+            function: function!(),
+            error: err,
+        })?
+        .into_iter()
+        .map(|(map_spaces, artifact)| BankReturn {
+            bank_map_space_id: map_spaces.id,
+            artifact_count: artifact.count,
+        })
+        .collect();
+
+    match specific_artifact.get(0) {
+        Some(artifact) => Ok(artifact.clone()),
+        None => {
+            //TODO: To be changed to insert a record in the table or return another appropriate response
+            Ok(BankReturn {
+                bank_map_space_id: 0,
+                artifact_count: 0,
+            })
+        }
+    }
 }
 
 pub fn fetch_map_layout(conn: &mut PgConnection, player: &i32) -> Result<MapLayout> {

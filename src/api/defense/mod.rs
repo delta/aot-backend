@@ -7,8 +7,9 @@ use crate::models::*;
 use actix_web::error::{ErrorBadRequest, ErrorNotFound};
 use actix_web::web::{self, Data, Json};
 use actix_web::{Responder, Result};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+// use super::RedisPool;   //Uncomment to check for user under attack//
 
 mod shortest_path;
 mod util;
@@ -21,6 +22,7 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
             .route(web::get().to(get_user_base_details)),
     )
     .service(web::resource("/top").route(web::get().to(get_top_defenses)))
+    .service(web::resource("/transfer").route(web::post().to(post_transfer_artifacts)))
     .service(web::resource("/save").route(web::put().to(confirm_base_details)))
     .service(web::resource("/game/{id}").route(web::get().to(get_game_base_details)))
     .service(web::resource("/history").route(web::get().to(defense_history)))
@@ -33,6 +35,151 @@ pub struct MapSpacesEntry {
     pub x_coordinate: i32,
     pub y_coordinate: i32,
     pub block_type_id: i32,
+}
+
+#[derive(Deserialize)]
+pub struct TransferArtifactEntry {
+    pub artifacts_differ: i32,
+    pub map_space_id: i32,
+}
+
+#[derive(Serialize)]
+pub struct TransferArtifactResponse {
+    pub building_map_space_id: i32,
+    pub artifacts_in_building: i32,
+    pub bank_map_space_id: i32,
+    pub artifacts_in_bank: i32,
+}
+
+async fn post_transfer_artifacts(
+    transfer: Json<TransferArtifactEntry>,
+    pg_pool: Data<PgPool>,
+    // redis_pool: Data<RedisPool>,   //Uncomment to check for user under attack//
+    user: AuthUser,
+) -> Result<impl Responder> {
+    let user_id = user.0;
+    let bank_block_type_id = 5; //To be altered as per the bank block type id
+    let transfer = transfer.into_inner();
+
+    // let is_defender = match util::check_user_under_attack(&redis_pool, &user_id) {       //Uncomment to check for user under attack//
+    //     Ok(result) => result,
+    //     Err(e) => {
+    //         eprintln!("Error checking if user is under attack: {}", e);
+    //         false // or handle the error in another way
+    //     }
+    // };
+
+    // if !is_defender {   //Uncomment to check for user under attack//
+
+    let mut conn = pg_pool
+        .get()
+        .map_err(|err| error::handle_error(err.into()))?;
+    let existing_artifacts_in_building = web::block(move || {
+        util::fetch_existing_artifacts_in_building(
+            &mut conn,
+            &user_id,
+            &transfer.map_space_id,
+            &bank_block_type_id,
+        )
+    })
+    .await?
+    .map_err(|err| error::handle_error(err.into()))?;
+
+    let mut conn = pg_pool
+        .get()
+        .map_err(|err| error::handle_error(err.into()))?;
+    let artifacts_in_bank = web::block(move || {
+        util::fetch_existing_artifacts_in_bank(
+            &mut conn,
+            &user_id,
+            &existing_artifacts_in_building.bank_map_space_id,
+        )
+    })
+    .await?
+    .map_err(|err| error::handle_error(err.into()))?;
+
+    let mut conn = pg_pool
+        .get()
+        .map_err(|err| error::handle_error(err.into()))?;
+    let block_capacity = web::block(move || {
+        util::fetch_block_capacity(&mut conn, &existing_artifacts_in_building.block_type_id)
+    })
+    .await?
+    .map_err(|err| error::handle_error(err.into()))?;
+
+    let bank_map_space_id = existing_artifacts_in_building.bank_map_space_id;
+    let new_building_artifact_count =
+        existing_artifacts_in_building.artifact_count + transfer.artifacts_differ;
+    let new_bank_artifact_count = artifacts_in_bank.artifact_count - transfer.artifacts_differ;
+
+    if bank_map_space_id == transfer.map_space_id {
+        return Err(ErrorBadRequest("Cannot transfer to the same building"));
+    } else if transfer.artifacts_differ > artifacts_in_bank.artifact_count {
+        return Err(ErrorBadRequest("Not enough artifacts in the bank"));
+    } else if existing_artifacts_in_building.block_type_id != 0 {
+        if block_capacity
+            < transfer.artifacts_differ + existing_artifacts_in_building.artifact_count
+        {
+            return Err(ErrorBadRequest("Building capacity not sufficient"));
+        } else if transfer.artifacts_differ + existing_artifacts_in_building.artifact_count < 0 {
+            return Err(ErrorBadRequest("Not enough artifacts in the building"));
+        } else {
+            //Transfer Artifacts
+            let new_building_artifact_count =
+                existing_artifacts_in_building.artifact_count + transfer.artifacts_differ;
+            let new_bank_artifact_count =
+                artifacts_in_bank.artifact_count - transfer.artifacts_differ;
+            web::block(move || {
+                let mut conn = pg_pool.get()?;
+                util::transfer_artifacts_building(
+                    &mut conn,
+                    &transfer.map_space_id,
+                    &bank_map_space_id,
+                    &new_building_artifact_count,
+                    &new_bank_artifact_count,
+                )
+            })
+            .await?
+            .map_err(|err| error::handle_error(err.into()))?;
+        }
+    } else {
+        if transfer.artifacts_differ < 0 {
+            return Err(ErrorBadRequest("No artifacts in the building"));
+        }
+        //Create artifact record and transfer them to it
+        let pg_pool_clone = pg_pool.clone();
+        web::block(move || {
+            let mut conn = pg_pool_clone.get()?;
+            util::create_artifact_record(&mut conn, &transfer.map_space_id, &0)
+        })
+        .await?
+        .map_err(|err| error::handle_error(err.into()))?;
+
+        web::block(move || {
+            let mut conn = pg_pool.get()?;
+            util::transfer_artifacts_building(
+                &mut conn,
+                &transfer.map_space_id,
+                &bank_map_space_id,
+                &new_building_artifact_count,
+                &new_bank_artifact_count,
+            )
+        })
+        .await?
+        .map_err(|err| error::handle_error(err.into()))?;
+    }
+    Ok(web::Json(TransferArtifactResponse {
+        building_map_space_id: transfer.map_space_id,
+        artifacts_in_building: new_building_artifact_count,
+        bank_map_space_id,
+        artifacts_in_bank: new_bank_artifact_count,
+    }))
+    // }         //Uncomment to check for user under attack//
+    // else{
+    //     return Err(ErrorBadRequest(
+    //         "Cannot transfer while under attack",
+    //     ));
+    // }
 }
 
 async fn get_user_base_details(pool: Data<PgPool>, user: AuthUser) -> Result<impl Responder> {
