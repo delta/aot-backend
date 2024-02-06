@@ -24,6 +24,7 @@ pub struct State {
     pub buildings: Vec<BuildingDetails>,
 }
 
+#[allow(dead_code)]
 impl State {
     pub fn new(
         attacker_user_id: i32,

@@ -222,6 +222,7 @@ impl Defenders {
     //     Ok(())
     // }
 
+    #[allow(dead_code)]
     pub fn assign_defender(
         defender: &mut Defender,
         attackers: &HashMap<i32, Attacker>,

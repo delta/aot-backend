@@ -10,9 +10,22 @@ use crate::api::{self, RedisConn};
 use crate::constants::*;
 use crate::error::DieselError;
 use crate::models::{
-    Artifact, AttackerType, BlockCategory, BlockType, BuildingType, DefenderType, Game,
-    LevelsFixture, MapLayout, MapSpaces, MineType, NewAttackerPath, NewGame, NewSimulationLog,
-    ShortestPath, User,
+    Artifact,
+    AttackerType,
+    BlockCategory,
+    BlockType,
+    BuildingType,
+    DefenderType,
+    Game,
+    LevelsFixture,
+    MapLayout,
+    MapSpaces,
+    MineType,
+    NewAttackerPath,
+    NewGame,
+    // NewSimulationLog,
+    ShortestPath,
+    User,
 };
 use crate::schema::user;
 use crate::simulation::blocks::{Coords, SourceDest};
@@ -103,6 +116,7 @@ pub fn get_valid_road_paths(map_id: i32, conn: &mut PgConnection) -> Result<Hash
     Ok(valid_road_paths)
 }
 
+#[allow(dead_code)]
 /// checks if the number of attacks per day is less than allowed for the given attacker
 pub fn is_attack_allowed(
     attacker_id: i32,
@@ -283,220 +297,220 @@ pub fn fetch_top_attacks(user_id: i32, conn: &mut PgConnection) -> Result<GameHi
     Ok(GameHistoryResponse { games })
 }
 
-pub fn remove_game(game_id: i32, conn: &mut PgConnection) -> Result<()> {
-    use crate::schema::game;
+// pub fn remove_game(game_id: i32, conn: &mut PgConnection) -> Result<()> {
+//     use crate::schema::game;
 
-    diesel::delete(game::table.filter(game::id.eq(game_id)))
-        .execute(conn)
-        .map_err(|err| DieselError {
-            table: "game",
-            function: function!(),
-            error: err,
-        })?;
-    Ok(())
-}
+//     diesel::delete(game::table.filter(game::id.eq(game_id)))
+//         .execute(conn)
+//         .map_err(|err| DieselError {
+//             table: "game",
+//             function: function!(),
+//             error: err,
+//         })?;
+//     Ok(())
+// }
 
-pub fn run_simulation(
-    game_id: i32,
-    map_id: i32,
-    attackers: Vec<NewAttacker>,
-    conn: &mut PgConnection,
-) -> Result<Vec<u8>> {
-    let mut content = Vec::new();
+// pub fn run_simulation(
+//     game_id: i32,
+//     map_id: i32,
+//     attackers: Vec<NewAttacker>,
+//     conn: &mut PgConnection,
+// ) -> Result<Vec<u8>> {
+//     let mut content = Vec::new();
 
-    for (attacker_id, attacker) in attackers.iter().enumerate() {
-        writeln!(content, "attacker {}", attacker_id + 1)?;
-        let attacker_path = &attacker.attacker_path;
-        let attacker_type = &attacker.attacker_type;
-        writeln!(content, "attacker_path")?;
-        writeln!(content, "id,y,x,is_emp,type")?;
-        writeln!(
-            content,
-            "{},{},{},{},{}",
-            attacker_id + 1,
-            attacker_path[0].y_coord,
-            attacker_path[0].x_coord,
-            attacker_path[0].is_emp,
-            attacker_type,
-        )?;
-        writeln!(content, "emps")?;
-        writeln!(content, "id,time,type,attacker_id")?;
-        attacker_path
-            .iter()
-            .enumerate()
-            .try_for_each(|(id, path)| {
-                if path.is_emp {
-                    writeln!(
-                        content,
-                        "{},{},{},{}",
-                        id + 1,
-                        path.emp_time.unwrap(),
-                        path.emp_type.unwrap(),
-                        attacker_id + 1,
-                    )
-                } else {
-                    Ok(())
-                }
-            })?;
-    }
+//     for (attacker_id, attacker) in attackers.iter().enumerate() {
+//         writeln!(content, "attacker {}", attacker_id + 1)?;
+//         let attacker_path = &attacker.attacker_path;
+//         let attacker_type = &attacker.attacker_type;
+//         writeln!(content, "attacker_path")?;
+//         writeln!(content, "id,y,x,is_emp,type")?;
+//         writeln!(
+//             content,
+//             "{},{},{},{},{}",
+//             attacker_id + 1,
+//             attacker_path[0].y_coord,
+//             attacker_path[0].x_coord,
+//             attacker_path[0].is_emp,
+//             attacker_type,
+//         )?;
+//         writeln!(content, "emps")?;
+//         writeln!(content, "id,time,type,attacker_id")?;
+//         attacker_path
+//             .iter()
+//             .enumerate()
+//             .try_for_each(|(id, path)| {
+//                 if path.is_emp {
+//                     writeln!(
+//                         content,
+//                         "{},{},{},{}",
+//                         id + 1,
+//                         path.emp_time.unwrap(),
+//                         path.emp_type.unwrap(),
+//                         attacker_id + 1,
+//                     )
+//                 } else {
+//                     Ok(())
+//                 }
+//             })?;
+//     }
 
-    use crate::schema::game;
-    let mut simulator =
-        Simulator::new(map_id, &attackers, conn).with_context(|| "Failed to create simulator")?;
+//     use crate::schema::game;
+//     let mut simulator =
+//         Simulator::new(map_id, &attackers, conn).with_context(|| "Failed to create simulator")?;
 
-    let defenders_positions = simulator.get_defender_position();
+//     let defenders_positions = simulator.get_defender_position();
 
-    for position in defenders_positions {
-        writeln!(content, "defender {}", position.defender_id)?;
-        writeln!(content, "id,x,y")?;
-        let RenderDefender {
-            defender_id,
-            x_position,
-            y_position,
-            ..
-        } = position;
-        writeln!(content, "{defender_id},{x_position},{y_position}")?;
-    }
+//     for position in defenders_positions {
+//         writeln!(content, "defender {}", position.defender_id)?;
+//         writeln!(content, "id,x,y")?;
+//         let RenderDefender {
+//             defender_id,
+//             x_position,
+//             y_position,
+//             ..
+//         } = position;
+//         writeln!(content, "{defender_id},{x_position},{y_position}")?;
+//     }
 
-    let mines = simulator.get_mines();
+//     let mines = simulator.get_mines();
 
-    for mine in mines {
-        let RenderMine {
-            mine_id,
-            x_position,
-            y_position,
-            is_activated,
-            mine_type,
-        } = mine;
-        writeln!(content, "mine {mine_id}")?;
-        writeln!(content, "id,x,is_activated,y,mine_type")?;
-        writeln!(
-            content,
-            "{mine_id},{x_position},{is_activated},{y_position},{mine_type}"
-        )?;
-    }
+//     for mine in mines {
+//         let RenderMine {
+//             mine_id,
+//             x_position,
+//             y_position,
+//             is_activated,
+//             mine_type,
+//         } = mine;
+//         writeln!(content, "mine {mine_id}")?;
+//         writeln!(content, "id,x,is_activated,y,mine_type")?;
+//         writeln!(
+//             content,
+//             "{mine_id},{x_position},{is_activated},{y_position},{mine_type}"
+//         )?;
+//     }
 
-    for frame in 1..=NO_OF_FRAMES {
-        writeln!(content, "frame {frame}")?;
-        let simulated_frame = simulator
-            .simulate()
-            .with_context(|| format!("Failed to simulate frame {frame}"))?;
-        for attacker in simulated_frame.attackers {
-            writeln!(content, "attacker {}", attacker.0)?;
-            writeln!(content, "id,x,y,is_alive,emp_id,health,type")?;
-            for position in attacker.1 {
-                let RenderAttacker {
-                    x_position,
-                    y_position,
-                    is_alive,
-                    emp_id,
-                    health,
-                    attacker_type,
-                    attacker_id,
-                } = position;
-                writeln!(
-                    content,
-                    "{attacker_id},{x_position},{y_position},{is_alive},{emp_id},{health},{attacker_type}"
-                )?;
-            }
-        }
-        writeln!(content, "building_stats")?;
-        writeln!(content, "map_space_id,population")?;
+//     for frame in 1..=NO_OF_FRAMES {
+//         writeln!(content, "frame {frame}")?;
+//         let simulated_frame = simulator
+//             .simulate()
+//             .with_context(|| format!("Failed to simulate frame {frame}"))?;
+//         for attacker in simulated_frame.attackers {
+//             writeln!(content, "attacker {}", attacker.0)?;
+//             writeln!(content, "id,x,y,is_alive,emp_id,health,type")?;
+//             for position in attacker.1 {
+//                 let RenderAttacker {
+//                     x_position,
+//                     y_position,
+//                     is_alive,
+//                     emp_id,
+//                     health,
+//                     attacker_type,
+//                     attacker_id,
+//                 } = position;
+//                 writeln!(
+//                     content,
+//                     "{attacker_id},{x_position},{y_position},{is_alive},{emp_id},{health},{attacker_type}"
+//                 )?;
+//             }
+//         }
+//         writeln!(content, "building_stats")?;
+//         writeln!(content, "map_space_id,population")?;
 
-        for building_stat in simulated_frame.buildings {
-            writeln!(
-                content,
-                "{},{}",
-                building_stat.mapsace_id, building_stat.population
-            )?;
-        }
+//         for building_stat in simulated_frame.buildings {
+//             writeln!(
+//                 content,
+//                 "{},{}",
+//                 building_stat.mapsace_id, building_stat.population
+//             )?;
+//         }
 
-        for (defender_id, defender) in simulated_frame.defenders {
-            writeln!(content, "defender {defender_id}")?;
-            writeln!(content, "id,is_alive,x,y,type")?;
-            for position in defender {
-                let RenderDefender {
-                    defender_id,
-                    x_position,
-                    y_position,
-                    defender_type,
-                    is_alive,
-                } = position;
-                writeln!(
-                    content,
-                    "{defender_id},{is_alive},{x_position},{y_position},{defender_type}"
-                )?;
-            }
-        }
+//         for (defender_id, defender) in simulated_frame.defenders {
+//             writeln!(content, "defender {defender_id}")?;
+//             writeln!(content, "id,is_alive,x,y,type")?;
+//             for position in defender {
+//                 let RenderDefender {
+//                     defender_id,
+//                     x_position,
+//                     y_position,
+//                     defender_type,
+//                     is_alive,
+//                 } = position;
+//                 writeln!(
+//                     content,
+//                     "{defender_id},{is_alive},{x_position},{y_position},{defender_type}"
+//                 )?;
+//             }
+//         }
 
-        for (mine_id, mine) in simulated_frame.mines {
-            writeln!(content, "mine {mine_id}")?;
-            writeln!(content, "id,is_activated,mine_type")?;
-            writeln!(
-                content,
-                "{},{},{}",
-                mine.mine_id, mine.is_activated, mine.mine_type,
-            )?;
-        }
+//         for (mine_id, mine) in simulated_frame.mines {
+//             writeln!(content, "mine {mine_id}")?;
+//             writeln!(content, "id,is_activated,mine_type")?;
+//             writeln!(
+//                 content,
+//                 "{},{},{}",
+//                 mine.mine_id, mine.is_activated, mine.mine_type,
+//             )?;
+//         }
 
-        /*
-        position of robots
-         */
-    }
-    //TODO: Change is_alive to no_of_attackers_alive and emps_used too
-    let (attack_score, defend_score) = simulator.get_scores();
-    let attack_defence_metrics = simulator.get_attack_defence_metrics();
-    let (attacker_rating, defender_rating, attacker_rating_change, defender_rating_change) =
-        diesel::update(game::table.find(game_id))
-            .set((
-                game::damage_done.eq(simulator.get_damage_done()),
-                game::is_attacker_alive.eq(true),
-                game::emps_used.eq(1),
-                game::attack_score.eq(attack_score),
-                game::defend_score.eq(defend_score),
-            ))
-            .get_result::<Game>(conn)
-            .map_err(|err| DieselError {
-                table: "game",
-                function: function!(),
-                error: err,
-            })?
-            .update_rating(attack_defence_metrics, conn)
-            .map_err(|err| DieselError {
-                table: "user",
-                function: function!(),
-                error: err,
-            })?;
-    let damage = simulator.get_damage_done();
-    writeln!(content, "Result")?;
-    writeln!(content, "Damage: {damage}")?;
-    writeln!(content, "New attacker rating: {attacker_rating}")?;
-    writeln!(content, "New defender rating: {defender_rating}")?;
-    writeln!(content, "Attacker rating change: {attacker_rating_change}")?;
-    writeln!(content, "Defender rating change: {defender_rating_change}")?;
+//         /*
+//         position of robots
+//          */
+//     }
+//     //TODO: Change is_alive to no_of_attackers_alive and emps_used too
+//     let (attack_score, defend_score) = simulator.get_scores();
+//     let attack_defence_metrics = simulator.get_attack_defence_metrics();
+//     let (attacker_rating, defender_rating, attacker_rating_change, defender_rating_change) =
+//         diesel::update(game::table.find(game_id))
+//             .set((
+//                 game::damage_done.eq(simulator.get_damage_done()),
+//                 game::is_attacker_alive.eq(true),
+//                 game::emps_used.eq(1),
+//                 game::attack_score.eq(attack_score),
+//                 game::defend_score.eq(defend_score),
+//             ))
+//             .get_result::<Game>(conn)
+//             .map_err(|err| DieselError {
+//                 table: "game",
+//                 function: function!(),
+//                 error: err,
+//             })?
+//             .update_rating(attack_defence_metrics, conn)
+//             .map_err(|err| DieselError {
+//                 table: "user",
+//                 function: function!(),
+//                 error: err,
+//             })?;
+//     let damage = simulator.get_damage_done();
+//     writeln!(content, "Result")?;
+//     writeln!(content, "Damage: {damage}")?;
+//     writeln!(content, "New attacker rating: {attacker_rating}")?;
+//     writeln!(content, "New defender rating: {defender_rating}")?;
+//     writeln!(content, "Attacker rating change: {attacker_rating_change}")?;
+//     writeln!(content, "Defender rating change: {defender_rating_change}")?;
 
-    insert_simulation_log(game_id, &content, conn)?;
+//     insert_simulation_log(game_id, &content, conn)?;
 
-    Ok(content)
-}
+//     Ok(content)
+// }
 
-pub fn insert_simulation_log(game_id: i32, content: &[u8], conn: &mut PgConnection) -> Result<()> {
-    use crate::schema::simulation_log;
-    let log_text = String::from_utf8(content.to_vec())?;
-    let new_simulation_log = NewSimulationLog {
-        game_id: &game_id,
-        log_text: &log_text,
-    };
-    diesel::insert_into(simulation_log::table)
-        .values(new_simulation_log)
-        .execute(conn)
-        .map_err(|err| DieselError {
-            table: "simulation_log",
-            function: function!(),
-            error: err,
-        })?;
-    Ok(())
-}
+// pub fn insert_simulation_log(game_id: i32, content: &[u8], conn: &mut PgConnection) -> Result<()> {
+//     use crate::schema::simulation_log;
+//     let log_text = String::from_utf8(content.to_vec())?;
+//     let new_simulation_log = NewSimulationLog {
+//         game_id: &game_id,
+//         log_text: &log_text,
+//     };
+//     diesel::insert_into(simulation_log::table)
+//         .values(new_simulation_log)
+//         .execute(conn)
+//         .map_err(|err| DieselError {
+//             table: "simulation_log",
+//             function: function!(),
+//             error: err,
+//         })?;
+//     Ok(())
+// }
 
 pub fn run_test_base_simulation(
     map_id: i32,
@@ -893,7 +907,7 @@ pub fn get_defenders(conn: &mut PgConnection, map_id: i32) -> Result<Vec<Defende
 
     for (defender_id, (map_space, (_, _, defender_type))) in result.iter().enumerate() {
         let (hut_x, hut_y) = (map_space.x_coordinate, map_space.y_coordinate);
-        // let path = vec![(hut_x, hut_y)];
+        // let path: Vec<(i32, i32)> = vec![(hut_x, hut_y)];
         defenders.push(DefenderDetails {
             id: defender_id as i32 + 1,
             radius: defender_type.radius,

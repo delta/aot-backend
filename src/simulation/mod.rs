@@ -120,6 +120,7 @@ impl Simulator {
         60
     }
 
+    #[allow(dead_code)]
     pub fn get_attack_defence_metrics(&self) -> (i32, i32, i32) {
         let mut live_attackers = 0;
         let mut used_defenders = 0;
@@ -147,6 +148,7 @@ impl Simulator {
     }
 
     // return value (attack score, defence score)
+    #[allow(dead_code)]
     pub fn get_scores(&self) -> (i32, i32) {
         let damage_done = self.get_damage_done();
         if damage_done < WIN_THRESHOLD {
