@@ -34,16 +34,16 @@ impl State {
     ) -> State {
         State {
             frame_no: 0,
-            attacker_user_id: attacker_user_id,
-            defender_user_id: defender_user_id,
+            attacker_user_id,
+            defender_user_id,
             attacker: None,
             attacker_death_count: 0,
             bombs: 0,
             damage_percentage: 0.0,
             artifacts: 0,
-            defenders: defenders,
-            mines: mines,
-            buildings: buildings,
+            defenders,
+            mines,
+            buildings,
         }
     }
 
@@ -58,16 +58,16 @@ impl State {
         let attacker = self.attacker.as_mut().unwrap();
 
         if attacker.attacker_health > 0 {
-            attacker.attacker_health = attacker.attacker_health - self.defenders[0].damage;
+            attacker.attacker_health -= self.defenders[0].damage;
         }
 
-        attacker.attacker_health = attacker.attacker_health - self.defenders[0].damage;
+        attacker.attacker_health -= self.defenders[0].damage;
         for i in 0..self.defenders.len() {
             if self.defenders[i].id == defender_id {
                 if defender_pos.x == attacker.attacker_pos.x
                     && defender_pos.y == attacker.attacker_pos.y
                 {
-                    attacker.attacker_health = attacker.attacker_health - self.defenders[i].damage;
+                    attacker.attacker_health -= self.defenders[i].damage;
                 }
                 self.defenders[i].defender_pos = defender_pos;
                 break;
@@ -85,7 +85,7 @@ impl State {
 
         for i in 0..self.defenders.len() {
             if self.defenders[i].id == defender_id {
-                attacker.attacker_health = attacker.attacker_health - self.defenders[i].damage;
+                attacker.attacker_health -= self.defenders[i].damage;
                 self.defenders[i].is_alive = false;
                 // break;
             }
@@ -95,7 +95,7 @@ impl State {
     fn mine_blast_update(&mut self, _id: i32, damage_to_attacker: i32) {
         let attacker = self.attacker.as_mut().unwrap();
         if attacker.attacker_health > 0 {
-            attacker.attacker_health = attacker.attacker_health - self.defenders[0].damage;
+            attacker.attacker_health -= self.defenders[0].damage;
         }
         attacker.attacker_health = std::cmp::max(0, attacker.attacker_health - damage_to_attacker);
         if attacker.attacker_health == 0 {
@@ -119,7 +119,7 @@ impl State {
         defenders_current: Vec<DefenderDetails>,
     ) -> Option<&Self> {
         if (frame_no - self.frame_no) != 1 {
-            return Some(self); // invalid frame error
+            Some(self) // invalid frame error
         } else {
             self.frame_no += 1;
 
@@ -130,7 +130,7 @@ impl State {
                 return Some(self);
             }
 
-            let new_pos = attacker.attacker_pos.clone();
+            let new_pos = attacker.attacker_pos;
             let mut coord_temp: Coordinates = Coordinates {
                 x: attacker_delta[0].x,
                 y: attacker_delta[0].y,
@@ -145,7 +145,7 @@ impl State {
                     // invalid movement error
                     return Some(self);
                 }
-                coord_temp = coord.clone();
+                coord_temp = coord;
                 // if !util::is_road(&coord) {
                 //     // tile not road error
                 // }
@@ -188,7 +188,7 @@ impl State {
             }
 
             self.attacker_movement_update(&new_pos);
-            return None;
+            None
         }
     }
 
@@ -198,11 +198,11 @@ impl State {
         defenders: Vec<DefenderDetails>,
     ) -> Option<&Self> {
         if (frame_no - self.frame_no) != 1 {
-            return Some(self); // invalid frame error
+            Some(self) // invalid frame error
         } else {
             self.frame_no += 1;
 
-            if defenders.len() != 0 {
+            if !defenders.is_empty() {
                 for defender in defenders {
                     if defender.speed != self.defenders[0].speed {
                         // invalid speed error
@@ -218,7 +218,7 @@ impl State {
             //     // }
             // }
 
-            return None;
+            None
         }
     }
 
@@ -232,7 +232,7 @@ impl State {
             Some(self) // invalid frame error
         } else {
             self.frame_no += 1;
-            let mut damage_to_attacker = 0;
+            let damage_to_attacker;
             for (i, mine) in mines.iter_mut().enumerate() {
                 if attacker_pos.x == mine.pos.x && attacker_pos.y == mine.pos.y {
                     // triggered
@@ -246,7 +246,7 @@ impl State {
                 }
             }
 
-            return None;
+            None
         }
     }
 
@@ -259,7 +259,8 @@ impl State {
         }
         let total_hit_points = 20000;
 
-        for (i, building) in self.buildings.iter_mut().enumerate() {
+        // for (_i, building) in self.buildings.iter_mut().enumerate() {
+        for building in self.buildings.iter_mut() {
             if building.current_hp != 0 {
                 // let damage_buildings = self.calculate_damage_area(building, bomb);
                 let building_matrix: HashSet<Coordinates> = (building.tile.y
@@ -287,17 +288,17 @@ impl State {
                     let old_hp = building.current_hp;
                     let mut current_damage =
                         (damage_buildings * building.total_hp as f32 / 100.0) as i32;
-                    building.current_hp = building.current_hp
-                        - (damage_buildings * building.total_hp as f32 / 100.0) as i32;
+                    building.current_hp -=
+                        (damage_buildings * building.total_hp as f32 / 100.0) as i32;
                     if building.current_hp <= 0 {
                         building.current_hp = 0;
                         current_damage = old_hp;
                         self.artifacts += building.artifacts_obtained;
                         self.damage_percentage +=
-                            (current_damage as f32 / total_hit_points as f32) * 100.0 as f32;
+                            (current_damage as f32 / total_hit_points as f32) * 100.0_f32;
                     } else {
                         self.damage_percentage +=
-                            (current_damage as f32 / total_hit_points as f32) * 100.0 as f32;
+                            (current_damage as f32 / total_hit_points as f32) * 100.0_f32;
                     }
                 }
             } else {
@@ -309,7 +310,7 @@ impl State {
         //     // tile not road error
         // }
 
-        return None;
+        None
     }
 
     pub fn calculate_damage_area(&mut self, building: &mut BuildingDetails, bomb: Bomb) -> i32 {
@@ -361,7 +362,7 @@ impl State {
         let blast_damage_percent =
             (coinciding_coords_damage as f32 / building_matrix.len() as f32) * 100.0;
 
-        return blast_damage_percent as i32;
+        blast_damage_percent as i32
     }
 
     // bomb placement

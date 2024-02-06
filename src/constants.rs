@@ -12,3 +12,4 @@ pub const WIN_THRESHOLD: i32 = 50;
 pub const SCALE_FACTOR: f32 = 20.0;
 pub const HIGHEST_TROPHY: f32 = 2_000.0;
 pub const BONUS_SCALE: i32 = 2;
+pub const GAME_ID_EXPIRATION_TIME_IN_MINUTES: i32 = 10;

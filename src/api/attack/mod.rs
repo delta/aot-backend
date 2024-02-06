@@ -48,10 +48,12 @@ async fn init_attack(
         .get()
         .map_err(|err| error::handle_error(err.into()))?;
 
-    if let Ok(Some(_)) = util::get_from_redis(attacker_id, redis_conn) {
+    //Check if attacker is already in a game
+    if let Ok(Some(_)) = util::get_game_id_from_redis(attacker_id, redis_conn) {
         return Err(ErrorBadRequest("Only one attack is allowed at a time"));
     }
 
+    //Generate random opponent id
     let random_opponent_id = web::block(move || {
         Ok(util::get_random_opponent_id(attacker_id, &mut conn)?) as anyhow::Result<Option<i32>>
     })
@@ -84,6 +86,7 @@ async fn init_attack(
 
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
 
+    //Fetch base details and shortest paths data
     let opponent_base = web::block(move || {
         Ok(util::get_opponent_base_details(opponent_id, &mut conn)?)
             as anyhow::Result<DefenseResponse>
@@ -115,6 +118,7 @@ async fn init_attack(
     .await?
     .map_err(|err| error::handle_error(err.into()))?;
 
+    //Generate attack token to validate the /attack/start
     let attack_token = util::encode_attack_token(attacker_id, opponent_id).unwrap();
     let response: AttackResponse = AttackResponse {
         base: opponent_base,
@@ -131,14 +135,11 @@ async fn socket_handler(
     req: HttpRequest,
     stream: web::Payload,
 ) -> Result<HttpResponse, Error> {
-    //From the req.query_string() get the user_token and attack_token
-    //query_string() will be like this: user_token=123&attack_token=456
-
-    let user_token = req.query_string().split("&").collect::<Vec<&str>>()[0]
-        .split("=")
+    let user_token = req.query_string().split('&').collect::<Vec<&str>>()[0]
+        .split('=')
         .collect::<Vec<&str>>()[1];
-    let attack_token = req.query_string().split("&").collect::<Vec<&str>>()[1]
-        .split("=")
+    let attack_token = req.query_string().split('&').collect::<Vec<&str>>()[1]
+        .split('=')
         .collect::<Vec<&str>>()[1];
 
     let attacker_id = util::decode_user_token(user_token).unwrap();
@@ -149,6 +150,18 @@ async fn socket_handler(
     }
 
     let defender_id = attack_token_data.defender_id;
+
+    if attacker_id == defender_id {
+        return Err(ErrorBadRequest("Can't attack yourself"));
+    }
+
+    let redis_conn = redis_pool
+        .get()
+        .map_err(|err| error::handle_error(err.into()))?;
+
+    if let Ok(Some(_)) = util::get_game_id_from_redis(attacker_id, redis_conn) {
+        return Err(ErrorBadRequest("Only one attack is allowed at a time"));
+    }
 
     //Fetch map_id of the defender
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
@@ -190,18 +203,9 @@ async fn socket_handler(
     let redis_conn = redis_pool
         .get()
         .map_err(|err| error::handle_error(err.into()))?;
-    if let Err(_) = util::add_to_redis(attacker_id, game_id, redis_conn) {
+    if util::add_game_id_to_redis(attacker_id, defender_id, game_id, redis_conn).is_err() {
         return Err(ErrorBadRequest("Internal Server Error"));
     }
-
-    // let redis_conn = redis_pool
-    //     .get()
-    //     .map_err(|err| error::handle_error(err.into()))?;
-    // if let Ok(Some(game_id)) = util::get_from_redis(user_id, redis_conn) {
-    //     // Maybe can start the websocket here
-    // } else {
-    //     return Err(ErrorBadRequest("No game found for the user"));
-    // }
 
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let defenders = web::block(move || {

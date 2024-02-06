@@ -11,16 +11,22 @@ pub fn game_handler(_game_id: i32, socket_request: &SocketRequest) -> Result<Soc
     // iterate through input data and call appropriate instance functions
     // form response and send
 
-    if socket_request.action_type == ActionType::PlaceAttacker {
-        // place_attacker
-    } else if socket_request.action_type == ActionType::MoveAttacker {
-        // move_attacker
-    } else if socket_request.action_type == ActionType::PlaceBombs {
-        // place_bombs
-    } else if socket_request.action_type == ActionType::Idle {
-        // idle (waiting for user to choose next attacker)
-    } else if socket_request.action_type == ActionType::Terminate {
-        // terminate
+    match socket_request.action_type {
+        ActionType::PlaceAttacker => {
+            // place_attacker
+        }
+        ActionType::MoveAttacker => {
+            // move_attacker
+        }
+        ActionType::PlaceBombs => {
+            // place_bombs
+        }
+        ActionType::Idle => {
+            // idle (waiting for user to choose next attacker)
+        }
+        ActionType::Terminate => {
+            // terminate
+        }
     }
 
     let socket_response = SocketResponse {

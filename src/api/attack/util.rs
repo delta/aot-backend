@@ -19,7 +19,7 @@ use crate::simulation::blocks::{Coords, SourceDest};
 use crate::simulation::{RenderAttacker, RenderMine};
 use crate::simulation::{RenderDefender, Simulator};
 use crate::util::function;
-use crate::validator::util::{self, BuildingDetails, Coordinates, DefenderDetails, MineDetails};
+use crate::validator::util::{BuildingDetails, Coordinates, DefenderDetails, MineDetails};
 use anyhow::{Context, Result};
 use chrono::{Duration, Local, Utc};
 use diesel::dsl::exists;
@@ -28,7 +28,6 @@ use diesel::select;
 use diesel::PgConnection;
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use rand::seq::IteratorRandom;
-use redis::geo::Coord;
 use redis::Commands;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -760,16 +759,37 @@ pub fn get_opponent_base_details(
     Ok(response)
 }
 
-pub fn add_to_redis(user_id: i32, game_id: i32, mut redis_conn: RedisConn) -> Result<()> {
+pub fn add_game_id_to_redis(
+    attacker_id: i32,
+    defender_id: i32,
+    game_id: i32,
+    mut redis_conn: RedisConn,
+) -> Result<()> {
     redis_conn
-        .set(user_id, game_id)
+        .set_ex(
+            format!("Game:{}", attacker_id),
+            game_id,
+            (GAME_ID_EXPIRATION_TIME_IN_MINUTES * 60)
+                .try_into()
+                .unwrap(),
+        )
+        .map_err(|err| anyhow::anyhow!("Failed to set key: {}", err))?;
+
+    redis_conn
+        .set_ex(
+            format!("Game:{}", defender_id),
+            game_id,
+            (GAME_ID_EXPIRATION_TIME_IN_MINUTES * 60)
+                .try_into()
+                .unwrap(),
+        )
         .map_err(|err| anyhow::anyhow!("Failed to set key: {}", err))?;
     Ok(())
 }
 
-pub fn get_from_redis(user_id: i32, mut redis_conn: RedisConn) -> Result<Option<i32>> {
+pub fn get_game_id_from_redis(user_id: i32, mut redis_conn: RedisConn) -> Result<Option<i32>> {
     let game_id: Option<i32> = redis_conn
-        .get(user_id)
+        .get(format!("Game:{}", user_id))
         .map_err(|err| anyhow::anyhow!("Failed to get key: {}", err))?;
     Ok(game_id)
 }
@@ -807,7 +827,7 @@ pub fn encode_attack_token(attacker_id: i32, defender_id: i32) -> Result<String>
 pub fn decode_user_token(token: &str) -> Result<i32> {
     let jwt_secret = env::var("COOKIE_KEY").expect("COOKIE_KEY must be set!");
     let token_data = decode::<TokenClaims>(
-        &token,
+        token,
         &DecodingKey::from_secret(jwt_secret.as_str().as_ref()),
         &Validation::new(Algorithm::HS256),
     )
@@ -819,7 +839,7 @@ pub fn decode_user_token(token: &str) -> Result<i32> {
 pub fn decode_attack_token(token: &str) -> Result<AttackToken> {
     let jwt_secret = env::var("COOKIE_KEY").expect("COOKIE_KEY must be set!");
     let token_data = decode::<AttackToken>(
-        &token,
+        token,
         &DecodingKey::from_secret(jwt_secret.as_str().as_ref()),
         &Validation::new(Algorithm::HS256),
     )
@@ -873,7 +893,7 @@ pub fn get_defenders(conn: &mut PgConnection, map_id: i32) -> Result<Vec<Defende
 
     for (defender_id, (map_space, (_, _, defender_type))) in result.iter().enumerate() {
         let (hut_x, hut_y) = (map_space.x_coordinate, map_space.y_coordinate);
-        let path = vec![(hut_x, hut_y)];
+        // let path = vec![(hut_x, hut_y)];
         defenders.push(DefenderDetails {
             id: defender_id as i32 + 1,
             radius: defender_type.radius,
@@ -921,10 +941,40 @@ pub fn get_buildings(conn: &mut PgConnection, map_id: i32) -> Result<Vec<Buildin
             width: building_type.width,
         })
         .collect();
+    update_buidling_artifacts(conn, map_id, buildings)
+}
+
+pub fn update_buidling_artifacts(
+    conn: &mut PgConnection,
+    map_id: i32,
+    mut buildings: Vec<BuildingDetails>,
+) -> Result<Vec<BuildingDetails>> {
+    use crate::schema::{artifact, map_spaces};
+
+    let result: Vec<(MapSpaces, Artifact)> = map_spaces::table
+        .inner_join(artifact::table)
+        .filter(map_spaces::map_id.eq(map_id))
+        .load::<(MapSpaces, Artifact)>(conn)
+        .map_err(|err| DieselError {
+            table: "map_spaces",
+            function: function!(),
+            error: err,
+        })?;
+
+    // From the above table, create a hashmap, key being map_space_id and value being the artifact count
+    let mut artifact_count: HashMap<i32, i64> = HashMap::new();
+
+    for (map_space, artifact) in result.iter() {
+        artifact_count.insert(map_space.id, artifact.count.into());
+    }
+
+    // Update the buildings with the artifact count
+    for building in buildings.iter_mut() {
+        building.artifacts_obtained = *artifact_count.get(&building.id).unwrap_or(&0) as i32;
+    }
 
     Ok(buildings)
 }
-
 // pub fn get_super_buildings(conn: &mut PgConnection, map_id: i32) -> Result<Vec<BuildingDetails>> {
 //     use crate::schema::{block_type, building_type, map_spaces, artifact};
 
