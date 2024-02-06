@@ -11,3 +11,4 @@ pub const WIN_THRESHOLD: i32 = 50;
 pub const SCALE_FACTOR: f32 = 20.0;
 pub const HIGHEST_TROPHY: f32 = 2_000.0;
 pub const BONUS_SCALE: i32 = 2;
+pub const BLOCK_TYPE_ID_OF_BANK: i32 = 5;

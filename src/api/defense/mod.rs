@@ -3,6 +3,7 @@ use super::user::util::fetch_user;
 use super::PgPool;
 use crate::api::error;
 use crate::api::util::HistoryboardQuery;
+use crate::constants::*;
 use crate::models::*;
 use actix_web::error::{ErrorBadRequest, ErrorNotFound};
 use actix_web::web::{self, Data, Json};
@@ -58,7 +59,7 @@ async fn post_transfer_artifacts(
     user: AuthUser,
 ) -> Result<impl Responder> {
     let user_id = user.0;
-    let bank_block_type_id = 5; //To be altered as per the bank block type id
+    let bank_block_type_id = BLOCK_TYPE_ID_OF_BANK;
     let transfer = transfer.into_inner();
 
     // let is_defender = match util::check_user_under_attack(&redis_pool, &user_id) {       //Uncomment to check for user under attack//
@@ -74,100 +75,91 @@ async fn post_transfer_artifacts(
     let mut conn = pg_pool
         .get()
         .map_err(|err| error::handle_error(err.into()))?;
-    let existing_artifacts_in_building = web::block(move || {
-        util::fetch_existing_artifacts_in_building(
-            &mut conn,
-            &user_id,
-            &transfer.map_space_id,
-            &bank_block_type_id,
-        )
-    })
-    .await?
-    .map_err(|err| error::handle_error(err.into()))?;
+    let current_layout_id =
+        web::block(move || util::check_valid_map_id(&mut conn, &user_id, &transfer.map_space_id))
+            .await?
+            .map_err(|err| error::handle_error(err.into()))?;
 
     let mut conn = pg_pool
         .get()
         .map_err(|err| error::handle_error(err.into()))?;
-    let artifacts_in_bank = web::block(move || {
-        util::fetch_existing_artifacts_in_bank(
-            &mut conn,
-            &user_id,
-            &existing_artifacts_in_building.bank_map_space_id,
-        )
+    let bank_map_space_id = web::block(move || {
+        util::get_bank_map_space_id(&mut conn, &current_layout_id, &bank_block_type_id)
     })
     .await?
     .map_err(|err| error::handle_error(err.into()))?;
-
-    let mut conn = pg_pool
-        .get()
-        .map_err(|err| error::handle_error(err.into()))?;
-    let block_capacity = web::block(move || {
-        util::fetch_block_capacity(&mut conn, &existing_artifacts_in_building.block_type_id)
-    })
-    .await?
-    .map_err(|err| error::handle_error(err.into()))?;
-
-    let bank_map_space_id = existing_artifacts_in_building.bank_map_space_id;
-    let new_building_artifact_count =
-        existing_artifacts_in_building.artifact_count + transfer.artifacts_differ;
-    let new_bank_artifact_count = artifacts_in_bank.artifact_count - transfer.artifacts_differ;
 
     if bank_map_space_id == transfer.map_space_id {
         return Err(ErrorBadRequest("Cannot transfer to the same building"));
-    } else if transfer.artifacts_differ > artifacts_in_bank.artifact_count {
+    }
+
+    let mut conn = pg_pool
+        .get()
+        .map_err(|err| error::handle_error(err.into()))?;
+    let bank_artifact_count = web::block(move || {
+        util::get_building_artifact_count(&mut conn, &current_layout_id, &bank_map_space_id)
+    })
+    .await?
+    .map_err(|err| error::handle_error(err.into()))?;
+
+    if transfer.artifacts_differ > bank_artifact_count {
         return Err(ErrorBadRequest("Not enough artifacts in the bank"));
-    } else if existing_artifacts_in_building.block_type_id != 0 {
-        if block_capacity
-            < transfer.artifacts_differ + existing_artifacts_in_building.artifact_count
-        {
-            return Err(ErrorBadRequest("Building capacity not sufficient"));
-        } else if transfer.artifacts_differ + existing_artifacts_in_building.artifact_count < 0 {
-            return Err(ErrorBadRequest("Not enough artifacts in the building"));
-        } else {
-            //Transfer Artifacts
-            let new_building_artifact_count =
-                existing_artifacts_in_building.artifact_count + transfer.artifacts_differ;
-            let new_bank_artifact_count =
-                artifacts_in_bank.artifact_count - transfer.artifacts_differ;
-            web::block(move || {
-                let mut conn = pg_pool.get()?;
-                util::transfer_artifacts_building(
-                    &mut conn,
-                    &transfer.map_space_id,
-                    &bank_map_space_id,
-                    &new_building_artifact_count,
-                    &new_bank_artifact_count,
-                )
-            })
+    }
+
+    let mut conn = pg_pool
+        .get()
+        .map_err(|err| error::handle_error(err.into()))?;
+    let mut building_artifact_count = web::block(move || {
+        util::get_building_artifact_count(&mut conn, &current_layout_id, &transfer.map_space_id)
+    })
+    .await?
+    .map_err(|err| error::handle_error(err.into()))?;
+
+    if building_artifact_count == -1 {
+        let mut conn = pg_pool
+            .get()
+            .map_err(|err| error::handle_error(err.into()))?;
+        web::block(move || util::create_artifact_record(&mut conn, &transfer.map_space_id, &0))
             .await?
             .map_err(|err| error::handle_error(err.into()))?;
-        }
-    } else {
-        if transfer.artifacts_differ < 0 {
-            return Err(ErrorBadRequest("No artifacts in the building"));
-        }
-        //Create artifact record and transfer them to it
-        let pg_pool_clone = pg_pool.clone();
-        web::block(move || {
-            let mut conn = pg_pool_clone.get()?;
-            util::create_artifact_record(&mut conn, &transfer.map_space_id, &0)
-        })
-        .await?
-        .map_err(|err| error::handle_error(err.into()))?;
-
-        web::block(move || {
-            let mut conn = pg_pool.get()?;
-            util::transfer_artifacts_building(
-                &mut conn,
-                &transfer.map_space_id,
-                &bank_map_space_id,
-                &new_building_artifact_count,
-                &new_bank_artifact_count,
-            )
-        })
-        .await?
-        .map_err(|err| error::handle_error(err.into()))?;
+        building_artifact_count = 0;
     }
+
+    if transfer.artifacts_differ + building_artifact_count < 0 {
+        return Err(ErrorBadRequest("Not enough artifacts in the building"));
+    }
+
+    let mut conn = pg_pool
+        .get()
+        .map_err(|err| error::handle_error(err.into()))?;
+    let building_capacity =
+        web::block(move || util::get_building_capacity(&mut conn, &transfer.map_space_id))
+            .await?
+            .map_err(|err| error::handle_error(err.into()))?;
+
+    if building_capacity < transfer.artifacts_differ + building_artifact_count {
+        return Err(ErrorBadRequest("Building capacity not sufficient"));
+    }
+
+    let new_building_artifact_count = building_artifact_count + transfer.artifacts_differ;
+    let new_bank_artifact_count = bank_artifact_count - transfer.artifacts_differ;
+
+    //Transfer Artifacts
+    let mut conn = pg_pool
+        .get()
+        .map_err(|err| error::handle_error(err.into()))?;
+    web::block(move || {
+        util::transfer_artifacts_building(
+            &mut conn,
+            &transfer.map_space_id,
+            &bank_map_space_id,
+            &new_building_artifact_count,
+            &new_bank_artifact_count,
+        )
+    })
+    .await?
+    .map_err(|err| error::handle_error(err.into()))?;
+
     Ok(web::Json(TransferArtifactResponse {
         building_map_space_id: transfer.map_space_id,
         artifacts_in_building: new_building_artifact_count,
