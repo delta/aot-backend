@@ -56,9 +56,9 @@ async fn post_transfer_artifacts(
     transfer: Json<TransferArtifactEntry>,
     pg_pool: Data<PgPool>,
     // redis_pool: Data<RedisPool>,   //Uncomment to check for user under attack//
-    user: AuthUser,
+    //user: AuthUser,
 ) -> Result<impl Responder> {
-    let user_id = user.0;
+    let user_id = 33;
     let bank_block_type_id = BLOCK_TYPE_ID_OF_BANK;
     let transfer = transfer.into_inner();
 
@@ -79,6 +79,20 @@ async fn post_transfer_artifacts(
         web::block(move || util::check_valid_map_id(&mut conn, &user_id, &transfer.map_space_id))
             .await?
             .map_err(|err| error::handle_error(err.into()))?;
+
+    let mut conn = pg_pool
+        .get()
+        .map_err(|err| error::handle_error(err.into()))?;
+    let is_valid_map_space_building =
+        web::block(move || util::check_valid_map_space_building(&mut conn, &transfer.map_space_id))
+            .await?
+            .map_err(|err| error::handle_error(err.into()))?;
+
+    if !is_valid_map_space_building {
+        return Err(ErrorBadRequest(
+            "Map Space ID does not correspond to a valid building",
+        ));
+    }
 
     let mut conn = pg_pool
         .get()

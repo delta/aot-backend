@@ -205,6 +205,45 @@ pub fn get_bank_map_space_id(
     Ok(fetched_bank_map_space_id)
 }
 
+pub fn check_valid_map_space_building(
+    conn: &mut PgConnection,
+    given_map_space_id: &i32,
+) -> Result<bool> {
+    use crate::schema::{block_type, building_type, map_spaces};
+
+    let category_type = map_spaces::table
+        .filter(map_spaces::id.eq(given_map_space_id))
+        .inner_join(block_type::table.on(map_spaces::block_type_id.eq(block_type::id)))
+        .select(block_type::category)
+        .first::<BlockCategory>(conn)
+        .map_err(|err| DieselError {
+            table: "map_spaces",
+            function: function!(),
+            error: err,
+        })?;
+
+    if category_type != BlockCategory::Building {
+        return Ok(false);
+    }
+
+    let builiding_type_id = map_spaces::table
+        .filter(map_spaces::id.eq(given_map_space_id))
+        .inner_join(block_type::table.on(map_spaces::block_type_id.eq(block_type::id)))
+        .inner_join(building_type::table.on(block_type::building_type.eq(building_type::id)))
+        .select(building_type::id)
+        .first::<i32>(conn)
+        .map_err(|err| DieselError {
+            table: "map_spaces",
+            function: function!(),
+            error: err,
+        })?;
+
+    if builiding_type_id == ROAD_ID {
+        return Ok(false);
+    }
+    Ok(true)
+}
+
 pub fn get_building_artifact_count(
     conn: &mut PgConnection,
     filtered_layout_id: &i32,
