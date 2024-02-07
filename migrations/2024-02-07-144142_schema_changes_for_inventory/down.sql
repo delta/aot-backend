@@ -16,7 +16,8 @@ ADD cost INTEGER NOT NULL;
 --remove cost name and level to emp
 ALTER TABLE public.emp_type
 DROP cost,
-DROP "name";
+DROP "name",
+DROP "level";
 
 --remove attacker and emp to available_blocks
 ALTER TABLE public.available_blocks

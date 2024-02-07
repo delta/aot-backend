@@ -94,6 +94,7 @@ diesel::table! {
         attack_damage -> Int4,
         cost -> Int4,
         name -> Varchar,
+        level -> Int4,
     }
 }
 

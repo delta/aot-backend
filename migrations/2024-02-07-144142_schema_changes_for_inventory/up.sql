@@ -17,7 +17,8 @@ DROP cost;
 --add cost name and level to emp
 ALTER TABLE public.emp_type
 ADD cost INTEGER NOT NULL,
-ADD "name" VARCHAR(255) NOT NULL;
+ADD "name" VARCHAR(255) NOT NULL,
+ADD "level" INTEGER NOT NULL;
 
 --add attacker and emp to available_blocks
 CREATE TYPE item_category AS ENUM ('attacker', 'emp', 'block');

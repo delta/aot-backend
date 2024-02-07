@@ -313,3 +313,14 @@ pub struct AttackerType {
     pub level: i32,
     pub cost: i32,
 }
+
+#[derive(Queryable, Clone, Debug, Serialize)]
+pub struct EmpType {
+    pub id: i32,
+    pub att_type: String,
+    pub attack_radius: i32,
+    pub attack_damage: i32,
+    pub cost: i32,
+    pub name: String,
+    pub level: i32,
+}
