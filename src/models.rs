@@ -55,6 +55,7 @@ pub struct BuildingType {
     pub capacity: i32,
     pub level: i32,
     pub cost: i32,
+    pub hp: i32,
 }
 
 #[derive(Insertable)]
@@ -305,4 +306,5 @@ pub struct AttackerType {
     pub amt_of_emps: i32,
     pub level: i32,
     pub cost: i32,
+    pub name: String,
 }

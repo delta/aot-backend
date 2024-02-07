@@ -654,6 +654,7 @@ pub fn get_attacker_types(conn: &mut PgConnection) -> Result<HashMap<i32, Attack
                 attacker.id,
                 AttackerType {
                     id: attacker.id,
+                    name: attacker.name.clone(),
                     max_health: attacker.max_health,
                     speed: attacker.speed,
                     amt_of_emps: attacker.amt_of_emps,
