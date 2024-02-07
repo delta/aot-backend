@@ -45,6 +45,7 @@ diesel::table! {
         block_type_id -> Nullable<Int4>,
         user_id -> Int4,
         attacker_type_id -> Nullable<Int4>,
+        emp_type_id -> Nullable<Int4>,
         category -> ItemCategory,
         id -> Int4,
     }
@@ -91,6 +92,8 @@ diesel::table! {
         att_type -> Varchar,
         attack_radius -> Int4,
         attack_damage -> Int4,
+        cost -> Int4,
+        name -> Varchar,
     }
 }
 
@@ -191,6 +194,7 @@ diesel::table! {
 diesel::joinable!(artifact -> map_spaces (map_space_id));
 diesel::joinable!(available_blocks -> attacker_type (attacker_type_id));
 diesel::joinable!(available_blocks -> block_type (block_type_id));
+diesel::joinable!(available_blocks -> emp_type (emp_type_id));
 diesel::joinable!(available_blocks -> user (user_id));
 diesel::joinable!(block_type -> building_type (building_type));
 diesel::joinable!(block_type -> defender_type (defender_type));

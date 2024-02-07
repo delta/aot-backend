@@ -13,6 +13,7 @@ pub enum BlockCategory {
 #[DieselTypePath = "crate::schema::sql_types::ItemCategory"]
 pub enum ItemCategory {
     Attacker,
+    Emp,
     Block,
 }
 
