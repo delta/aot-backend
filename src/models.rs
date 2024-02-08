@@ -1,14 +1,21 @@
 use super::schema::*;
 use chrono::NaiveDateTime;
-use diesel_derive_enum::DbEnum;
 use serde::{Deserialize, Serialize};
 
-#[derive(DbEnum, Debug, Serialize, Clone, PartialEq, Copy)]
+#[derive(diesel_derive_enum::DbEnum, Debug, Serialize, Clone, PartialEq, Copy)]
 #[DieselTypePath = "crate::schema::sql_types::BlockCategory"]
 pub enum BlockCategory {
     Building,
     Defender,
     Mine,
+}
+
+#[derive(diesel_derive_enum::DbEnum, Debug, Serialize, Clone, PartialEq, Copy)]
+#[DieselTypePath = "crate::schema::sql_types::ItemCategory"]
+pub enum ItemCategory {
+    Attacker,
+    Emp,
+    Block,
 }
 
 #[derive(Queryable, Serialize)]
@@ -309,4 +316,15 @@ pub struct AttackerType {
     pub level: i32,
     pub cost: i32,
     pub name: String,
+}
+
+#[derive(Queryable, Clone, Debug, Serialize)]
+pub struct EmpType {
+    pub id: i32,
+    pub att_type: String,
+    pub attack_radius: i32,
+    pub attack_damage: i32,
+    pub cost: i32,
+    pub name: String,
+    pub level: i32,
 }
