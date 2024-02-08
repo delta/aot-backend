@@ -268,6 +268,7 @@ pub struct MineType {
     pub damage: i32,
     pub level: i32,
     pub cost: i32,
+    pub name: String,
 }
 
 #[derive(Queryable, Clone, Debug, Serialize)]
@@ -278,6 +279,7 @@ pub struct DefenderType {
     pub radius: i32,
     pub level: i32,
     pub cost: i32,
+    pub name: String,
 }
 
 #[derive(Queryable, Clone, Debug, Serialize)]

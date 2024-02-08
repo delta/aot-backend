@@ -14,6 +14,12 @@ DROP "level";
 ALTER TABLE public.attacker_type
 DROP "name";
 
+--remove name from defender and mine
+ALTER TABLE public.defender_type
+DROP "name";
+ALTER TABLE public.mine_type
+DROP "name";
+
 --remove attacker and emp from available_blocks
 ALTER TABLE public.available_blocks
 

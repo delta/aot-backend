@@ -14,6 +14,12 @@ ADD "level" INTEGER NOT NULL;
 ALTER TABLE public.attacker_type
 ADD "name" VARCHAR(255) NOT NULL;
 
+--add name to defender and mine
+ALTER TABLE public.defender_type
+ADD "name" VARCHAR(255) NOT NULL;
+ALTER TABLE public.mine_type
+ADD "name" VARCHAR(255) NOT NULL;
+
 --add attacker and emp to available_blocks
 CREATE TYPE item_category AS ENUM ('attacker', 'emp', 'block');
 
