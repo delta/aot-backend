@@ -86,6 +86,7 @@ diesel::table! {
         radius -> Int4,
         level -> Int4,
         cost -> Int4,
+        name -> Varchar,
     }
 }
 
@@ -161,6 +162,7 @@ diesel::table! {
         damage -> Int4,
         level -> Int4,
         cost -> Int4,
+        name -> Varchar,
     }
 }
 
