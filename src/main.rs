@@ -1,4 +1,4 @@
-use crate::api::{attack, auth, defense, game, user};
+use crate::api::{attack, auth, defense, game, inventory, user};
 use actix_cors::Cors;
 use actix_session::{
     config::PersistentSession, storage::RedisActorSessionStore, SessionMiddleware,
@@ -84,6 +84,7 @@ async fn main() -> std::io::Result<()> {
             )
             .service(web::scope("/base").configure(defense::routes))
             .service(web::scope("/game").configure(game::routes))
+            .service(web::scope("/inventory").configure(inventory::routes))
     })
     .bind("0.0.0.0:8000")?
     .run()
