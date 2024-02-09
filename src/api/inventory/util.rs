@@ -1,28 +1,18 @@
 use crate::error::DieselError;
-use crate::models::AttackerType;
-use crate::models::BlockCategory;
-use crate::models::BuildingType;
-use crate::models::DefenderType;
-use crate::models::EmpType;
-use crate::models::ItemCategory;
-use crate::models::MineType;
-use crate::schema::map_layout;
-use crate::schema::map_spaces;
-use crate::schema::user;
+use crate::models::{
+    AttackerType, BlockCategory, BuildingType, DefenderType, EmpType, ItemCategory, MineType,
+};
 use crate::schema::{
     attacker_type, available_blocks, block_type, building_type, defender_type, emp_type, mine_type,
 };
+use crate::schema::{map_layout, map_spaces, user};
 use crate::util::function;
-use anyhow::Ok;
-use anyhow::Result;
-use diesel::dsl::exists;
-use diesel::prelude::*;
-use diesel::select;
-use diesel::PgConnection;
+use anyhow::{Ok, Result};
+use diesel::{dsl::exists, prelude::*, select, PgConnection};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
-struct BuildingTypeResponse {
+pub struct BuildingTypeResponse {
     id: i32,
     block_id: i32,
     name: String,
@@ -36,7 +26,7 @@ struct BuildingTypeResponse {
 }
 #[derive(Serialize, Deserialize)]
 
-struct NextLevelBuildingTypeResponse {
+pub struct NextLevelBuildingTypeResponse {
     id: i32,
     block_id: i32,
     name: String,
@@ -49,7 +39,7 @@ struct NextLevelBuildingTypeResponse {
 }
 #[derive(Serialize, Deserialize)]
 
-struct AttackerTypeResponse {
+pub struct AttackerTypeResponse {
     id: i32,
     max_health: i32,
     speed: i32,
@@ -61,7 +51,7 @@ struct AttackerTypeResponse {
 }
 #[derive(Serialize, Deserialize)]
 
-struct NextLevelAttackerTypeResponse {
+pub struct NextLevelAttackerTypeResponse {
     id: i32,
     max_health: i32,
     speed: i32,
@@ -72,7 +62,7 @@ struct NextLevelAttackerTypeResponse {
 }
 #[derive(Serialize, Deserialize)]
 
-struct DefenderTypeResponse {
+pub struct DefenderTypeResponse {
     id: i32,
     block_id: i32,
     speed: i32,
@@ -85,7 +75,7 @@ struct DefenderTypeResponse {
 }
 #[derive(Serialize, Deserialize)]
 
-struct NextLevelDefenderTypeResponse {
+pub struct NextLevelDefenderTypeResponse {
     id: i32,
     block_id: i32,
     speed: i32,
@@ -97,7 +87,7 @@ struct NextLevelDefenderTypeResponse {
 }
 #[derive(Serialize, Deserialize)]
 
-struct EmpTypeResponse {
+pub struct EmpTypeResponse {
     id: i32,
     att_type: String,
     attack_radius: i32,
@@ -109,7 +99,7 @@ struct EmpTypeResponse {
 }
 #[derive(Serialize, Deserialize)]
 
-struct NextLevelEmpTypeResponse {
+pub struct NextLevelEmpTypeResponse {
     id: i32,
     att_type: String,
     attack_radius: i32,
@@ -120,7 +110,7 @@ struct NextLevelEmpTypeResponse {
 }
 #[derive(Serialize, Deserialize)]
 
-struct MineTypeResponse {
+pub struct MineTypeResponse {
     id: i32,
     block_id: i32,
     radius: i32,
@@ -132,7 +122,7 @@ struct MineTypeResponse {
 }
 #[derive(Serialize, Deserialize)]
 
-struct NextLevelMineTypeResponse {
+pub struct NextLevelMineTypeResponse {
     id: i32,
     block_id: i32,
     radius: i32,
@@ -143,7 +133,7 @@ struct NextLevelMineTypeResponse {
 }
 #[derive(Serialize, Deserialize)]
 
-struct InventoryResponse {
+pub struct InventoryResponse {
     buildings: Vec<BuildingTypeResponse>,
     attackers: Vec<AttackerTypeResponse>,
     defenders: Vec<DefenderTypeResponse>,
@@ -151,7 +141,7 @@ struct InventoryResponse {
     emps: Vec<EmpTypeResponse>,
 }
 
-pub(crate) fn get_inventory(player_id: i32, conn: &mut PgConnection) -> Result<InventoryResponse> {
+pub fn get_inventory(player_id: i32, conn: &mut PgConnection) -> Result<InventoryResponse> {
     let buildings = get_building_types(player_id, conn)?;
     let attackers = get_attacker_types(player_id, conn)?;
     let defenders = get_defender_types(player_id, conn)?;
@@ -553,7 +543,11 @@ fn get_emp_types(player_id: i32, conn: &mut PgConnection) -> Result<Vec<EmpTypeR
     Ok(emps)
 }
 
-fn upgrade_building(player_id: i32, conn: &mut PgConnection, block_id: i32) -> Result<()> {
+pub(crate) fn upgrade_building(
+    player_id: i32,
+    conn: &mut PgConnection,
+    block_id: i32,
+) -> Result<()> {
     let user_artifacts = get_user_artifacts(player_id, conn)?;
 
     //check if the given block id is a building
@@ -568,7 +562,7 @@ fn upgrade_building(player_id: i32, conn: &mut PgConnection, block_id: i32) -> R
     ))
     .get_result::<bool>(conn)?;
 
-    if exists == false {
+    if !exists {
         return Err(anyhow::anyhow!(
             "either Block is not a building or the user does not have the block"
         ));
@@ -581,6 +575,7 @@ fn upgrade_building(player_id: i32, conn: &mut PgConnection, block_id: i32) -> R
         .filter(block_type::category.eq(BlockCategory::Building));
 
     let (cost, level, name): (i32, i32, String) = joined_table
+        .clone()
         .filter(available_blocks::block_type_id.eq(block_id))
         .select((
             building_type::cost,
@@ -622,17 +617,341 @@ fn upgrade_building(player_id: i32, conn: &mut PgConnection, block_id: i32) -> R
             error: err,
         })?;
 
-    let id_of_map = map_layout::table
-        .filter(map_layout::player.eq(player_id))
-        .select(map_layout::id)
-        .first::<i32>(conn)
+    let id_of_map = get_user_map_id(player_id, conn)?;
+
+    //updat the building level by replacing the blockid of the next level building in place of the block id of the current level building in the available blocks table
+    run_transaction(
+        conn,
+        block_id,
+        next_level_block_id,
+        player_id,
+        cost,
+        user_artifacts,
+        id_of_map,
+    )
+}
+
+pub(crate) fn upgrade_defender(
+    player_id: i32,
+    conn: &mut PgConnection,
+    block_id: i32,
+) -> Result<()> {
+    let user_artifacts = get_user_artifacts(player_id, conn)?;
+
+    //check if the given block id is a defender
+    //check if the given user has the block id
+    let exists = select(exists(
+        available_blocks::table
+            .inner_join(block_type::table)
+            .filter(available_blocks::user_id.eq(player_id))
+            .filter(available_blocks::block_type_id.eq(block_id))
+            .filter(available_blocks::category.eq(ItemCategory::Block))
+            .filter(block_type::category.eq(BlockCategory::Defender)),
+    ))
+    .get_result::<bool>(conn)?;
+
+    if !exists {
+        return Err(anyhow::anyhow!(
+            "either Block is not a defender or the user does not have the block"
+        ));
+    }
+
+    let joined_table = available_blocks::table
+        .inner_join(block_type::table.inner_join(defender_type::table))
+        .filter(available_blocks::user_id.eq(player_id))
+        .filter(available_blocks::category.eq(ItemCategory::Block))
+        .filter(block_type::category.eq(BlockCategory::Defender));
+
+    let (cost, level, name): (i32, i32, String) = joined_table
+        .clone()
+        .filter(available_blocks::block_type_id.eq(block_id))
+        .select((
+            defender_type::cost,
+            defender_type::level,
+            defender_type::name,
+        ))
+        .first::<(i32, i32, String)>(conn)
         .map_err(|err| DieselError {
-            table: "map_layout",
+            table: "defender_type",
             function: function!(),
             error: err,
         })?;
 
-    //updat the building level by replacing the blockid of the next level building in place of the block id of the current level building in the available blocks table
+    let max_level: i64 = defender_type::table
+        .filter(defender_type::name.eq(&name))
+        .count()
+        .get_result::<i64>(conn)
+        .map_err(|err| DieselError {
+            table: "defender_type",
+            function: function!(),
+            error: err,
+        })?;
+
+    if level >= max_level as i32 {
+        return Err(anyhow::anyhow!("Defender is at max level"));
+    };
+    if cost > user_artifacts {
+        return Err(anyhow::anyhow!("Not enough artifacts"));
+    };
+
+    let next_level_block_id: i32 = joined_table
+        .filter(defender_type::name.eq(name))
+        .filter(defender_type::level.eq(level + 1))
+        .select(block_type::id)
+        .first::<i32>(conn)
+        .map_err(|err| DieselError {
+            table: "available_blocks",
+            function: function!(),
+            error: err,
+        })?;
+
+    let id_of_map = get_user_map_id(player_id, conn)?;
+
+    run_transaction(
+        conn,
+        block_id,
+        next_level_block_id,
+        player_id,
+        cost,
+        user_artifacts,
+        id_of_map,
+    )
+}
+
+pub(crate) fn upgrade_mine(player_id: i32, conn: &mut PgConnection, block_id: i32) -> Result<()> {
+    let user_artifacts = get_user_artifacts(player_id, conn)?;
+
+    //check if the given block id is a mine
+    //check if the given user has the block id
+    let exists = select(exists(
+        available_blocks::table
+            .inner_join(block_type::table)
+            .filter(available_blocks::user_id.eq(player_id))
+            .filter(available_blocks::block_type_id.eq(block_id))
+            .filter(available_blocks::category.eq(ItemCategory::Block))
+            .filter(block_type::category.eq(BlockCategory::Mine)),
+    ))
+    .get_result::<bool>(conn)?;
+
+    if !exists {
+        return Err(anyhow::anyhow!(
+            "either Block is not a mine or the user does not have the block"
+        ));
+    }
+
+    let joined_table = available_blocks::table
+        .inner_join(block_type::table.inner_join(mine_type::table))
+        .filter(available_blocks::user_id.eq(player_id))
+        .filter(available_blocks::category.eq(ItemCategory::Block))
+        .filter(block_type::category.eq(BlockCategory::Mine));
+
+    let (cost, level, name): (i32, i32, String) = joined_table
+        .clone()
+        .filter(available_blocks::block_type_id.eq(block_id))
+        .select((mine_type::cost, mine_type::level, mine_type::name))
+        .first::<(i32, i32, String)>(conn)
+        .map_err(|err| DieselError {
+            table: "mine_type",
+            function: function!(),
+            error: err,
+        })?;
+
+    let max_level: i64 = mine_type::table
+        .filter(mine_type::name.eq(&name))
+        .count()
+        .get_result::<i64>(conn)
+        .map_err(|err| DieselError {
+            table: "mine_type",
+            function: function!(),
+            error: err,
+        })?;
+
+    if level >= max_level as i32 {
+        return Err(anyhow::anyhow!("Defender is at max level"));
+    };
+    if cost > user_artifacts {
+        return Err(anyhow::anyhow!("Not enough artifacts"));
+    };
+
+    let next_level_block_id: i32 = joined_table
+        .filter(mine_type::name.eq(name))
+        .filter(mine_type::level.eq(level + 1))
+        .select(block_type::id)
+        .first::<i32>(conn)
+        .map_err(|err| DieselError {
+            table: "available_blocks",
+            function: function!(),
+            error: err,
+        })?;
+
+    let id_of_map = get_user_map_id(player_id, conn)?;
+
+    run_transaction(
+        conn,
+        block_id,
+        next_level_block_id,
+        player_id,
+        cost,
+        user_artifacts,
+        id_of_map,
+    )
+}
+
+pub(crate) fn upgrade_attacker(
+    player_id: i32,
+    conn: &mut PgConnection,
+    attacker_id: i32,
+) -> Result<()> {
+    let user_artifacts = get_user_artifacts(player_id, conn)?;
+
+    let joined_table = available_blocks::table
+        .inner_join(attacker_type::table)
+        .filter(available_blocks::user_id.eq(player_id))
+        .filter(available_blocks::category.eq(ItemCategory::Attacker));
+
+    let exists = select(exists(
+        joined_table
+            .clone()
+            .filter(attacker_type::id.eq(attacker_id)),
+    ))
+    .get_result::<bool>(conn)?;
+
+    if !exists {
+        return Err(anyhow::anyhow!("User does not have the attacker"));
+    }
+
+    let (cost, level, name): (i32, i32, String) = joined_table
+        .filter(attacker_type::id.eq(attacker_id))
+        .select((
+            attacker_type::cost,
+            attacker_type::level,
+            attacker_type::name,
+        ))
+        .first::<(i32, i32, String)>(conn)
+        .map_err(|err| DieselError {
+            table: "attacker_type",
+            function: function!(),
+            error: err,
+        })?;
+
+    let max_level: i64 = attacker_type::table
+        .filter(attacker_type::name.eq(&name))
+        .count()
+        .get_result::<i64>(conn)
+        .map_err(|err| DieselError {
+            table: "attacker_type",
+            function: function!(),
+            error: err,
+        })?;
+
+    if level >= max_level as i32 {
+        return Err(anyhow::anyhow!("Attacker is at max level"));
+    };
+    if cost > user_artifacts {
+        return Err(anyhow::anyhow!("Not enough artifacts"));
+    };
+
+    let next_level_attacker_id: i32 = attacker_type::table
+        .filter(attacker_type::name.eq(name))
+        .filter(attacker_type::level.eq(level + 1))
+        .select(attacker_type::id)
+        .first::<i32>(conn)
+        .map_err(|err| DieselError {
+            table: "attacker_type",
+            function: function!(),
+            error: err,
+        })?;
+
+    conn.transaction(|conn| {
+        diesel::update(
+            available_blocks::table.filter(available_blocks::attacker_type_id.eq(attacker_id)),
+        )
+        .set(available_blocks::attacker_type_id.eq(next_level_attacker_id))
+        .execute(conn)?;
+
+        diesel::update(user::table.filter(user::id.eq(player_id)))
+            .set(user::artifacts.eq(user_artifacts - cost))
+            .execute(conn)?;
+
+        Ok(())
+    })
+}
+
+pub(crate) fn upgrade_emp(player_id: i32, conn: &mut PgConnection, emp_id: i32) -> Result<()> {
+    let user_artifacts = get_user_artifacts(player_id, conn)?;
+
+    let joined_table = available_blocks::table
+        .inner_join(emp_type::table)
+        .filter(available_blocks::user_id.eq(player_id))
+        .filter(available_blocks::category.eq(ItemCategory::Emp));
+
+    let exists = select(exists(joined_table.clone().filter(emp_type::id.eq(emp_id))))
+        .get_result::<bool>(conn)?;
+
+    if !exists {
+        return Err(anyhow::anyhow!("User does not have the emp"));
+    }
+
+    let (cost, level, name): (i32, i32, String) = joined_table
+        .filter(emp_type::id.eq(emp_id))
+        .select((emp_type::cost, emp_type::level, emp_type::name))
+        .first::<(i32, i32, String)>(conn)
+        .map_err(|err| DieselError {
+            table: "emp_type",
+            function: function!(),
+            error: err,
+        })?;
+
+    let max_level: i64 = emp_type::table
+        .filter(emp_type::name.eq(&name))
+        .count()
+        .get_result::<i64>(conn)
+        .map_err(|err| DieselError {
+            table: "emp_type",
+            function: function!(),
+            error: err,
+        })?;
+
+    if level >= max_level as i32 {
+        return Err(anyhow::anyhow!("Emp is at max level"));
+    };
+    if cost > user_artifacts {
+        return Err(anyhow::anyhow!("Not enough artifacts"));
+    };
+
+    let next_level_emp_id: i32 = emp_type::table
+        .filter(emp_type::name.eq(name))
+        .filter(emp_type::level.eq(level + 1))
+        .select(emp_type::id)
+        .first::<i32>(conn)
+        .map_err(|err| DieselError {
+            table: "emp_type",
+            function: function!(),
+            error: err,
+        })?;
+
+    conn.transaction(|conn| {
+        diesel::update(available_blocks::table.filter(available_blocks::emp_type_id.eq(emp_id)))
+            .set(available_blocks::emp_type_id.eq(next_level_emp_id))
+            .execute(conn)?;
+
+        diesel::update(user::table.filter(user::id.eq(player_id)))
+            .set(user::artifacts.eq(user_artifacts - cost))
+            .execute(conn)?;
+
+        Ok(())
+    })
+}
+
+fn run_transaction(
+    conn: &mut PgConnection,
+    block_id: i32,
+    next_level_block_id: i32,
+    player_id: i32,
+    cost: i32,
+    user_artifacts: i32,
+    id_of_map: i32,
+) -> Result<(), anyhow::Error> {
     conn.transaction(|conn| {
         diesel::update(
             available_blocks::table.filter(available_blocks::block_type_id.eq(block_id)),
@@ -653,9 +972,22 @@ fn upgrade_building(player_id: i32, conn: &mut PgConnection, block_id: i32) -> R
         .set(map_spaces::block_type_id.eq(next_level_block_id))
         .execute(conn)?;
 
-        diesel::result::QueryResult::Ok(())
-    });
-    Ok(())
+        Ok(())
+    })
+}
+
+fn get_user_map_id(player_id: i32, conn: &mut PgConnection) -> Result<i32> {
+    let id_of_map = map_layout::table
+        .filter(map_layout::player.eq(player_id))
+        .select(map_layout::id)
+        .first::<i32>(conn)
+        .map_err(|err| DieselError {
+            table: "map_layout",
+            function: function!(),
+            error: err,
+        })?;
+
+    Ok(id_of_map)
 }
 
 fn get_user_artifacts(player_id: i32, conn: &mut PgConnection) -> Result<i32> {
@@ -668,6 +1000,5 @@ fn get_user_artifacts(player_id: i32, conn: &mut PgConnection) -> Result<i32> {
             function: function!(),
             error: err,
         })?;
-
     Ok(artifacts)
 }
