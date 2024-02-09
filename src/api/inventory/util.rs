@@ -177,7 +177,17 @@ fn get_building_types(
         })?
         .into_iter()
         .map(|(building_type, block_id)| {
-            if building_type.level >= 3 {
+            let max_level: i64 = building_type::table
+                .filter(building_type::name.eq(&building_type.name))
+                .count()
+                .get_result::<i64>(conn)
+                .map_err(|err| DieselError {
+                    table: "building_type",
+                    function: function!(),
+                    error: err,
+                })
+                .unwrap_or(0);
+            if building_type.level >= max_level as i32 {
                 // The building is at max level
                 BuildingTypeResponse {
                     id: building_type.id,
@@ -260,7 +270,17 @@ fn get_attacker_types(
         })?
         .into_iter()
         .map(|attacker_type| {
-            if attacker_type.level >= 3 {
+            let max_level: i64 = attacker_type::table
+                .filter(attacker_type::name.eq(&attacker_type.name))
+                .count()
+                .get_result::<i64>(conn)
+                .map_err(|err| DieselError {
+                    table: "attacker_type",
+                    function: function!(),
+                    error: err,
+                })
+                .unwrap_or(0);
+            if attacker_type.level >= max_level as i32 {
                 // The attacker is at max level
                 AttackerTypeResponse {
                     id: attacker_type.id,
@@ -337,7 +357,17 @@ fn get_defender_types(
         })?
         .into_iter()
         .map(|(defender_type, block_id)| {
-            if defender_type.level >= 3 {
+            let max_level: i64 = defender_type::table
+                .filter(defender_type::name.eq(&defender_type.name))
+                .count()
+                .get_result::<i64>(conn)
+                .map_err(|err| DieselError {
+                    table: "defender_type",
+                    function: function!(),
+                    error: err,
+                })
+                .unwrap_or(0);
+            if defender_type.level >= max_level as i32 {
                 //the defender is at max level
                 DefenderTypeResponse {
                     id: defender_type.id,
@@ -414,7 +444,18 @@ fn get_mine_types(player_id: i32, conn: &mut PgConnection) -> Result<Vec<MineTyp
         })?
         .into_iter()
         .map(|(mine_type, block_id)| {
-            if mine_type.level >= 3 {
+            let max_level: i64 = mine_type::table
+                .filter(mine_type::name.eq(&mine_type.name))
+                .count()
+                .get_result::<i64>(conn)
+                .map_err(|err| DieselError {
+                    table: "mine_type",
+                    function: function!(),
+                    error: err,
+                })
+                .unwrap_or(0);
+
+            if mine_type.level >= max_level as i32 {
                 //mine is at max level
                 MineTypeResponse {
                     id: mine_type.id,
@@ -486,7 +527,17 @@ fn get_emp_types(player_id: i32, conn: &mut PgConnection) -> Result<Vec<EmpTypeR
         })?
         .into_iter()
         .map(|emp_type| {
-            if emp_type.level >= 3 {
+            let max_level: i64 = emp_type::table
+                .filter(emp_type::name.eq(&emp_type.name))
+                .count()
+                .get_result::<i64>(conn)
+                .map_err(|err| DieselError {
+                    table: "emp_type",
+                    function: function!(),
+                    error: err,
+                })
+                .unwrap_or(0);
+            if emp_type.level >= max_level as i32 {
                 // The emp is at max level
                 EmpTypeResponse {
                     id: emp_type.id,
@@ -606,6 +657,10 @@ pub(crate) fn upgrade_building(
         return Err(anyhow::anyhow!("Not enough artifacts"));
     };
 
+    let joined_table = block_type::table
+        .inner_join(building_type::table)
+        .filter(block_type::category.eq(BlockCategory::Building));
+
     let next_level_block_id: i32 = joined_table
         .filter(building_type::name.eq(name))
         .filter(building_type::level.eq(level + 1))
@@ -694,6 +749,10 @@ pub(crate) fn upgrade_defender(
         return Err(anyhow::anyhow!("Not enough artifacts"));
     };
 
+    let joined_table = block_type::table
+        .inner_join(defender_type::table)
+        .filter(block_type::category.eq(BlockCategory::Defender));
+
     let next_level_block_id: i32 = joined_table
         .filter(defender_type::name.eq(name))
         .filter(defender_type::level.eq(level + 1))
@@ -772,6 +831,10 @@ pub(crate) fn upgrade_mine(player_id: i32, conn: &mut PgConnection, block_id: i3
     if cost > user_artifacts {
         return Err(anyhow::anyhow!("Not enough artifacts"));
     };
+
+    let joined_table = block_type::table
+        .inner_join(mine_type::table)
+        .filter(block_type::category.eq(BlockCategory::Mine));
 
     let next_level_block_id: i32 = joined_table
         .filter(mine_type::name.eq(name))
