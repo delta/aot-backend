@@ -10,6 +10,9 @@ default-run = "aot-backend"
 actix = "0.13.0"
 actix-web-actors = "4"
 actix-web = {version = "4", features = ["rustls"] }
+actix-rt = "2.9.0"
+actix-ws = "0.2.5"
+futures-util = "0.3.30"
 anyhow = "1.0.68"
 derive_more = "0.99.17"
 chrono = { version = "0.4.23", features = ["serde"] }

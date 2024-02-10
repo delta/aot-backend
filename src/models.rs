@@ -12,6 +12,17 @@ pub enum BlockCategory {
 }
 
 #[derive(Queryable, Serialize)]
+pub struct EmpType {
+    pub id: i32,
+    pub att_type: String,
+    pub attack_radius: i32,
+    pub attack_damage: i32,
+    pub cost: i32,
+    pub name: String,
+    pub level: i32,
+}
+
+#[derive(Queryable, Serialize)]
 pub struct AttackType {
     pub id: i32,
     pub att_type: String,
@@ -191,7 +202,7 @@ pub struct NewMapSpaces {
     pub block_type_id: i32,
 }
 
-#[derive(Queryable)]
+#[derive(Queryable, Debug)]
 pub struct ShortestPath {
     pub base_id: i32,
     pub source_x: i32,
@@ -202,7 +213,7 @@ pub struct ShortestPath {
     pub next_hop_y: i32,
 }
 
-#[derive(Insertable)]
+#[derive(Insertable, PartialEq)]
 #[diesel(table_name = shortest_path)]
 pub struct NewShortestPath {
     pub base_id: i32,

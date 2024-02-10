@@ -93,6 +93,9 @@ pub fn run_shortest_paths(conn: &mut PgConnection, input_map_layout_id: i32) -> 
     let mut shortest_paths = vec![];
     for i in &roads_list {
         for j in &roads_list {
+            if i.0 == j.0 && i.1 == j.1 {
+                continue;
+            }
             let (start_road_x, start_road_y) = (i.0, i.1);
             let (dest_road_x, dest_road_y) = (j.0, j.1);
             let start_node =
@@ -119,7 +122,9 @@ pub fn run_shortest_paths(conn: &mut PgConnection, input_map_layout_id: i32) -> 
                         next_hop_y: node_to_index[&p.1[1]] as i32 / MAP_SIZE as i32,
                     };
 
-                    shortest_paths.push(new_shortest_path_entry);
+                    if !shortest_paths.contains(&new_shortest_path_entry) {
+                        shortest_paths.push(new_shortest_path_entry);
+                    }
                 }
                 None => println!(
                     "No path found between {} and {}",

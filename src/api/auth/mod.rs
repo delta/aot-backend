@@ -31,6 +31,7 @@ pub struct LoginResponse {
     pub trophies: i32,
     pub artifacts: i32,
     pub email: String,
+    pub token: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -154,5 +155,6 @@ async fn login(
             trophies: user.trophies,
             artifacts: user.artifacts,
             email: user.email,
+            token: Some(token),
         })))
 }

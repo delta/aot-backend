@@ -46,7 +46,6 @@ pub enum ResultType {
     DefendersDamaged,
     DefendersTriggered,
     BuildingsDamaged,
-    Resync,
     GameOver,
 }
 

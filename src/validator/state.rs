@@ -162,7 +162,7 @@ impl State {
                         <= defender.radius as f32
                 {
                     // defender triggered
-                    self.defender_death_update(defender.id);
+                    // self.defender_death_update(defender.id);
                 }
             }
 

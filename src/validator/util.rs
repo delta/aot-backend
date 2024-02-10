@@ -50,6 +50,13 @@ pub struct MineDetails {
     pub damage: i32,
 }
 
+#[derive(Serialize, Clone)]
+pub struct BombType {
+    pub id: i32,
+    pub radius: i32,
+    pub damage: i32,
+}
+
 #[derive(Serialize)]
 pub struct BuildingDetails {
     pub id: i32,
