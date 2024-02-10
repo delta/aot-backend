@@ -56,9 +56,9 @@ async fn post_transfer_artifacts(
     transfer: Json<TransferArtifactEntry>,
     pg_pool: Data<PgPool>,
     // redis_pool: Data<RedisPool>,   //Uncomment to check for user under attack//
-    //user: AuthUser,
+    user: AuthUser,
 ) -> Result<impl Responder> {
-    let user_id = 33;
+    let user_id = user.0;
     let bank_block_type_id = BLOCK_TYPE_ID_OF_BANK;
     let transfer = transfer.into_inner();
 
