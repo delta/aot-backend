@@ -1,5 +1,7 @@
 use crate::api::auth::TokenClaims;
-use crate::api::defense::util::{fetch_map_layout, get_map_details_for_attack, DefenseResponse};
+use crate::api::defense::util::{
+    fetch_map_layout, get_map_details_for_attack, AttackBaseResponse, DefenseResponse,
+};
 use crate::api::error::AuthError;
 use crate::api::game::util::UserDetail;
 use crate::api::user::util::fetch_user;
@@ -10,31 +12,18 @@ use crate::api::{self, RedisConn};
 use crate::constants::*;
 use crate::error::DieselError;
 use crate::models::{
-    Artifact,
-    AttackerType,
-    BlockCategory,
-    BlockType,
-    BuildingType,
-    DefenderType,
-    Game,
-    LevelsFixture,
-    MapLayout,
-    MapSpaces,
-    MineType,
-    NewAttackerPath,
-    NewGame,
-    // NewSimulationLog,
-    ShortestPath,
-    User,
+    Artifact, AttackerType, BlockCategory, BlockType, BuildingType, DefenderType, EmpType, Game,
+    LevelsFixture, MapLayout, MapSpaces, MineType, NewAttackerPath, NewGame, ShortestPath, User,
 };
 use crate::schema::user;
 use crate::simulation::blocks::{Coords, SourceDest};
 use crate::simulation::{RenderAttacker, RenderMine};
 use crate::simulation::{RenderDefender, Simulator};
 use crate::util::function;
-use crate::validator::util::{BuildingDetails, Coordinates, DefenderDetails, MineDetails};
+use crate::validator::util::{BombType, BuildingDetails, Coordinates, DefenderDetails, MineDetails};
 use anyhow::{Context, Result};
-use chrono::{Duration, Local, Utc};
+use chrono;
+use std::time;
 use diesel::dsl::exists;
 use diesel::prelude::*;
 use diesel::select;
@@ -42,7 +31,7 @@ use diesel::PgConnection;
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use rand::seq::IteratorRandom;
 use redis::Commands;
-use serde::{Deserialize, Serialize};
+use ::serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::env;
 use std::io::Write;
@@ -123,7 +112,7 @@ pub fn is_attack_allowed(
     defender_id: i32,
     conn: &mut PgConnection,
 ) -> Result<bool> {
-    let current_date = Local::now().naive_local();
+    let current_date = chrono::Local::now().naive_local();
     use crate::schema::{game, levels_fixture, map_layout};
     let joined_table = game::table.inner_join(map_layout::table.inner_join(levels_fixture::table));
     let total_attacks_this_level: i64 = joined_table
@@ -693,9 +682,20 @@ pub fn get_attacker_types(conn: &mut PgConnection) -> Result<HashMap<i32, Attack
 }
 
 #[derive(Serialize)]
+pub struct ShortestPathResponse {
+    pub source: Coords,
+    pub dest: Coords,
+    pub next_hop: Coords,
+}
+
+#[derive(Serialize)]
 pub struct AttackResponse {
-    pub base: DefenseResponse,
-    pub shortest_paths: HashMap<SourceDest, Coords>,
+    pub user: Option<User>,
+    pub base: AttackBaseResponse,
+    pub max_bombs: i32,
+    pub attacker_types: Vec<AttackerType>,
+    pub bomb_types: Vec<EmpType>,
+    pub shortest_paths: Vec<ShortestPathResponse>,
     pub attack_token: String,
 }
 
@@ -712,6 +712,7 @@ pub fn get_random_opponent_id(attacker_id: i32, conn: &mut PgConnection) -> Resu
     let less_or_equal_trophies = sorted_users
         .iter()
         .take(attacker_index)
+        .filter(|(id, _)| *id != attacker_id)
         .rev()
         .take(5)
         .cloned()
@@ -719,6 +720,7 @@ pub fn get_random_opponent_id(attacker_id: i32, conn: &mut PgConnection) -> Resu
     let more_or_equal_trophies = sorted_users
         .iter()
         .skip(attacker_index + 1)
+        .filter(|(id, _)| *id != attacker_id)
         .take(5)
         .cloned()
         .collect::<Vec<_>>();
@@ -729,6 +731,39 @@ pub fn get_random_opponent_id(attacker_id: i32, conn: &mut PgConnection) -> Resu
         .map(|&(id, _)| id);
 
     Ok(random_opponent)
+}
+
+pub fn get_shortest_paths_for_attack(
+    conn: &mut PgConnection,
+    map_id: i32,
+) -> Result<Vec<ShortestPathResponse>> {
+    use crate::schema::shortest_path::dsl::*;
+    let results = shortest_path
+        .filter(base_id.eq(map_id))
+        .load::<ShortestPath>(conn)
+        .map_err(|err| DieselError {
+            table: "shortest_path",
+            function: function!(),
+            error: err,
+        })?;
+    let mut shortest_paths: Vec<ShortestPathResponse> = Vec::new();
+    for path in results {
+        shortest_paths.push(ShortestPathResponse {
+            source: Coords {
+                x: path.source_x,
+                y: path.source_y,
+            },
+            dest: Coords {
+                x: path.dest_x,
+                y: path.dest_y,
+            },
+            next_hop: Coords {
+                x: path.next_hop_x,
+                y: path.next_hop_y,
+            },
+        });
+    }
+    Ok(shortest_paths)
 }
 
 pub fn get_shortest_paths(
@@ -808,15 +843,25 @@ pub fn get_game_id_from_redis(user_id: i32, mut redis_conn: RedisConn) -> Result
     Ok(game_id)
 }
 
+pub fn delete_game_id_from_redis(attacker_id: i32, defender_id: i32, mut redis_conn: RedisConn) -> Result<()> {
+    redis_conn
+        .del(format!("Game:{}", attacker_id))
+        .map_err(|err| anyhow::anyhow!("Failed to delete key: {}", err))?;
+    redis_conn
+        .del(format!("Game:{}", defender_id))
+        .map_err(|err| anyhow::anyhow!("Failed to delete key: {}", err))?;
+    Ok(())
+}
+
 pub fn encode_attack_token(attacker_id: i32, defender_id: i32) -> Result<String> {
     let jwt_secret = env::var("COOKIE_KEY").expect("COOKIE_KEY must be set!");
-    let now = Utc::now();
+    let now = chrono::Utc::now();
     let iat = now.timestamp() as usize;
     let jwt_max_age: i64 = env::var("ATTACK_TOKEN_AGE_IN_MINUTES")
         .expect("JWT max age must be set!")
         .parse()
         .expect("JWT max age must be an integer!");
-    let token_expiring_time = now + Duration::minutes(jwt_max_age);
+    let token_expiring_time = now + chrono::Duration::minutes(jwt_max_age);
     let exp = (token_expiring_time).timestamp() as usize;
     let token: AttackToken = AttackToken {
         attacker_id,
@@ -943,10 +988,8 @@ pub fn get_buildings(conn: &mut PgConnection, map_id: i32) -> Result<Vec<Buildin
         .into_iter()
         .map(|(map_space, (_, building_type))| BuildingDetails {
             id: map_space.id,
-            // current_hp: building_type.hp,
-            // total_hp: building_type.hp,
-            current_hp: 0,
-            total_hp: 0,
+            current_hp: building_type.hp,
+            total_hp: building_type.hp,
             artifacts_obtained: 0,
             tile: Coordinates {
                 x: map_space.x_coordinate,
@@ -956,6 +999,25 @@ pub fn get_buildings(conn: &mut PgConnection, map_id: i32) -> Result<Vec<Buildin
         })
         .collect();
     update_buidling_artifacts(conn, map_id, buildings)
+}
+
+pub fn get_bomb_types(conn: &mut PgConnection) -> Result<Vec<BombType>> {
+    use crate::schema::emp_type::dsl::*;
+    let bomb_types = emp_type
+        .load::<EmpType>(conn)
+        .map_err(|err| DieselError {
+            table: "emp_type",
+            function: function!(),
+            error: err,
+        })?
+        .into_iter()
+        .map(|emp| BombType {
+            id: emp.id,
+            radius: emp.attack_radius,
+            damage: emp.attack_damage,
+        })
+        .collect();
+    Ok(bomb_types)
 }
 
 pub fn update_buidling_artifacts(
@@ -989,38 +1051,20 @@ pub fn update_buidling_artifacts(
 
     Ok(buildings)
 }
-// pub fn get_super_buildings(conn: &mut PgConnection, map_id: i32) -> Result<Vec<BuildingDetails>> {
-//     use crate::schema::{block_type, building_type, map_spaces, artifact};
 
-//     let buildings: Vec<BuildingDetails> = map_spaces::table
-//     .inner_join(block_type::table.inner_join(building_type::table))
-//     .filter(map_spaces::map_id.eq(map_id))
-//     .filter(building_type::id.ne(ROAD_ID))
-//     .left_join(artifact::table)
-//     .select((
-//         map_spaces::all_columns,
-//         block_type::all_columns,
-//         building_type::all_columns,
-//         artifact::count,
-//     ))
-//     .load::<(MapSpaces, BlockType, BuildingType, i64)>(conn)
-//     .map_err(|err| DieselError {
-//         table: "map_spaces",
-//         function: function!(),
-//         error: err,
-//     })?
-//     .into_iter()
-//     .map(|(map_space, _, building_type, artifact_count)| BuildingDetails {
-//         id: map_space.id,
-//         current_hp: 0,
-//         total_hp: 0,
-//         artifacts_obtained: artifact_count,
-//         tile: Coordinates {
-//             x: map_space.x_coordinate,
-//             y: map_space.y_coordinate,
-//         },
-//         width: building_type.width,
-//     })
-//     .collect();
-
-// }
+pub async fn timeout_task(session: actix_ws::Session, last_activity: time::Instant, redis_conn: RedisConn, attacker_id: i32, defender_id: i32) {
+    // Set the timeout duration
+    let timeout_duration = time::Duration::from_secs(60);
+    
+    loop {
+        // Sleep for a short duration to check the timeout periodically
+        actix_rt::time::sleep(time::Duration::from_secs(1)).await;
+        // Check if the connection has been idle for more than the timeout duration
+        if time::Instant::now() - last_activity > timeout_duration {
+            let _ = session.close(None).await;
+            let _ = delete_game_id_from_redis(attacker_id, defender_id, redis_conn);
+            println!("Connection timed out");   
+            break;
+        }
+    }
+}

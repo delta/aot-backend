@@ -24,7 +24,7 @@ pub struct Block {
     pub population: i32,
 }
 
-#[derive(Debug, Eq, Hash, PartialEq, Serialize)]
+#[derive(Debug, Eq, Hash, PartialEq, Serialize, Clone)]
 pub struct SourceDest {
     pub source_x: i32,
     pub source_y: i32,
@@ -32,7 +32,7 @@ pub struct SourceDest {
     pub dest_y: i32,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub struct Coords {
     pub x: i32,
     pub y: i32,
