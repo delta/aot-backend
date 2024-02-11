@@ -5,6 +5,7 @@ use crate::{
     simulation::blocks::{Coords, SourceDest},
 };
 use anyhow::{Ok, Result};
+use crate::validator::state::{};
 
 use self::{state::State, util::BombType};
 
@@ -13,11 +14,11 @@ pub mod state;
 pub mod util;
 
 pub fn game_handler(
-    socket_request: SocketRequest,
-    _game_state: &mut State,
-    _shortest_path: HashMap<SourceDest, Coords>,
-    _roads: HashSet<(i32, i32)>,
-    _bomb_types: Vec<BombType>,
+    socket_request: SocketRequest, 
+    _game_state: &mut State, 
+    _shortest_path: &HashMap<SourceDest, Coords>,
+    _roads: &HashSet<(i32, i32)>,
+    _bomb_types: &Vec<BombType>,
 ) -> Option<Result<SocketResponse>> {
     // redis for storing mapping
     // fetch validator instance (has redis)

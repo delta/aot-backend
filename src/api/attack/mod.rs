@@ -1,3 +1,4 @@
+ 
 use self::util::{get_valid_road_paths, AttackResponse, NewAttack};
 use super::auth::session::AuthUser;
 use super::defense::util::{AttackBaseResponse, DefenseResponse, MineTypeResponseWithoutBlockId};
@@ -285,12 +286,21 @@ async fn socket_handler(
     let mut session_clone = session.clone();
 
     actix_rt::spawn(async move {
-        let mut game_state = State::new(attacker_id, defender_id, defenders, mines, buildings);
+        let mut game_state = State::new(
+            attacker_id,
+           defender_id,
+            defenders,
+            mines,
+            buildings,
+        );
+        // let mut content:Vec<u8> = Vec::new();
 
+        let shortest_path = &shortest_paths.clone();
+        let roads = &roads.clone();
+        let bomb_types = &bomb_types.clone();
+    
         while let Some(Ok(msg)) = msg_stream.next().await {
-            let shortest_path = shortest_paths.clone();
-            let roads = roads.clone();
-            let bomb_types = bomb_types.clone();
+
 
             match msg {
                 Message::Ping(bytes) => {

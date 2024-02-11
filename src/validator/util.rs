@@ -67,6 +67,12 @@ pub struct BuildingDetails {
     pub width: i32,
 }
 
+#[derive(Serialize,Clone, Copy)]
+pub struct SourceDest {
+    pub source: Coordinates,
+    pub dest: Coordinates,
+}
+
 #[derive(Serialize)]
 pub struct ValidatorResponse {
     pub frame_no: i32,
