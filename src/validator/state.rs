@@ -1,13 +1,15 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 // use std::cmp;
 
 use crate::{
     // schema::defender_type::damage,
     // simulation::defense::defender,
-    validator::util::{Attacker, Bomb, BuildingDetails, Coordinates, DefenderDetails, MineDetails},
+    schema::shortest_path, simulation::defense::defender, validator::util::{Attacker, Bomb, BuildingDetails, Coordinates, DefenderDetails, MineDetails, SourceDest}
 };
 
+use rayon::iter;
 use serde::Serialize;
+
 
 #[derive(Serialize)]
 pub struct State {
@@ -20,7 +22,7 @@ pub struct State {
     pub damage_percentage: f32,
     pub artifacts: i32,
     pub defenders: Vec<DefenderDetails>,
-    pub mines: Vec<MineDetails>, //added this
+    pub mines: Vec<MineDetails>, 
     pub buildings: Vec<BuildingDetails>,
 }
 
@@ -49,6 +51,10 @@ impl State {
     }
 
     // Setters for the state
+
+    fn place_attacker(&mut self, attacker: Attacker) {
+        self.attacker = Some(attacker);
+    }
 
     fn attacker_movement_update(&mut self, attacker_pos: &Coordinates) {
         self.attacker.as_mut().unwrap().attacker_pos.x = attacker_pos.x;
@@ -83,10 +89,15 @@ impl State {
 
     fn defender_death_update(&mut self, defender_id: i32) {
         let attacker = self.attacker.as_mut().unwrap();
+        
 
         for i in 0..self.defenders.len() {
             if self.defenders[i].id == defender_id {
                 attacker.attacker_health -= self.defenders[i].damage;
+                if(attacker.attacker_health <= 0){
+                    attacker.attacker_pos = Coordinates { x: -1, y: -1 };
+                    self.attacker_death_count += 1;
+                }
                 self.defenders[i].is_alive = false;
                 // break;
             }
@@ -117,7 +128,7 @@ impl State {
         frame_no: i32,
         attacker_delta: Vec<Coordinates>,
         attacker_current: Attacker,
-        defenders_current: Vec<DefenderDetails>,
+        // defenders_current: Vec<DefenderDetails>,
     ) -> Option<&Self> {
         if (frame_no - self.frame_no) != 1 {
             Some(self) // invalid frame error
@@ -146,26 +157,41 @@ impl State {
                     // invalid movement error
                     return Some(self);
                 }
-                coord_temp = coord;
+
+                for defender in self.defenders.iter_mut() {
+                        if defender.is_alive
+                            && defender.id != -1
+                            && ((defender.defender_pos.x - new_pos.x).pow(2) as f32
+                                + (defender.defender_pos.y - new_pos.y).pow(2) as f32)
+                                .sqrt()
+                                <= defender.radius as f32
+                        {
+                            defender.target_id = Some(attacker.id);
+                        }
+                    }
+
+            coord_temp = coord;
+            
                 // if !util::is_road(&coord) {
                 //     // tile not road error
                 // }
             }
 
             // let attacker = self.attacker.as_mut().unwrap();
-            for defender in defenders_current {
-                if defender.is_alive
-                    && defender.id != -1
-                    && ((defender.defender_pos.x - new_pos.x).pow(2) as f32
-                        + (defender.defender_pos.y - new_pos.y).pow(2) as f32)
-                        .sqrt()
-                        <= defender.radius as f32
-                {
-                    // defender triggered
-                    // self.defender_death_update(defender.id);
-                }
-            }
+            // for defender in defenders_current {
+            //     if defender.is_alive
+            //         && defender.id != -1
+            //         && ((defender.defender_pos.x - new_pos.x).pow(2) as f32
+            //             + (defender.defender_pos.y - new_pos.y).pow(2) as f32)
+            //             .sqrt()
+            //             <= defender.radius as f32
+            //     {
+            //         // defender triggered
+            //         // self.defender_death_update(defender.id);
+            //     }
+            // }
 
+            
             if attacker_current.bombs.len() - attacker.bombs.len() > 1 {
                 return Some(self);
             }
@@ -193,23 +219,88 @@ impl State {
         }
     }
 
+
+    pub fn is_coord_crosssed(defender_pos_prev: Coordinates,defender_pos: Coordinates, attacker_pos_prev: Coordinates, attacker_pos: Coordinates) -> bool {
+        if defender_pos_prev.x == attacker_pos.x && defender_pos_prev.y == attacker_pos.y || defender_pos.x == attacker_pos_prev.x && defender_pos.y == attacker_pos_prev.y {
+            return true;
+        }
+        return false;
+    }
+
+    #[warn(unused_assignments)]
+
     pub fn defender_movement(
         &mut self,
         frame_no: i32,
-        defenders: Vec<DefenderDetails>,
+        attacker_delta: Vec<Coordinates>,
+        shortest_path: HashMap<(Coordinates,Coordinates),Coordinates>,
     ) -> Option<&Self> {
         if (frame_no - self.frame_no) != 1 {
             Some(self) // invalid frame error
         } else {
             self.frame_no += 1;
 
-            if !defenders.is_empty() {
-                for defender in defenders {
-                    if defender.speed != self.defenders[0].speed {
-                        // invalid speed error
-                        return Some(self);
+            // if !defenders.is_empty() {
+            //     for defender in defenders {
+            //         if defender.damage != self.defenders[0].damage || defender.speed != self.defenders[0].speed || defender.radius != self.defenders[0].radius{
+            //             // invalid speed error
+            //             return Some(self);
+            //         }
+            //        if defender.is_alive {
+            //         self.defender_movement_update(defender.id, defender.defender_pos);
+
+            //        }
+            //     }
+            // }
+            let mut attacker = self.attacker.clone().unwrap();
+
+            let ratio: f32 = attacker.attacker_speed as f32 / self.defenders[0].speed as f32;
+            attacker.attacker_pos = attacker_delta[0];
+            let mut attacker_prev = attacker_delta[0];
+
+            for defender in self.defenders.iter_mut(){
+
+                if defender.target_id != None && defender.is_alive {
+                    if defender.path_in_current_frame.len() > 0 {
+                        defender.defender_pos = defender.path_in_current_frame[defender.path_in_current_frame.len()-1]; // this is the current position of the defender
                     }
-                    self.defender_movement_update(defender.id, defender.defender_pos);
+                    let mut defender_prev;
+                    defender.path_in_current_frame.clear();
+                    let mut attacker_pointer_coord: i32 = -1; // i kept this is as the reference to the attacker's position in the attacker_delta vector. initially it is -1;
+                    let mut position_float = 0.5 as f32; 
+                    for iterator in 0..defender.speed {
+
+                        if iterator == 0 {
+                            defender_prev = defender.defender_pos;
+                        }
+                        else {
+                            defender_prev = defender.path_in_current_frame[iterator as usize - 1];
+                        }
+                        let next_hop = shortest_path.get(&(&(defender.defender_pos,attacker.attacker_pos))).unwrap();
+
+                        defender.defender_pos = *next_hop;
+                        position_float += ratio as f32;
+
+                        if iterator < (attacker_delta.len() as usize).try_into().unwrap() && position_float > 1.0  {
+                            if attacker_pointer_coord != -1 {
+                                attacker_prev = attacker_delta[attacker_pointer_coord as usize];
+                            }
+                            attacker_pointer_coord += 1;
+                            attacker.attacker_pos = attacker_delta[attacker_pointer_coord as usize];
+                            if attacker_delta[attacker_pointer_coord as usize] == defender.defender_pos || Self::is_coord_crosssed(defender_prev,defender.defender_pos,attacker_prev,attacker.attacker_pos) {
+                                // defender sucided
+                                attacker.attacker_health -= defender.damage;
+                                defender.is_alive = false;
+                                if attacker.attacker_health <= 0 {
+                                    attacker.attacker_pos = Coordinates { x: -1, y: -1 };
+                                    self.attacker_death_count += 1;
+                                }
+                            }
+                            position_float -= 1 as f32;
+                        }
+                     
+                        defender.path_in_current_frame.push(*next_hop);
+                    }
                 }
             }
 
@@ -227,24 +318,22 @@ impl State {
         &mut self,
         frame_no: i32,
         mut mines: Vec<MineDetails>,
-        attacker_pos: Coordinates,
+        attacker_delta:Vec<Coordinates>,
+        
     ) -> Option<&Self> {
         if (frame_no - self.frame_no) != 1 {
             Some(self) // invalid frame error
         } else {
             self.frame_no += 1;
-            let damage_to_attacker;
-            for (i, mine) in mines.iter_mut().enumerate() {
-                if attacker_pos.x == mine.pos.x && attacker_pos.y == mine.pos.y {
-                    // triggered
-                    if mine.pos.x != self.mines[i].pos.x && mine.pos.y != self.mines[i].pos.y {
-                        return Some(self); // return previous state, detected a removal of mine or change in position
-                    }
-                    damage_to_attacker = mine.damage;
-                    self.mine_blast_update(mine.id, damage_to_attacker);
+            let mut damage_to_attacker;
 
-                    break;
-                }
+            for (i, mine) in mines.iter_mut().enumerate() {
+                for attacker_pos in attacker_delta.iter() { 
+                    if attacker_pos.x == mine.pos.x && attacker_pos.y == mine.pos.y {
+                        damage_to_attacker = mine.damage;
+                        self.mine_blast_update(mine.id, damage_to_attacker);
+                    }
+                }  
             }
 
             None

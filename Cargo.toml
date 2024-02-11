@@ -7,6 +7,7 @@ default-run = "aot-backend"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+tungstenite = "0.16"
 actix = "0.13.0"
 actix-web-actors = "4"
 actix-web = {version = "4", features = ["rustls"] }
