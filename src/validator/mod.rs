@@ -1,17 +1,20 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{api::attack::socket::{ActionType, ResultType, SocketRequest, SocketResponse}, simulation::blocks::{Coords, SourceDest}};
+use crate::{
+    api::attack::socket::{ActionType, ResultType, SocketRequest, SocketResponse},
+    simulation::blocks::{Coords, SourceDest},
+};
 use anyhow::{Ok, Result};
 
 use self::{state::State, util::BombType};
 
 pub mod error;
 pub mod state;
-pub mod util;   
+pub mod util;
 
 pub fn game_handler(
-    socket_request: SocketRequest, 
-    _game_state: &mut State, 
+    socket_request: SocketRequest,
+    _game_state: &mut State,
     _shortest_path: HashMap<SourceDest, Coords>,
     _roads: HashSet<(i32, i32)>,
     _bomb_types: Vec<BombType>,
@@ -22,9 +25,7 @@ pub fn game_handler(
     // form response and send
 
     match socket_request.action_type {
-        ActionType::PlaceAttacker => {
-           return None
-        }
+        ActionType::PlaceAttacker => return None,
         ActionType::MoveAttacker => {
             // move_attacker
         }
@@ -54,6 +55,6 @@ pub fn game_handler(
             return Some(Ok(socket_response));
         }
     }
-    
+
     Some(Err(error::FrameError { frame_no: 0 }.into()))
 }

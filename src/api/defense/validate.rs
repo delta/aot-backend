@@ -61,33 +61,33 @@ pub fn is_valid_update_layout(
             road_positions.insert((map_space.x_coordinate, map_space.y_coordinate));
         }
     }
-    if is_road_rounded(&road_positions) {
-        return Err(BaseInvalidError::RoundRoad);
-    }
+    // if is_road_rounded(&road_positions) {
+    //     return Err(BaseInvalidError::RoundRoad);
+    // }
 
     Ok(())
 }
 
 // checks every 4x4 tiles has completely Roads
-pub fn is_road_rounded(road_positions: &HashSet<(i32, i32)>) -> bool {
-    let directions = [(-1, 0), (-1, -1), (0, -1)];
-    for i in 1..MAP_SIZE as i32 {
-        for j in 1..MAP_SIZE as i32 {
-            if road_positions.contains(&(i, j)) {
-                let mut road_count = 1;
-                for (x, y) in directions.iter() {
-                    if road_positions.contains(&(i + x, j + y)) {
-                        road_count += 1;
-                    }
-                }
-                if road_count == 4 {
-                    return true;
-                }
-            }
-        }
-    }
-    false
-}
+// pub fn is_road_rounded(road_positions: &HashSet<(i32, i32)>) -> bool {
+//     let directions = [(-1, 0), (-1, -1), (0, -1)];
+//     for i in 1..MAP_SIZE as i32 {
+//         for j in 1..MAP_SIZE as i32 {
+//             if road_positions.contains(&(i, j)) {
+//                 let mut road_count = 1;
+//                 for (x, y) in directions.iter() {
+//                     if road_positions.contains(&(i + x, j + y)) {
+//                         road_count += 1;
+//                     }
+//                 }
+//                 if road_count == 4 {
+//                     return true;
+//                 }
+//             }
+//         }
+//     }
+//     false
+// }
 
 // checks if no of buildings are within level constraints and if the city is connected
 pub fn is_valid_save_layout(

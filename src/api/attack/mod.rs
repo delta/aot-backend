@@ -13,23 +13,21 @@ use crate::models::{AttackerType, LevelsFixture, User};
 use crate::simulation::blocks::{Coords, SourceDest};
 use crate::validator::state::State;
 use crate::validator::util::{BombType, BuildingDetails, DefenderDetails, MineDetails};
+use actix_rt;
 use actix_web::error::ErrorBadRequest;
 use actix_web::web::{Data, Json};
 use actix_web::{web, Error, HttpRequest, HttpResponse, Responder, Result};
-use actix_rt;
 use std::collections::{HashMap, HashSet};
 
-use crate::{
-    validator::game_handler,
-};
+use crate::validator::game_handler;
 use actix_ws::Message;
 use futures_util::stream::StreamExt;
 use std::time::Instant;
 
 mod rating;
+pub mod socket;
 pub mod util;
 mod validate;
-pub mod socket;
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
     cfg.service(web::resource("").route(web::get().to(init_attack)))
@@ -277,25 +275,18 @@ async fn socket_handler(
     .map_err(|err| error::handle_error(err.into()))?;
 
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-    let bomb_types = web::block(move || {
-        Ok(util::get_bomb_types(&mut conn)?) as anyhow::Result<Vec<BombType>>
-    })
-    .await?
-    .map_err(|err| error::handle_error(err.into()))?;
+    let bomb_types =
+        web::block(move || Ok(util::get_bomb_types(&mut conn)?) as anyhow::Result<Vec<BombType>>)
+            .await?
+            .map_err(|err| error::handle_error(err.into()))?;
 
     let (response, session, mut msg_stream) = actix_ws::handle(&req, body)?;
 
     let mut session_clone = session.clone();
 
     actix_rt::spawn(async move {
-        let mut game_state = State::new(
-            attacker_id,
-           defender_id,
-            defenders,
-            mines,
-            buildings,
-        );
-    
+        let mut game_state = State::new(attacker_id, defender_id, defenders, mines, buildings);
+
         while let Some(Ok(msg)) = msg_stream.next().await {
             let shortest_path = shortest_paths.clone();
             let roads = roads.clone();
@@ -312,22 +303,18 @@ async fn socket_handler(
                     if let Ok(socket_request) = serde_json::from_str::<SocketRequest>(&s) {
                         println!("Parsed JSON message: {:?}", socket_request);
                         let response_result = game_handler(
-                            socket_request, 
-                            &mut game_state, 
-                            shortest_path, 
-                            roads, 
-                            bomb_types
+                            socket_request,
+                            &mut game_state,
+                            shortest_path,
+                            roads,
+                            bomb_types,
                         );
                         match response_result {
                             Some(Ok(response)) => {
                                 if let Ok(response_json) = serde_json::to_string(&response) {
                                     if response.result_type == ResultType::GameOver {
                                         println!("Game over. Terminating the socket...");
-                                        if session_clone
-                                            .text(response_json)
-                                            .await
-                                            .is_err()
-                                        {
+                                        if session_clone.text(response_json).await.is_err() {
                                             return;
                                         }
                                         let _ = session_clone.clone().close(None).await;

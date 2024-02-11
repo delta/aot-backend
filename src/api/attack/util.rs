@@ -20,10 +20,12 @@ use crate::simulation::blocks::{Coords, SourceDest};
 use crate::simulation::{RenderAttacker, RenderMine};
 use crate::simulation::{RenderDefender, Simulator};
 use crate::util::function;
-use crate::validator::util::{BombType, BuildingDetails, Coordinates, DefenderDetails, MineDetails};
+use crate::validator::util::{
+    BombType, BuildingDetails, Coordinates, DefenderDetails, MineDetails,
+};
+use ::serde::{Deserialize, Serialize};
 use anyhow::{Context, Result};
 use chrono;
-use std::time;
 use diesel::dsl::exists;
 use diesel::prelude::*;
 use diesel::select;
@@ -31,10 +33,10 @@ use diesel::PgConnection;
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use rand::seq::IteratorRandom;
 use redis::Commands;
-use ::serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::env;
 use std::io::Write;
+use std::time;
 
 #[derive(Debug, Serialize)]
 pub struct DefensePosition {
@@ -843,7 +845,11 @@ pub fn get_game_id_from_redis(user_id: i32, mut redis_conn: RedisConn) -> Result
     Ok(game_id)
 }
 
-pub fn delete_game_id_from_redis(attacker_id: i32, defender_id: i32, mut redis_conn: RedisConn) -> Result<()> {
+pub fn delete_game_id_from_redis(
+    attacker_id: i32,
+    defender_id: i32,
+    mut redis_conn: RedisConn,
+) -> Result<()> {
     redis_conn
         .del(format!("Game:{}", attacker_id))
         .map_err(|err| anyhow::anyhow!("Failed to delete key: {}", err))?;
@@ -1052,10 +1058,16 @@ pub fn update_buidling_artifacts(
     Ok(buildings)
 }
 
-pub async fn timeout_task(session: actix_ws::Session, last_activity: time::Instant, redis_conn: RedisConn, attacker_id: i32, defender_id: i32) {
+pub async fn timeout_task(
+    session: actix_ws::Session,
+    last_activity: time::Instant,
+    redis_conn: RedisConn,
+    attacker_id: i32,
+    defender_id: i32,
+) {
     // Set the timeout duration
     let timeout_duration = time::Duration::from_secs(60);
-    
+
     loop {
         // Sleep for a short duration to check the timeout periodically
         actix_rt::time::sleep(time::Duration::from_secs(1)).await;
@@ -1063,7 +1075,7 @@ pub async fn timeout_task(session: actix_ws::Session, last_activity: time::Insta
         if time::Instant::now() - last_activity > timeout_duration {
             let _ = session.close(None).await;
             let _ = delete_game_id_from_redis(attacker_id, defender_id, redis_conn);
-            println!("Connection timed out");   
+            println!("Connection timed out");
             break;
         }
     }

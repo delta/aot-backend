@@ -348,7 +348,17 @@ pub fn put_base_details(
     map: &MapLayout,
     conn: &mut PgConnection,
 ) -> Result<()> {
+    use crate::schema::artifact;
     use crate::schema::map_spaces::dsl::*;
+
+    diesel::delete(artifact::table)
+        .filter(artifact::map_space_id.eq_any(map_spaces.filter(map_id.eq(map.id)).select(id)))
+        .execute(conn)
+        .map_err(|err| DieselError {
+            table: "artifact",
+            function: function!(),
+            error: err,
+        })?;
 
     diesel::delete(map_spaces)
         .filter(map_id.eq(map.id))
@@ -358,6 +368,7 @@ pub fn put_base_details(
             function: function!(),
             error: err,
         })?;
+
     let m: Vec<NewMapSpaces> = maps
         .iter()
         .map(|e| NewMapSpaces {
@@ -367,12 +378,54 @@ pub fn put_base_details(
             block_type_id: e.block_type_id,
         })
         .collect();
+
     diesel::insert_into(map_spaces)
         .values(m)
         .on_conflict_do_nothing()
         .execute(conn)
         .map_err(|err| DieselError {
             table: "map_spaces",
+            function: function!(),
+            error: err,
+        })?;
+
+    let result: Vec<MapSpaces> = map_spaces
+        .filter(map_id.eq(map_id))
+        .load::<MapSpaces>(conn)
+        .map_err(|err| DieselError {
+            table: "map_spaces",
+            function: function!(),
+            error: err,
+        })?;
+
+    let mut map_space_map: HashMap<(i32, i32), i32> = HashMap::new();
+    for map_space in result {
+        map_space_map.insert(
+            (map_space.x_coordinate, map_space.y_coordinate),
+            map_space.id,
+        );
+    }
+
+    let artifact_entries: Vec<NewArtifact> = maps
+        .iter()
+        .filter_map(|e| {
+            if e.artifacts > 0 {
+                Some(NewArtifact {
+                    map_space_id: map_space_map[&(e.x_coordinate, e.y_coordinate)],
+                    count: e.artifacts,
+                })
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    diesel::insert_into(artifact::table)
+        .values(artifact_entries)
+        .on_conflict_do_nothing()
+        .execute(conn)
+        .map_err(|err| DieselError {
+            table: "artifact",
             function: function!(),
             error: err,
         })?;
@@ -414,6 +467,7 @@ pub fn set_map_valid(conn: &mut PgConnection, map_id: i32) -> Result<()> {
     Ok(())
 }
 
+#[allow(dead_code)]
 pub fn set_map_invalid(conn: &mut PgConnection, map_id: i32) -> Result<()> {
     use crate::schema::map_layout::dsl::*;
 

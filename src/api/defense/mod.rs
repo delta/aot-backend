@@ -33,6 +33,7 @@ pub struct MapSpacesEntry {
     pub x_coordinate: i32,
     pub y_coordinate: i32,
     pub block_type_id: i32,
+    pub artifacts: i32,
 }
 
 async fn get_user_base_details(pool: Data<PgPool>, user: AuthUser) -> Result<impl Responder> {
@@ -111,7 +112,7 @@ async fn set_base_details(
     user: AuthUser,
 ) -> Result<impl Responder> {
     let defender_id = user.0;
-
+    println!("Defender ID: {}", defender_id);
     let map_spaces = map_spaces.into_inner();
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let (map, blocks, buildings) = web::block(move || {
@@ -128,7 +129,7 @@ async fn set_base_details(
 
     web::block(move || {
         let mut conn = pool.get()?;
-        util::set_map_invalid(&mut conn, map.id)?;
+        // util::set_map_invalid(&mut conn, map.id)?;
         util::put_base_details(&map_spaces, &map, &mut conn)
     })
     .await?
