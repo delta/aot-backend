@@ -28,6 +28,7 @@ pub struct StatsResponse {
 pub struct UserProfileResponse {
     user_id: i32,
     name: String,
+    username: String,
     trophies: i32,
     artifacts: i32,
     attacks_won: i32,
@@ -120,7 +121,7 @@ pub fn get_duplicate_users(conn: &mut PgConnection, user: &InputUser) -> Result<
 pub fn get_duplicate_username(conn: &mut PgConnection, username: &str) -> Result<Option<User>> {
     use crate::schema::user;
     Ok(user::table
-        .filter(user::name.eq(username))
+        .filter(user::username.eq(username))
         .first::<User>(conn)
         .optional()
         .map_err(|err| DieselError {
@@ -160,6 +161,7 @@ pub fn make_profile_response(user: &User, users: &[User]) -> Result<UserProfileR
     let mut profile = UserProfileResponse {
         user_id: user.id,
         name: user.name.clone(),
+        username: user.username.clone(),
         trophies: user.trophies,
         artifacts: user.artifacts,
         attacks_won: user.attacks_won,

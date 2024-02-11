@@ -68,14 +68,24 @@ async fn update_user(
     user: AuthUser,
 ) -> Result<impl Responder> {
     let user_id = user.0;
-    let username = user_details.name.clone();
+    let username = user_details.username.clone();
+    if username.is_some()
+        && (username.as_ref().unwrap().len() < 5 || username.as_ref().unwrap().len() > 30)
+    {
+        return Err(ErrorBadRequest(
+            "Username should contain atleast 5 characters and atmost 30 characters",
+        ));
+    }
     if let Some(username) = username {
         let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
         let duplicate = web::block(move || util::get_duplicate_username(&mut conn, &username))
             .await?
             .map_err(|err| error::handle_error(err.into()))?;
-        if duplicate.is_some() && duplicate.unwrap().id != user_id {
+        if duplicate.is_some() && duplicate.as_ref().unwrap().id != user_id {
             return Err(ErrorConflict("Username already exists"));
+        }
+        if duplicate.is_some() && duplicate.unwrap().id == user_id {
+            return Ok("No change in Username");
         }
     }
     web::block(move || {
