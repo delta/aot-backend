@@ -1,10 +1,8 @@
 use std::collections::HashSet;
 // use std::cmp;
 
-use crate::{
-    // schema::defender_type::damage,
-    // simulation::defense::defender,
-    validator::util::{Attacker, Bomb, BuildingDetails, Coordinates, DefenderDetails, MineDetails},
+use crate::validator::util::{
+    Attacker, Bomb, BuildingDetails, Coordinates, DefenderDetails, MineDetails,
 };
 
 use serde::Serialize;
