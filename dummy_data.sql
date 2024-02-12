@@ -212,12 +212,12 @@ COPY public.available_blocks FROM stdin;
 50	1	\N	\N	block	50
 51	1	\N	\N	block	51
 52	1	\N	\N	block	52
-1	1	1	\N	attacker	16
-2	1	2	\N	attacker	17
-3	1	3	\N	attacker	18
-1	1	\N	1	emp	19
-2	1	\N	2	emp	20
-3	1	\N	3	emp	21
+\N	1	1	\N	attacker	16
+\N	1	2	\N	attacker	17
+\N	1	3	\N	attacker	18
+\N	1	\N	1	emp	19
+\N	1	\N	2	emp	20
+\N	1	\N	3	emp	21
 \.
 
 COPY public.map_spaces FROM stdin;

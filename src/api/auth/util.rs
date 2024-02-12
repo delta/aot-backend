@@ -1,3 +1,5 @@
+use crate::api::defense::util::add_default_base;
+use crate::api::error;
 use crate::models::*;
 use crate::schema::user::{self};
 use crate::util::function;
@@ -115,6 +117,9 @@ pub fn get_oauth_user(pg_conn: &mut PgConnection, email: &str, name: &str) -> Re
                 function: function!(),
                 error: err,
             })?;
+
+        let _ = add_default_base(pg_conn, user.id).map_err(|err| error::handle_error(err.into()));
+
         Ok(user)
     }
 }

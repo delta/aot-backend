@@ -28,7 +28,7 @@ ADD CONSTRAINT emp_id_fk FOREIGN KEY (emp_type_id) REFERENCES public.emp_type(id
 
 ADD category item_category NOT NULL,
 
-ADD id INTEGER NOT NULL,
+ADD id serial NOT NULL,
 
 DROP CONSTRAINT available_blocks_id_primary,
 ADD CONSTRAINT available_blocks_id_primary PRIMARY KEY(id),

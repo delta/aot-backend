@@ -114,8 +114,11 @@ pub struct AvailableBlocks {
 #[derive(Deserialize, Insertable)]
 #[diesel(table_name = available_blocks)]
 pub struct NewAvailableBlocks {
-    pub block_type_id: i32,
+    pub block_type_id: Option<i32>,
     pub user_id: i32,
+    pub attacker_type_id: Option<i32>,
+    pub emp_type_id: Option<i32>,
+    pub category: ItemCategory,
 }
 
 #[derive(Queryable, Serialize, Deserialize)]
