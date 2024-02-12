@@ -269,7 +269,7 @@ impl State {
         &mut self,
         frame_no: i32,
         attacker_delta: Vec<Coordinates>,
-        shortest_path: HashMap<(Coordinates,Coordinates),Coordinates>,
+        shortest_path: &HashMap<(Coordinates,Coordinates),Coordinates>,
     ) -> Option<(Attacker, &Vec<DefenderDetails>)> {
         if (frame_no - self.frame_no) != 1 {
             None
