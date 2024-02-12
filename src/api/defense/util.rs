@@ -43,7 +43,7 @@ pub struct MineTypeResponseWithoutBlockId {
     pub name: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct MineTypeResponse {
     pub id: i32,
     pub radius: i32,
@@ -54,7 +54,7 @@ pub struct MineTypeResponse {
     pub name: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct DefenderTypeResponse {
     pub id: i32,
     pub radius: i32,
@@ -436,36 +436,41 @@ pub fn put_base_details(
 pub fn get_level_constraints(
     conn: &mut PgConnection,
     map_level_id: i32,
+    user_id: &i32,
 ) -> Result<HashMap<i32, i32>> {
-    use crate::schema::level_constraints::dsl::*;
+    use crate::schema::{available_blocks, block_type, level_constraints};
 
-    Ok(level_constraints
-        .filter(level_id.eq(map_level_id))
-        .load::<LevelConstraints>(conn)
+    let joined_table = available_blocks::table
+        .filter(available_blocks::user_id.eq(user_id))
+        .inner_join(block_type::table.inner_join(level_constraints::table));
+
+    Ok(joined_table
+        .filter(level_constraints::level_id.eq(map_level_id))
+        .load::<(AvailableBlocks, (BlockType, LevelConstraints))>(conn)
         .map_err(|err| DieselError {
-            table: "level_constraints",
+            table: "available_blocks",
             function: function!(),
             error: err,
         })?
-        .iter()
-        .map(|constraint| (constraint.block_id, constraint.no_of_blocks))
+        .into_iter()
+        .map(|(_, (_, constraint))| (constraint.block_id, constraint.no_of_blocks))
         .collect())
 }
 
-pub fn set_map_valid(conn: &mut PgConnection, map_id: i32) -> Result<()> {
-    use crate::schema::map_layout::dsl::*;
+// pub fn set_map_valid(conn: &mut PgConnection, map_id: i32) -> Result<()> {
+//     use crate::schema::map_layout::dsl::*;
 
-    diesel::update(map_layout.find(map_id))
-        .set(is_valid.eq(true))
-        .execute(conn)
-        .map_err(|err| DieselError {
-            table: "map_layout",
-            function: function!(),
-            error: err,
-        })?;
+//     diesel::update(map_layout.find(map_id))
+//         .set(is_valid.eq(true))
+//         .execute(conn)
+//         .map_err(|err| DieselError {
+//             table: "map_layout",
+//             function: function!(),
+//             error: err,
+//         })?;
 
-    Ok(())
-}
+//     Ok(())
+// }
 
 #[allow(dead_code)]
 pub fn set_map_invalid(conn: &mut PgConnection, map_id: i32) -> Result<()> {
@@ -659,17 +664,34 @@ pub fn fetch_building_blocks(conn: &mut PgConnection) -> Result<Vec<BuildingType
     Ok(buildings)
 }
 
-pub fn fetch_blocks(conn: &mut PgConnection) -> Result<HashMap<i32, BlockType>> {
-    use crate::schema::block_type::dsl::*;
-    Ok(block_type
-        .load::<BlockType>(conn)
+pub fn fetch_blocks(conn: &mut PgConnection, user_id: &i32) -> Result<HashMap<i32, BlockType>> {
+    use crate::schema::available_blocks;
+    use crate::schema::block_type;
+
+    let joined_table = available_blocks::table
+        .filter(available_blocks::user_id.eq(user_id))
+        .inner_join(block_type::table);
+
+    Ok(joined_table
+        .load::<(AvailableBlocks, BlockType)>(conn)
         .map_err(|err| DieselError {
-            table: "block_type",
+            table: "available_blocks",
             function: function!(),
             error: err,
         })?
         .into_iter()
-        .map(|block| (block.id, block))
+        .map(|(_, block_type)| {
+            (
+                block_type.id,
+                BlockType {
+                    id: block_type.id,
+                    defender_type: block_type.defender_type,
+                    mine_type: block_type.mine_type,
+                    category: block_type.category,
+                    building_type: block_type.building_type,
+                },
+            )
+        })
         .collect::<HashMap<i32, BlockType>>())
 }
 

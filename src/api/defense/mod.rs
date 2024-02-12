@@ -1,3 +1,5 @@
+use self::util::{DefenderTypeResponse, MineTypeResponse};
+
 use super::auth::session::AuthUser;
 use super::user::util::fetch_user;
 use super::PgPool;
@@ -118,7 +120,7 @@ async fn set_base_details(
     let (map, blocks, buildings) = web::block(move || {
         Ok((
             util::fetch_map_layout(&mut conn, &defender_id)?,
-            util::fetch_blocks(&mut conn)?,
+            util::fetch_blocks(&mut conn, &defender_id)?,
             util::fetch_buildings(&mut conn)?,
         )) as anyhow::Result<(MapLayout, HashMap<i32, BlockType>, Vec<BuildingType>)>
     })
@@ -147,31 +149,42 @@ async fn confirm_base_details(
 
     let map_spaces = map_spaces.into_inner();
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-    let (map, blocks, mut level_constraints, buildings) = web::block(move || {
+    let (map, blocks, mut level_constraints, buildings, defenders, mines) = web::block(move || {
         let map = util::fetch_map_layout(&mut conn, &defender_id)?;
         Ok((
             map.clone(),
-            util::fetch_blocks(&mut conn)?,
-            util::get_level_constraints(&mut conn, map.level_id)?,
+            util::fetch_blocks(&mut conn, &defender_id)?,
+            util::get_level_constraints(&mut conn, map.level_id, &defender_id)?,
             util::fetch_buildings(&mut conn)?,
+            util::fetch_defender_types(&mut conn)?,
+            util::fetch_mine_types(&mut conn)?,
         ))
             as anyhow::Result<(
                 MapLayout,
                 HashMap<i32, BlockType>,
                 HashMap<i32, i32>,
                 Vec<BuildingType>,
+                Vec<DefenderTypeResponse>,
+                Vec<MineTypeResponse>,
             )>
     })
     .await?
     .map_err(|err| error::handle_error(err.into()))?;
 
-    validate::is_valid_save_layout(&map_spaces, &mut level_constraints, &blocks, &buildings)?;
+    validate::is_valid_save_layout(
+        &map_spaces,
+        &mut level_constraints,
+        &blocks,
+        &buildings,
+        &defenders,
+        &mines,
+    )?;
 
     web::block(move || {
         let mut conn = pool.get()?;
-        util::put_base_details(&map_spaces, &map, &mut conn)?;
-        util::calculate_shortest_paths(&mut conn, map.id)?;
-        util::set_map_valid(&mut conn, map.id)
+        util::put_base_details(&map_spaces, &map, &mut conn)
+        // util::calculate_shortest_paths(&mut conn, map.id)?;
+        // util::set_map_valid(&mut conn, map.id)
     })
     .await?
     .map_err(|err| error::handle_error(err.into()))?;
