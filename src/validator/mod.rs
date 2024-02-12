@@ -5,7 +5,6 @@ use crate::{
     simulation::blocks::{Coords, SourceDest},
 };
 use anyhow::{Ok, Result};
-use crate::validator::state::{};
 
 use self::{state::State, util::BombType};
 
