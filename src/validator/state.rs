@@ -4,7 +4,11 @@ use std::collections::{HashMap, HashSet};
 use crate::{
     // schema::defender_type::damage,
     // simulation::defense::defender,
-    api::attack, schema::shortest_path, simulation::defense::defender, validator::util::{Attacker, Bomb, BuildingDetails, Coordinates, DefenderDetails, MineDetails, SourceDest}
+    api::attack, schema::shortest_path, simulation::defense::defender, validator::util::{Attacker, Bomb, BuildingDetails, DefenderDetails, MineDetails}
+};
+use crate::{
+    api::attack::socket::{ActionType, ResultType, SocketRequest, SocketResponse},
+    simulation::{attack::attacker, blocks::{Coords, SourceDest}},
 };
 
 use rayon::iter;
@@ -57,12 +61,12 @@ impl State {
         self.attacker = Some(attacker);
     }
 
-    pub fn attacker_movement_update(&mut self, attacker_pos: &Coordinates) {
+    pub fn attacker_movement_update(&mut self, attacker_pos: &Coords) {
         self.attacker.as_mut().unwrap().attacker_pos.x = attacker_pos.x;
         self.attacker.as_mut().unwrap().attacker_pos.y = attacker_pos.y;
     }
 
-    pub fn defender_movement_update(&mut self, defender_id: i32, defender_pos: Coordinates) {
+    pub fn defender_movement_update(&mut self, defender_id: i32, defender_pos: Coords) {
         let attacker = self.attacker.as_mut().unwrap();
 
         if attacker.attacker_health > 0 {
@@ -96,7 +100,7 @@ impl State {
             if self.defenders[i].id == defender_id {
                 attacker.attacker_health -= self.defenders[i].damage;
                 if(attacker.attacker_health <= 0){
-                    attacker.attacker_pos = Coordinates { x: -1, y: -1 };
+                    attacker.attacker_pos = Coords { x: -1, y: -1 };
                     self.attacker_death_count += 1;
                 }
                 self.defenders[i].is_alive = false;
@@ -113,7 +117,7 @@ impl State {
         attacker.attacker_health = std::cmp::max(0, attacker.attacker_health - damage_to_attacker);
         if attacker.attacker_health == 0 {
             self.attacker_death_count += 1;
-            attacker.attacker_pos = Coordinates { x: -1, y: -1 };
+            attacker.attacker_pos = Coords { x: -1, y: -1 };
         }
     }
 
@@ -127,7 +131,7 @@ impl State {
     pub fn attacker_movement(
         &mut self,
         frame_no: i32,
-        attacker_delta: Vec<Coordinates>,
+        attacker_delta: Vec<Coords>,
         attacker_current: Attacker,
         // defenders_current: Vec<DefenderDetails>,
     ) -> Option<Attacker> {
@@ -147,7 +151,7 @@ impl State {
             }
 
             let new_pos = attacker.attacker_pos;
-            let mut coord_temp: Coordinates = Coordinates {
+            let mut coord_temp: Coords = Coords {
                 x: attacker_delta[0].x,
                 y: attacker_delta[0].y,
             };
@@ -256,7 +260,7 @@ impl State {
     }
 
 
-    pub fn is_coord_crosssed(defender_pos_prev: Coordinates,defender_pos: Coordinates, attacker_pos_prev: Coordinates, attacker_pos: Coordinates) -> bool {
+    pub fn is_coord_crosssed(defender_pos_prev: Coords,defender_pos: Coords, attacker_pos_prev: Coords, attacker_pos: Coords) -> bool {
         if defender_pos_prev.x == attacker_pos.x && defender_pos_prev.y == attacker_pos.y || defender_pos.x == attacker_pos_prev.x && defender_pos.y == attacker_pos_prev.y {
             return true;
         }
@@ -268,8 +272,8 @@ impl State {
     pub fn defender_movement(
         &mut self,
         frame_no: i32,
-        attacker_delta: Vec<Coordinates>,
-        shortest_path: &HashMap<(Coordinates,Coordinates),Coordinates>,
+        attacker_delta: Vec<Coords>,
+        shortest_path: &HashMap<SourceDest,Coords>,
     ) -> Option<(Attacker, &Vec<DefenderDetails>)> {
         if (frame_no - self.frame_no) != 1 {
             None
@@ -313,7 +317,13 @@ impl State {
                         else {
                             defender_prev = defender.path_in_current_frame[iterator as usize - 1];
                         }
-                        let next_hop = shortest_path.get(&(&(defender.defender_pos,attacker.attacker_pos))).unwrap();
+                        let next_hop = shortest_path.get(&SourceDest {
+                            source_x: defender.defender_pos.x,
+                            source_y: defender.defender_pos.y,
+                            dest_x: attacker_delta[attacker_pointer_coord as usize + 1].x,
+                            dest_y: attacker_delta[attacker_pointer_coord as usize + 1].y,
+
+                        }).unwrap();
 
                         defender.defender_pos = *next_hop;
                         position_float += ratio as f32;
@@ -329,7 +339,7 @@ impl State {
                                 attacker.attacker_health -= defender.damage;
                                 defender.is_alive = false;
                                 if attacker.attacker_health <= 0 {
-                                    attacker.attacker_pos = Coordinates { x: -1, y: -1 };
+                                    attacker.attacker_pos = Coords { x: -1, y: -1 };
                                     self.attacker_death_count += 1;
                                 }
                             }
@@ -355,7 +365,7 @@ impl State {
         &mut self,
         frame_no: i32,
         mut mines: Vec<MineDetails>,
-        attacker_delta:Vec<Coordinates>,
+        attacker_delta:Vec<Coords>,
         
     ) -> Option<&Attacker> {
         if (frame_no - self.frame_no) != 1 {
@@ -391,19 +401,19 @@ impl State {
         for building in self.buildings.iter_mut() {
             if building.current_hp != 0 {
                 // let damage_buildings = self.calculate_damage_area(building, bomb);
-                let building_matrix: HashSet<Coordinates> = (building.tile.y
+                let building_matrix: HashSet<Coords> = (building.tile.y
                     ..building.tile.y + building.width)
                     .flat_map(|y| {
                         (building.tile.x..building.tile.x + building.width)
-                            .map(move |x| Coordinates { x, y })
+                            .map(move |x| Coords { x, y })
                     })
                     .collect();
 
-                let bomb_matrix: HashSet<Coordinates> = (bomb.pos.y - bomb.blast_radius
+                let bomb_matrix: HashSet<Coords> = (bomb.pos.y - bomb.blast_radius
                     ..bomb.pos.y + bomb.blast_radius + 1)
                     .flat_map(|y| {
                         (bomb.pos.x - bomb.blast_radius..bomb.pos.x + bomb.blast_radius + 1)
-                            .map(move |x| Coordinates { x, y })
+                            .map(move |x| Coords { x, y })
                     })
                     .collect();
 
@@ -457,31 +467,31 @@ impl State {
     //     //         bomb_matrix.push(Coords{x, y});
     //     //     }
     //     // }
-    //     // let mut same_coordinates: Vec<Coords> = Vec::new();
+    //     // let mut same_Coords: Vec<Coords> = Vec::new();
 
     //     // for building_coord in building_matrix.iter() {
     //     //     for bomb_coord in bomb_matrix.iter() {
     //     //         if building_coord == bomb_coord {
-    //     //             same_coordinates.push(*building_coord);
+    //     //             same_Coords.push(*building_coord);
     //     //         }
     //     //     }
     //     // }
 
     //     // the below code is a more efficient way to do the same thing as above
 
-    //     let building_matrix: HashSet<Coordinates> = (building.tile.y
+    //     let building_matrix: HashSet<Coords> = (building.tile.y
     //         ..building.tile.y + building.width)
     //         .flat_map(|y| {
     //             (building.tile.x..building.tile.x + building.width)
-    //                 .map(move |x| Coordinates { x, y })
+    //                 .map(move |x| Coords { x, y })
     //         })
     //         .collect();
 
-    //     let bomb_matrix: HashSet<Coordinates> = (bomb.pos.y - bomb.blast_radius
+    //     let bomb_matrix: HashSet<Coords> = (bomb.pos.y - bomb.blast_radius
     //         ..bomb.pos.y + bomb.blast_radius + 1)
     //         .flat_map(|y| {
     //             (bomb.pos.x - bomb.blast_radius..bomb.pos.x + bomb.blast_radius + 1)
-    //                 .map(move |x| Coordinates { x, y })
+    //                 .map(move |x| Coords { x, y })
     //         })
     //         .collect();
 
