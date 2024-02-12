@@ -5,7 +5,7 @@ use super::user::util::fetch_user;
 use super::PgPool;
 use crate::api::error;
 use crate::api::util::HistoryboardQuery;
-use crate::constants::*;
+use crate::constants::BLOCK_TYPE_ID_OF_BANK;
 use crate::models::*;
 use actix_web::error::{ErrorBadRequest, ErrorNotFound};
 use actix_web::web::{self, Data, Json};
