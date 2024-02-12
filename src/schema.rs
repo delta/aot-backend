@@ -117,10 +117,10 @@ diesel::table! {
 }
 
 diesel::table! {
-    level_constraints (level_id, building_id) {
+    level_constraints (level_id, block_id) {
         level_id -> Int4,
-        no_of_buildings -> Int4,
-        building_id -> Int4,
+        no_of_blocks -> Int4,
+        block_id -> Int4,
     }
 }
 
@@ -207,7 +207,7 @@ diesel::joinable!(block_type -> building_type (building_type));
 diesel::joinable!(block_type -> defender_type (defender_type));
 diesel::joinable!(block_type -> mine_type (mine_type));
 diesel::joinable!(game -> map_layout (map_layout_id));
-diesel::joinable!(level_constraints -> building_type (building_id));
+diesel::joinable!(level_constraints -> block_type (block_id));
 diesel::joinable!(level_constraints -> levels_fixture (level_id));
 diesel::joinable!(map_layout -> levels_fixture (level_id));
 diesel::joinable!(map_layout -> user (player));

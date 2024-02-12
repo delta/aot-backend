@@ -448,7 +448,7 @@ pub fn get_level_constraints(
             error: err,
         })?
         .iter()
-        .map(|constraint| (constraint.building_id, constraint.no_of_buildings))
+        .map(|constraint| (constraint.block_id, constraint.no_of_blocks))
         .collect())
 }
 

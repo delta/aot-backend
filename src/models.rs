@@ -157,16 +157,16 @@ pub struct NewLevelFixture<'a> {
 #[derive(Queryable, Serialize)]
 pub struct LevelConstraints {
     pub level_id: i32,
-    pub no_of_buildings: i32,
-    pub building_id: i32,
+    pub no_of_blocks: i32,
+    pub block_id: i32,
 }
 
 #[derive(Insertable)]
 #[diesel(table_name = level_constraints)]
 pub struct NewLevelConstraint<'a> {
     pub level_id: &'a i32,
-    pub no_of_buildings: &'a i32,
-    pub building_id: &'a i32,
+    pub no_of_blocks: &'a i32,
+    pub block_id: &'a i32,
 }
 
 #[derive(Clone, Queryable, Serialize)]

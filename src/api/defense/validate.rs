@@ -11,7 +11,7 @@ pub fn is_valid_update_layout(
     buildings: &[BuildingType],
 ) -> Result<(), BaseInvalidError> {
     let mut occupied_positions: HashSet<(i32, i32)> = HashSet::new();
-    let mut road_positions: HashSet<(i32, i32)> = HashSet::new();
+    let mut _road_positions: HashSet<(i32, i32)> = HashSet::new();
     let buildings: HashMap<i32, BuildingType> = buildings
         .iter()
         .map(|building| (building.id, building.clone()))
@@ -57,9 +57,9 @@ pub fn is_valid_update_layout(
                 }
             }
         }
-        if building_type == ROAD_ID {
-            road_positions.insert((map_space.x_coordinate, map_space.y_coordinate));
-        }
+        // if building_type == ROAD_ID {
+        //     road_positions.insert((map_space.x_coordinate, map_space.y_coordinate));
+        // }
     }
     // if is_road_rounded(&road_positions) {
     //     return Err(BaseInvalidError::RoundRoad);
@@ -110,6 +110,8 @@ pub fn is_valid_save_layout(
         .map(|building| (building.id, building.clone()))
         .collect();
 
+    let mut map_buildings: Vec<(i32, i32, i32)> = Vec::new();
+
     for map_space in map_spaces {
         let MapSpacesEntry {
             block_type_id,
@@ -140,9 +142,85 @@ pub fn is_valid_save_layout(
             node_to_coords.insert(new_node, (x_coordinate, y_coordinate));
             road_node_to_coords.insert(road_node, (x_coordinate, y_coordinate));
         } else {
-            let entrance = (map_space.x_coordinate, map_space.y_coordinate);
-            node_to_coords.insert(new_node, entrance);
-            map_grid.insert(entrance, new_node);
+            // let entrance = (map_space.x_coordinate, map_space.y_coordinate);
+            // node_to_coords.insert(new_node, entrance);
+            // map_grid.insert(entrance, new_node);
+
+            map_buildings.push((x_coordinate, y_coordinate, buildings[&building_type].width));
+        }
+    }
+
+    println!("Road grid: {:?}", road_grid);
+
+    for (x_coordinate, y_coordinate, building_type) in map_buildings {
+        let building_top_left_x = x_coordinate;
+        let building_top_left_y = y_coordinate;
+        let buildling_side = buildings[&building_type].width;
+
+        // Detect if atleast one edge has is completly adjacent to roads
+        //Print all the values used in the below code
+        println!("building_top_left_x: {}", building_top_left_x);
+        println!("building_top_left_y: {}", building_top_left_y);
+        println!("buildling_side: {}", buildling_side);
+
+        //Print road gri
+
+        //Check top side
+        let mut c1 = 0;
+        let mut c2 = 0;
+        let mut c3 = 0;
+        let mut c4 = 0;
+
+        for x in building_top_left_x..building_top_left_x + buildling_side {
+            //Print values
+            println!("x: {}", x);
+            println!("building_top_left_y - 1: {}", building_top_left_y - 1);
+            if road_grid.contains_key(&(x, building_top_left_y - 1)) {
+                c1 += 1;
+            }
+        }
+
+        //Check bottom side
+
+        for x in building_top_left_x..building_top_left_x + buildling_side {
+            //Print values
+            println!("x: {}", x);
+            println!(
+                "building_top_left_y + buildling_side: {}",
+                building_top_left_y + buildling_side
+            );
+            if road_grid.contains_key(&(x, building_top_left_y + buildling_side)) {
+                c2 += 1;
+            }
+        }
+
+        //Check left side
+        for y in building_top_left_y..building_top_left_y + buildling_side {
+            //Pritn values
+            println!("building_top_left_x - 1: {}", building_top_left_x - 1);
+            println!("y: {}", y);
+            if road_grid.contains_key(&(building_top_left_x - 1, y)) {
+                c3 += 1;
+            }
+        }
+
+        //Check right side
+        for y in building_top_left_y..building_top_left_y + buildling_side {
+            //Print values
+            println!(
+                "building_top_left_x + buildling_side: {}",
+                building_top_left_x + buildling_side
+            );
+            println!("y: {}", y);
+            if road_grid.contains_key(&(building_top_left_x + buildling_side, y)) {
+                c4 += 1;
+            }
+        }
+
+        println!("c1, c2, c3, c4, : {}, {}, {}, {}", c1, c2, c3, c4);
+        if c1 < buildling_side && c2 < buildling_side && c3 < buildling_side && c4 < buildling_side
+        {
+            return Err(BaseInvalidError::NotAdjacentToRoad);
         }
     }
 
@@ -200,18 +278,20 @@ pub fn is_valid_save_layout(
         )));
     }
 
-    let connected_components = tarjan_scc(&graph);
+    Ok(())
 
-    if connected_components.len() == 1 {
-        Ok(())
-    } else {
-        let first_component_node = connected_components[0][0];
-        let second_component_node = connected_components[1][0];
-        let first_node_coords = node_to_coords[&first_component_node];
-        let second_node_coords = node_to_coords[&second_component_node];
-        Err(BaseInvalidError::NotConnected(format!(
-            "no path from ({}, {}) to ({}, {})",
-            first_node_coords.0, first_node_coords.1, second_node_coords.0, second_node_coords.1
-        )))
-    }
+    // let connected_components = tarjan_scc(&graph);
+
+    // if connected_components.len() == 1 {
+    //     Ok(())
+    // } else {
+    //     let first_component_node = connected_components[0][0];
+    //     let second_component_node = connected_components[1][0];
+    //     let first_node_coords = node_to_coords[&first_component_node];
+    //     let second_node_coords = node_to_coords[&second_component_node];
+    //     Err(BaseInvalidError::NotConnected(format!(
+    //         "no path from ({}, {}) to ({}, {})",
+    //         first_node_coords.0, first_node_coords.1, second_node_coords.0, second_node_coords.1
+    //     )))
+    // }
 }
