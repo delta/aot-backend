@@ -21,7 +21,7 @@ use crate::simulation::{RenderAttacker, RenderMine};
 use crate::simulation::{RenderDefender, Simulator};
 use crate::util::function;
 use crate::validator::util::{
-    BombType, BuildingDetails, Coordinates, DefenderDetails, MineDetails,
+    BombType, BuildingDetails, DefenderDetails, MineDetails,
 };
 use ::serde::{Deserialize, Serialize};
 use anyhow::{Context, Result};
@@ -928,7 +928,7 @@ pub fn get_mines(conn: &mut PgConnection, map_id: i32) -> Result<Vec<MineDetails
             id: mine_id as i32,
             damage: mine_type.damage,
             radius: mine_type.radius,
-            pos: Coordinates {
+            pos: Coords {
                 x: map_space.x_coordinate,
                 y: map_space.y_coordinate,
             },
@@ -964,7 +964,7 @@ pub fn get_defenders(conn: &mut PgConnection, map_id: i32) -> Result<Vec<Defende
             radius: defender_type.radius,
             speed: defender_type.speed,
             damage: defender_type.damage,
-            defender_pos: Coordinates { x: hut_x, y: hut_y },
+            defender_pos: Coords { x: hut_x, y: hut_y },
             is_alive: true,
             damage_dealt: false,
             target_id: None,
@@ -997,7 +997,7 @@ pub fn get_buildings(conn: &mut PgConnection, map_id: i32) -> Result<Vec<Buildin
             current_hp: building_type.hp,
             total_hp: building_type.hp,
             artifacts_obtained: 0,
-            tile: Coordinates {
+            tile: Coords {
                 x: map_space.x_coordinate,
                 y: map_space.y_coordinate,
             },

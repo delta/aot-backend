@@ -1,30 +1,31 @@
 // use crate::{constants::ROAD_ID, validator::state::State};
 use crate::validator::state::State;
 use serde::{Deserialize, Serialize};
+use crate::simulation::blocks::Coords;
 
 // Structs present in the state
-#[derive(Debug, Serialize, Deserialize, Clone, Hash, Eq, PartialEq, Copy)]
-pub struct Coordinates {
-    pub x: i32,
-    pub y: i32,
-}
+// #[derive(Debug, Serialize, Deserialize, Clone, Hash, Eq, PartialEq, Copy)]
+// pub struct Coords {
+//     pub x: i32,
+//     pub y: i32,
+// }
 
 #[derive(Serialize, Clone, Copy)]
 pub struct Bomb {
     pub id: i32,
     pub blast_radius: i32,
     pub damage: i32,
-    pub pos: Coordinates,
+    pub pos: Coords,
     pub is_dropped: bool,
 }
 
 #[derive(Serialize, Clone)]
 pub struct Attacker {
     pub id: i32,
-    pub attacker_pos: Coordinates,
+    pub attacker_pos: Coords,
     pub attacker_health: i32,
     pub attacker_speed: i32,
-    pub path_in_current_frame: Vec<Coordinates>,
+    pub path_in_current_frame: Vec<Coords>,
     pub bombs: Vec<Bomb>,
 }
 
@@ -34,18 +35,18 @@ pub struct DefenderDetails {
     pub radius: i32,
     pub speed: i32,
     pub damage: i32,
-    pub defender_pos: Coordinates,
+    pub defender_pos: Coords,
     pub is_alive: bool,
     pub damage_dealt: bool,
     pub target_id: Option<i32>,
-    pub path_in_current_frame: Vec<Coordinates>,
+    pub path_in_current_frame: Vec<Coords>,
 }
 
 // Structs for sending response
 #[derive(Serialize)]
 pub struct MineDetails {
     pub id: i32,
-    pub pos: Coordinates,
+    pub pos: Coords,
     pub radius: i32,
     pub damage: i32,
 }
@@ -63,20 +64,20 @@ pub struct BuildingDetails {
     pub current_hp: i32,
     pub total_hp: i32,
     pub artifacts_obtained: i32,
-    pub tile: Coordinates,
+    pub tile: Coords,
     pub width: i32,
 }
 
 #[derive(Serialize,Clone, Copy)]
 pub struct SourceDest {
-    pub source: Coordinates,
-    pub dest: Coordinates,
+    pub source: Coords,
+    pub dest: Coords,
 }
 
 #[derive(Serialize)]
 pub struct ValidatorResponse {
     pub frame_no: i32,
-    pub attacker_pos: Coordinates,
+    pub attacker_pos: Coords,
     pub mines_triggered: Vec<MineDetails>,
     pub buildings_damaged: Vec<BuildingDetails>,
     pub artifacts_gained: i32,

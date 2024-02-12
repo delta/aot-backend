@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-use crate::validator::util::Coordinates;
+// use crate::validator::util::Coords;
+use crate::simulation::blocks::Coords;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SocketRequest {
@@ -8,9 +9,9 @@ pub struct SocketRequest {
     pub action_type: ActionType,
     pub attacker_id: Option<i32>,
     pub bomb_id: Option<i32>,
-    pub start_position: Option<Coordinates>,
-    pub attacker_path: Vec<Coordinates>,
-    pub bomb_positions: Vec<Coordinates>,
+    pub start_position: Option<Coords>,
+    pub attacker_path: Vec<Coords>,
+    pub bomb_positions: Vec<Coords>,
     pub is_game_over: Option<bool>,
 }
 
@@ -21,7 +22,7 @@ pub struct SocketResponse {
     pub is_alive: Option<bool>,
     pub attacker_health: Option<i32>,
     pub exploded_mines: Vec<MineResponse>,
-    pub triggered_defenders: Vec<Coordinates>,
+    pub triggered_defenders: Vec<Coords>,
     pub defender_damaged: Option<DefenderResponse>,
     pub damaged_buildings: Vec<BuildingResponse>,
     pub artifacts_gained: Vec<ArtifactsResponse>,
@@ -52,7 +53,7 @@ pub enum ResultType {
 #[derive(Serialize, Deserialize)]
 pub struct MineResponse {
     pub id: i32,
-    pub position: Coordinates,
+    pub position: Coords,
     pub damage: i32,
     pub radius: i32,
 }
@@ -60,14 +61,14 @@ pub struct MineResponse {
 #[derive(Serialize, Deserialize)]
 pub struct DefenderResponse {
     pub id: i32,
-    pub position: Coordinates,
+    pub position: Coords,
     pub damage: i32,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct BuildingResponse {
     pub id: i32,
-    pub position: Coordinates,
+    pub position: Coords,
     pub hp: i32,
 }
 

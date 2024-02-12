@@ -7,7 +7,7 @@ use crate::util::function;
 use anyhow::Result;
 use diesel::prelude::*;
 use diesel::{PgConnection, QueryDsl};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 // #[derive(Debug)]
@@ -32,7 +32,7 @@ pub struct SourceDest {
     pub dest_y: i32,
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Clone, PartialEq, Eq, Hash, Copy,Deserialize)]
 pub struct Coords {
     pub x: i32,
     pub y: i32,

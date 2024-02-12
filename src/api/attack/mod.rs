@@ -11,6 +11,8 @@ use crate::api::defense::util::calculate_shortest_paths;
 use crate::api::util::HistoryboardQuery;
 use crate::constants::MAX_BOMBS_PER_ATTACK;
 use crate::models::{AttackerType, LevelsFixture, User};
+use crate::schema::attacker_type;
+use crate::simulation::attack::attacker;
 use crate::simulation::blocks::{Coords, SourceDest};
 use crate::validator::state::State;
 use crate::validator::util::{BombType, BuildingDetails, DefenderDetails, MineDetails};
@@ -285,6 +287,12 @@ async fn socket_handler(
 
     let mut session_clone = session.clone();
 
+    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+    let attacker_type =
+        web::block(move || Ok(util::get_attacker_types(&mut conn)?) as anyhow::Result<HashMap<i32,AttackerType>>)
+            .await?
+            .map_err(|err| error::handle_error(err.into()))?;
+   
     actix_rt::spawn(async move {
         let mut game_state = State::new(
             attacker_id,
@@ -298,6 +306,7 @@ async fn socket_handler(
         let shortest_path = &shortest_paths.clone();
         let roads = &roads.clone();
         let bomb_types = &bomb_types.clone();
+        let attacker_type = &attacker_type.clone();
     
         while let Some(Ok(msg)) = msg_stream.next().await {
 
@@ -313,6 +322,7 @@ async fn socket_handler(
                     if let Ok(socket_request) = serde_json::from_str::<SocketRequest>(&s) {
                         println!("Parsed JSON message: {:?}", socket_request);
                         let response_result = game_handler(
+                            attacker_type,
                             socket_request,
                             &mut game_state,
                             shortest_path,

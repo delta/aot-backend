@@ -1,12 +1,11 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    api::attack::socket::{ActionType, ResultType, SocketRequest, SocketResponse},
-    simulation::{attack::attacker, blocks::{Coords, SourceDest}},
+    api::attack::socket::{ActionType, ResultType, SocketRequest, SocketResponse}, models::AttackerType, simulation::{attack::attacker, blocks::{Coords, SourceDest}}
 };
 use anyhow::{Ok, Result};
 
-use self::{state::State, util::{Attacker, BombType, Coordinates}};
+use self::{state::State, util::{Attacker, BombType}};
 
 pub mod error;
 pub mod state;
@@ -15,12 +14,14 @@ pub mod util;
 // use crate::validator::state::State::place_attacker;
 
 // use crate::validator::state::State::place_attacker;
-
+// get_attacker_types
+use crate::api::attack::util::get_attacker_types;
 
 pub fn game_handler(
+    attacker_type: &HashMap<i32,AttackerType>,
     socket_request: SocketRequest, 
-    game_state: &mut State, 
-    shortest_path: &HashMap<(Coordinates,Coordinates), Coordinates>,
+    _game_state: &mut State, 
+    _shortest_path: &HashMap<SourceDest,Coords>,
     _roads: &HashSet<(i32, i32)>,
     _bomb_types: &Vec<BombType>,
 ) -> Option<Result<SocketResponse>> {
@@ -31,20 +32,23 @@ pub fn game_handler(
 
     match socket_request.action_type {
         ActionType::PlaceAttacker => {
-            let attacker = Attacker {
-                id: 1,
-                path_in_current_frame: Vec::new(),
-                attacker_pos: todo!(),
-                attacker_health: todo!(),
-                attacker_speed: todo!(),
-                bombs: todo!(),
-            };
-            game_state.place_attacker(attacker);
+
+            if let Some(attacker_id) = socket_request.attacker_id {
+                let attacker: AttackerType = attacker_type.get(&attacker_id).unwrap().clone();
+                _game_state.place_attacker(Attacker{
+                    id: attacker.id,
+                    path_in_current_frame: Vec::new(),
+                    attacker_pos: socket_request.start_position.unwrap(),
+                    attacker_health: attacker.max_health,
+                    attacker_speed: attacker.speed,
+                    bombs: Vec::new(),
+                });
+            }
         },
         ActionType::MoveAttacker => {
             // move_attacker
             // State::new()
-            let attacker : Attacker = Attacker {
+            let _attacker : Attacker = Attacker {
                 id: 1,
                 path_in_current_frame: Vec::new(),
                 attacker_pos: todo!(),
@@ -52,13 +56,13 @@ pub fn game_handler(
                 attacker_speed: todo!(),
                 bombs: todo!(),
             };
-            let attacker_delta: Vec<Coordinates> = vec![Coordinates { x: 1, y: 1 }];
-            game_state.attacker_movement(1,attacker_delta, attacker);
-            game_state.defender_movement(1, attacker_delta, shortest_path);
+            let attacker_delta: Vec<Coords> = vec![Coords { x: 1, y: 1 }];
+            _game_state.attacker_movement(1,attacker_delta, _attacker);
+            _game_state.defender_movement(1, attacker_delta, _shortest_path);
         }
         ActionType::PlaceBombs => {
             // place_bombs
-            let attacker : Attacker = Attacker {
+            let _attacker : Attacker = Attacker {
                 id: 1,
                 path_in_current_frame: Vec::new(),
                 attacker_pos: todo!(),
@@ -66,7 +70,7 @@ pub fn game_handler(
                 attacker_speed: todo!(),
                 bombs: todo!(),
             };
-            game_state.place_bombs(attacker);
+            _game_state.place_bombs(_attacker);
         }
         ActionType::Idle => {
             // idle (waiting for user to choose next attacker)
