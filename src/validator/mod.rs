@@ -2,20 +2,25 @@ use std::collections::{HashMap, HashSet};
 
 use crate::{
     api::attack::socket::{ActionType, ResultType, SocketRequest, SocketResponse},
-    simulation::blocks::{Coords, SourceDest},
+    simulation::{attack::attacker, blocks::{Coords, SourceDest}},
 };
 use anyhow::{Ok, Result};
 
-use self::{state::State, util::BombType};
+use self::{state::State, util::{Attacker, BombType, Coordinates}};
 
 pub mod error;
 pub mod state;
 pub mod util;
 
+// use crate::validator::state::State::place_attacker;
+
+// use crate::validator::state::State::place_attacker;
+
+
 pub fn game_handler(
     socket_request: SocketRequest, 
-    _game_state: &mut State, 
-    _shortest_path: &HashMap<SourceDest, Coords>,
+    game_state: &mut State, 
+    shortest_path: &HashMap<(Coordinates,Coordinates), Coordinates>,
     _roads: &HashSet<(i32, i32)>,
     _bomb_types: &Vec<BombType>,
 ) -> Option<Result<SocketResponse>> {
@@ -25,12 +30,43 @@ pub fn game_handler(
     // form response and send
 
     match socket_request.action_type {
-        ActionType::PlaceAttacker => return None,
+        ActionType::PlaceAttacker => {
+            let attacker = Attacker {
+                id: 1,
+                path_in_current_frame: Vec::new(),
+                attacker_pos: todo!(),
+                attacker_health: todo!(),
+                attacker_speed: todo!(),
+                bombs: todo!(),
+            };
+            game_state.place_attacker(attacker);
+        },
         ActionType::MoveAttacker => {
             // move_attacker
+            // State::new()
+            let attacker : Attacker = Attacker {
+                id: 1,
+                path_in_current_frame: Vec::new(),
+                attacker_pos: todo!(),
+                attacker_health: todo!(),
+                attacker_speed: todo!(),
+                bombs: todo!(),
+            };
+            let attacker_delta: Vec<Coordinates> = vec![Coordinates { x: 1, y: 1 }];
+            game_state.attacker_movement(1,attacker_delta, attacker);
+            game_state.defender_movement(1, attacker_delta, shortest_path);
         }
         ActionType::PlaceBombs => {
             // place_bombs
+            let attacker : Attacker = Attacker {
+                id: 1,
+                path_in_current_frame: Vec::new(),
+                attacker_pos: todo!(),
+                attacker_health: todo!(),
+                attacker_speed: todo!(),
+                bombs: todo!(),
+            };
+            game_state.place_bombs(attacker);
         }
         ActionType::Idle => {
             // idle (waiting for user to choose next attacker)
