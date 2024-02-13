@@ -4,7 +4,7 @@ use std::{collections::{HashMap, HashSet}, hash::Hash};
 use crate::{
     // schema::defender_type::damage,
     // simulation::defense::defender,
-    api::attack, schema::shortest_path, simulation::defense::defender, validator::util::{Attacker, Bomb, BuildingDetails, DefenderDetails, MineDetails}
+    api::attack::{self, socket::{BuildingResponse, DefenderResponse}}, schema::shortest_path, simulation::defense::defender, validator::util::{Attacker, Bomb, BuildingDetails, DefenderDetails, MineDetails}
 };
 use crate::{
     api::attack::socket::{ActionType, ResultType, SocketRequest, SocketResponse},
@@ -12,13 +12,13 @@ use crate::{
 };
 
 use rayon::iter;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use super::util::BombType;
 
 
 
-#[derive(Serialize)]
+#[derive(Serialize,Deserialize,Clone)]
 pub struct State {
     pub frame_no: i32,
     pub attacker_user_id: i32,
@@ -68,6 +68,9 @@ impl State {
 
     // Setters for the state
 
+    // pub fn set_mines(&mut self, mines: &Vec<MineDetails>) {
+    //     self.mines = mines;
+    // }
     pub fn set_total_hp_buildings(&mut self){
         let mut total_hp = 0;
         for building in self.buildings.iter() {
@@ -147,6 +150,9 @@ impl State {
             self.attacker_death_count += 1;
             attacker.attacker_pos = Coords { x: -1, y: -1 };
         }
+
+        // Remove the mine with _id from mines vector
+        self.mines.retain(|mine| mine.id != _id);
     }
 
     // fn bomb_blast_update(&mut self, final_damage_percentage: i32, increase_artifacts: i32) {
@@ -253,13 +259,13 @@ impl State {
             //     self.bomb_blast(attacker_current.bombs[attacker_current.bombs.len() - 1]);
             //     attacker.bombs.pop();
             // }
-
+            self.frame_no += 1;
             self.attacker_movement_update(&new_pos);
             Some(attacker_current)
         }
     }
 
-    pub fn place_bombs(&mut self, attacker_delta: Vec<Coords>,bomb_position:Coords) -> Option<&Self> {
+    pub fn place_bombs(&mut self, attacker_delta: Vec<Coords>,bomb_position:Coords) -> Option<Vec<BuildingResponse>> {
         let mut attacker = self.attacker.clone().unwrap();
 
 
@@ -278,7 +284,7 @@ impl State {
         }
         
         
-        self.bomb_blast(bomb_position);
+        let buildings_damaged = self.bomb_blast(bomb_position);
         // else if(self.bombs.get() > 0){
         //     self.bombs = Some(BombType {
         //         id: self.bombs.get().id,
@@ -308,7 +314,7 @@ impl State {
         //     attacker.bombs.pop();
         // }
 
-        return Some(self)
+        return None;
     }
 
 
@@ -323,14 +329,10 @@ impl State {
 
     pub fn defender_movement(
         &mut self,
-        frame_no: i32,
         attacker_delta: Vec<Coords>,
         shortest_path: &HashMap<SourceDest,Coords>,
-    ) -> Option<(Attacker, &Vec<DefenderDetails>)> {
-        if (frame_no - self.frame_no) != 1 {
-            None
-            // GAME_OVER
-        } else {
+    ) -> Option<(i32,Vec<DefenderResponse>,&mut Self)> {
+     
             // self.frame_no += 1;
 
             // if !defenders.is_empty() {
@@ -345,13 +347,14 @@ impl State {
             //        }
             //     }
             // }
-            let mut attacker = self.attacker.clone().unwrap();
+            let mut attacker = self.attacker.as_ref().unwrap().clone();
+
 
             let ratio: f32 = attacker.attacker_speed as f32 / self.defenders[0].speed as f32;
             attacker.attacker_pos = attacker_delta[0];
             let mut attacker_prev = attacker_delta[0];
-
-            for defender in self.defenders.iter_mut(){
+            let mut defenders_triggered: Vec<DefenderResponse> = Vec::new();
+            for defender in self.defenders.clone().iter_mut() {
 
                 if defender.target_id != None && defender.is_alive {
                     if defender.path_in_current_frame.len() > 0 {
@@ -394,6 +397,16 @@ impl State {
                                     attacker.attacker_pos = Coords { x: -1, y: -1 };
                                     self.attacker_death_count += 1;
                                 }
+                                attacker.attacker_pos = attacker_delta[0];
+                                attacker_prev = attacker_delta[0];
+                                defenders_triggered.push( DefenderResponse {
+                                    id: defender.id,
+                                    position: defender.defender_pos,
+                                    damage: defender.damage,
+                                });
+                                self.defenders.retain(|temp_defender| temp_defender.id != defender.id);
+                                break;
+                                
                             }
                             position_float -= 1 as f32;
                         }
@@ -409,38 +422,46 @@ impl State {
             //     // }
             // }
 
-            Some((attacker, &self.defenders))
-        }
+            Some((attacker.attacker_health,defenders_triggered, self))
     }
 
     pub fn mine_blast(
         &mut self,
-        frame_no: i32,
-        mut mines: Vec<MineDetails>,
+        // frame_no: i32,
+        // mut mines: &Vec<MineDetails>,
         attacker_delta:Vec<Coords>,
         
-    ) -> Option<&Attacker> {
-        if (frame_no - self.frame_no) != 1 {
-            //GAME_OVER
-            None
-        } else {
+    ) -> Option<Vec<MineDetails>> {
+        // if (frame_no - self.frame_no) != 1 {
+        //     //GAME_OVER
+        //     None
+        // } else {
             self.frame_no += 1;
             let mut damage_to_attacker;
 
-            for (_i, mine) in mines.iter_mut().enumerate() {
+            let mut triggered_mines: Vec<MineDetails> = Vec::new();
+
+            for (_i, mine) in self.mines.clone().iter_mut().enumerate() {
                 for attacker_pos in attacker_delta.iter() { 
                     if attacker_pos.x == mine.pos.x && attacker_pos.y == mine.pos.y {
                         damage_to_attacker = mine.damage;
+                        triggered_mines.push(MineDetails {
+                            id: mine.id,
+                            pos: mine.pos,
+                            radius: mine.radius,
+                            damage: mine.damage,
+                        
+                        });
                         self.mine_blast_update(mine.id, damage_to_attacker);
                     }
                 }  
             }
 
-            self.attacker.as_ref()
-        }
+            Some(triggered_mines)
+        // }
     }
 
-    pub fn bomb_blast(&mut self, bomb_position:Coords) -> Option<&Self> {
+    pub fn bomb_blast(&mut self, bomb_position:Coords) -> Option<Vec<BuildingResponse>> {
         // if bomb.blast_radius != self.attacker.as_ref().unwrap().bombs[0].blast_radius {
         //     return Some(self);
         // }
@@ -451,8 +472,11 @@ impl State {
         // for (_i, building) in self.buildings.iter_mut().enumerate() {
 
         let bomb = &mut self.bombs;
+        let mut buildings_damaged: Vec<BuildingResponse> = Vec::new();
         for building in self.buildings.iter_mut() {
             if building.current_hp != 0 {
+                let mut artifacts_taken_by_destroying_building: i32 = 0;
+
                 // let damage_buildings = self.calculate_damage_area(building, bomb);
                 let building_matrix: HashSet<Coords> = (building.tile.y
                     ..building.tile.y + building.width)
@@ -476,6 +500,7 @@ impl State {
                     (coinciding_coords_damage as f32 / building_matrix.len() as f32);
 
                 if damage_buildings != 0.0 {
+                    
                     let old_hp = building.current_hp;
                     let mut current_damage =
                         (damage_buildings * building.total_hp as f32) as i32;
@@ -487,10 +512,19 @@ impl State {
                         self.artifacts += building.artifacts_obtained;
                         self.damage_percentage +=
                             (current_damage as f32 / self.total_hp_buildings as f32) * 100.0_f32;
+                    artifacts_taken_by_destroying_building = building.artifacts_obtained;
                     } else {
                         self.damage_percentage +=
                             (current_damage as f32 / self.total_hp_buildings as f32) * 100.0_f32;
                     }
+
+                    buildings_damaged.push(BuildingResponse {
+                        id: building.id,
+                        position: building.tile,
+                        hp: building.current_hp,
+                        artifacts_if_damaged:  artifacts_taken_by_destroying_building
+                  
+                    });
                 }
             } else {
                 continue;
@@ -502,8 +536,12 @@ impl State {
         // if util::is_road(&bomb.pos) {
         //     // tile not road error
         // }
-
-        None
+            if buildings_damaged.len() != 0 {
+                Some(buildings_damaged)
+            }
+            else{
+                None
+            }
     }
 
     // pub fn calculate_damage_area(&mut self, building: &mut BuildingDetails, bomb: Bomb) -> i32 {

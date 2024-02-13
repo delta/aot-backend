@@ -10,7 +10,7 @@ use crate::simulation::blocks::Coords;
 //     pub y: i32,
 // }
 
-#[derive(Serialize, Clone, Copy)]
+#[derive(Serialize, Clone, Copy,Deserialize)]
 pub struct Bomb {
     pub id: i32,
     pub blast_radius: i32,
@@ -19,7 +19,7 @@ pub struct Bomb {
     pub is_dropped: bool,
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Clone,Deserialize)]
 pub struct Attacker {
     pub id: i32,
     pub attacker_pos: Coords,
@@ -29,7 +29,7 @@ pub struct Attacker {
     pub bombs: Vec<Bomb>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize,Deserialize,Clone)]
 pub struct DefenderDetails {
     pub id: i32,
     pub radius: i32,
@@ -43,7 +43,7 @@ pub struct DefenderDetails {
 }
 
 // Structs for sending response
-#[derive(Serialize)]
+#[derive(Serialize,Deserialize,Clone)]
 pub struct MineDetails {
     pub id: i32,
     pub pos: Coords,
@@ -51,7 +51,7 @@ pub struct MineDetails {
     pub damage: i32,
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Clone,Deserialize)]
 pub struct BombType {
     pub id: i32,
     pub radius: i32,
@@ -60,7 +60,7 @@ pub struct BombType {
 
 }
 
-#[derive(Serialize)]
+#[derive(Serialize,Deserialize,Clone)]
 pub struct BuildingDetails {
     pub id: i32,
     pub current_hp: i32,

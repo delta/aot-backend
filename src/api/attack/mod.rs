@@ -283,6 +283,7 @@ async fn socket_handler(
             .await?
             .map_err(|err| error::handle_error(err.into()))?;
 
+
     let (response, session, mut msg_stream) = actix_ws::handle(&req, body)?;
 
     let mut session_clone = session.clone();
@@ -307,6 +308,7 @@ async fn socket_handler(
         let roads = &roads.clone();
         let bomb_types = &bomb_types.clone();
         let attacker_type = &attacker_type.clone();
+
     
         while let Some(Ok(msg)) = msg_stream.next().await {
 

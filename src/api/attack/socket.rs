@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 // use crate::validator::util::Coords;
-use crate::simulation::blocks::Coords;
+use crate::{simulation::blocks::Coords, validator::util::{Attacker, BombType, BuildingDetails, DefenderDetails, MineDetails}};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SocketRequest {
@@ -21,11 +21,11 @@ pub struct SocketResponse {
     pub result_type: ResultType,
     pub is_alive: Option<bool>,
     pub attacker_health: Option<i32>,
-    pub exploded_mines: Vec<MineResponse>,
-    pub triggered_defenders: Vec<Coords>,
-    pub defender_damaged: Option<DefenderResponse>,
-    pub damaged_buildings: Vec<BuildingResponse>,
-    pub artifacts_gained: Vec<ArtifactsResponse>,
+    pub exploded_mines: Option<Vec<MineDetails>>,
+    pub triggered_defenders: Option<Vec<DefenderResponse>>,
+    // pub defender_damaged: Option<DefenderResponse>,
+    pub damaged_buildings: Option<Vec<BuildingResponse>>,
+    pub artifacts_gained_total: i32,
     pub is_sync: bool,
     pub state: Option<GameStateResponse>,
     pub is_game_over: bool,
@@ -34,6 +34,7 @@ pub struct SocketResponse {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub enum ActionType {
+    IsMine,
     PlaceAttacker,
     MoveAttacker,
     PlaceBombs,
@@ -58,7 +59,7 @@ pub struct MineResponse {
     pub radius: i32,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize,Clone, Copy)]
 pub struct DefenderResponse {
     pub id: i32,
     pub position: Coords,
@@ -70,6 +71,7 @@ pub struct BuildingResponse {
     pub id: i32,
     pub position: Coords,
     pub hp: i32,
+    pub artifacts_if_damaged: i32,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -79,4 +81,17 @@ pub struct ArtifactsResponse {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct GameStateResponse {}
+pub struct GameStateResponse {
+    pub frame_no: i32,
+    pub attacker_user_id: i32,
+    pub defender_user_id: i32,
+    pub attacker: Option<Attacker>,
+    pub attacker_death_count: i32,
+    pub bombs: BombType,
+    pub damage_percentage: f32,
+    pub artifacts: i32,
+    pub defenders: Vec<DefenderDetails>,
+    pub mines: Vec<MineDetails>, 
+    pub buildings: Vec<BuildingDetails>,
+    pub total_hp_buildings: i32,
+}
