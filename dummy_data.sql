@@ -80,15 +80,15 @@ COPY public.building_type FROM stdin;
 \.
 
 COPY public.defender_type FROM stdin;
-1	4	50	8	1	0
-2	4	40	10	1	0
-3	4	30	6	1	0
-4	5	60	7	2	150
-5	4	50	8	2	250
-6	4	40	9	2	350
-7	4	70	9	3	200
-8	4	60	10	3	300
-9	4	50	8	3	400
+1	4	50	8	1	0	defender_1
+2	4	40	10	1	0	defender_2
+3	4	30	6	1	0	defender_3
+4	5	60	7	2	150	defender_1
+5	4	50	8	2	250	defender_2
+6	4	40	9	2	350	defender_3
+7	4	70	9	3	200	defender_1
+8	4	60	10	3	300	defender_2
+9	4	50	8	3	400	defender_3
 \.
 
 COPY public.emp_type FROM stdin;
@@ -104,15 +104,15 @@ COPY public.emp_type FROM stdin;
 \.
 
 COPY public.mine_type FROM stdin;
-1	5	50	1	0
-2	6	60	1	0
-3	7	70	1	0
-4	6	70	2	120
-5	7	80	2	180
-6	8	90	2	240
-7	7	90	3	150
-8	8	100	3	220
-9	9	110	3	300
+1	5	50	1	0	mine_1
+2	6	60	1	0	mine_2
+3	7	70	1	0	mine_3
+4	6	70	2	120	mine_1
+5	7	80	2	180	mine_2
+6	8	90	2	240	mine_3
+7	7	90	3	150	mine_1
+8	8	100	3	220	mine_2
+9	9	110	3	300	mine_3
 \.
 
 COPY public.attacker_type FROM stdin;

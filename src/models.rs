@@ -10,7 +10,7 @@ pub enum BlockCategory {
     Mine,
 }
 
-#[derive(diesel_derive_enum::DbEnum, Debug, Serialize, Clone, PartialEq, Copy)]
+#[derive(diesel_derive_enum::DbEnum, Debug, Serialize, Clone, PartialEq, Copy, Deserialize)]
 #[DieselTypePath = "crate::schema::sql_types::ItemCategory"]
 pub enum ItemCategory {
     Attacker,
