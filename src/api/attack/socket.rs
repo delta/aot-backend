@@ -11,7 +11,7 @@ pub struct SocketRequest {
     pub bomb_id: Option<i32>,
     pub start_position: Option<Coords>,
     pub attacker_path: Vec<Coords>,
-    pub bomb_positions: Vec<Coords>,
+    pub bomb_position: Coords,
     pub is_game_over: Option<bool>,
 }
 

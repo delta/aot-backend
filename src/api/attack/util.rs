@@ -1021,6 +1021,7 @@ pub fn get_bomb_types(conn: &mut PgConnection) -> Result<Vec<BombType>> {
             id: emp.id,
             radius: emp.attack_radius,
             damage: emp.attack_damage,
+            total_count: 0
         })
         .collect();
     Ok(bomb_types)

@@ -4,6 +4,7 @@ use crate::{
     api::attack::socket::{ActionType, ResultType, SocketRequest, SocketResponse}, models::AttackerType, simulation::{attack::attacker, blocks::{Coords, SourceDest}}
 };
 use anyhow::{Ok, Result};
+use tungstenite::protocol::frame;
 
 use self::{state::State, util::{Attacker, BombType}};
 
@@ -32,8 +33,26 @@ pub fn game_handler(
 
     match socket_request.action_type {
         ActionType::PlaceAttacker => {
+            dotenv::dotenv().ok();
+            
+         
 
-          
+            if socket_request.frame_number == 1 {
+                let bomb_max_count = std::env::var("BOMBS_MAX_COUNT")
+                .unwrap_or("0".to_string())
+                .parse::<i32>()
+                .unwrap_or(0);
+            for bomb_type in _bomb_types {
+
+                if let Some(bomb_id) = socket_request.bomb_id {
+                    if bomb_type.id == bomb_id {
+                        _game_state.set_bombs(bomb_type.clone(), bomb_max_count);
+                    }
+                }
+           
+            }
+            }
+            
 
             if let Some(attacker_id) = socket_request.attacker_id {
                 let attacker: AttackerType = attacker_type.get(&attacker_id).unwrap().clone();
@@ -79,17 +98,10 @@ pub fn game_handler(
         }
         ActionType::PlaceBombs => {
             // place_bombs
-            if let Some(attacker_id) = socket_request.attacker_id {
-                let attacker: AttackerType = attacker_type.get(&attacker_id).unwrap().clone();
-                _game_state.place_bombs(Attacker{
-                    id: attacker.id,
-                    path_in_current_frame: Vec::new(),
-                    attacker_pos: socket_request.start_position.unwrap(),
-                    attacker_health: attacker.max_health,
-                    attacker_speed: attacker.speed,
-                    bombs: Vec::new(),
-                });
-            }
+            let attacker_delta: Vec<Coords> = socket_request.attacker_path;
+
+
+            _game_state.place_bombs(attacker_delta,socket_request.bomb_position);
            
             
         }

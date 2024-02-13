@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::{collections::{HashMap, HashSet}, hash::Hash};
 // use std::cmp;
 
 use crate::{
@@ -14,6 +14,8 @@ use crate::{
 use rayon::iter;
 use serde::Serialize;
 
+use super::util::BombType;
+
 
 
 #[derive(Serialize)]
@@ -23,12 +25,13 @@ pub struct State {
     pub defender_user_id: i32,
     pub attacker: Option<Attacker>,
     pub attacker_death_count: i32,
-    pub bombs: i32,
+    pub bombs: BombType,
     pub damage_percentage: f32,
     pub artifacts: i32,
     pub defenders: Vec<DefenderDetails>,
     pub mines: Vec<MineDetails>, 
     pub buildings: Vec<BuildingDetails>,
+    pub total_hp_buildings: i32,
 }
 
 #[allow(dead_code)]
@@ -46,16 +49,41 @@ impl State {
             defender_user_id,
             attacker: None,
             attacker_death_count: 0,
-            bombs: 0,
+            bombs: 
+                BombType {
+                    id: -1,
+                    radius: 0,
+                    damage:0,
+                    total_count: 0,
+                }
+            ,
             damage_percentage: 0.0,
             artifacts: 0,
             defenders,
             mines,
             buildings,
+            total_hp_buildings: 0
         }
     }
 
     // Setters for the state
+
+    pub fn set_total_hp_buildings(&mut self){
+        let mut total_hp = 0;
+        for building in self.buildings.iter() {
+            total_hp += building.total_hp;
+        }
+        self.total_hp_buildings = total_hp;
+    }
+
+    pub fn set_bombs(&mut self,bomb_type:BombType, bombs: i32) {
+        self.bombs = BombType {
+            id: bomb_type.id,
+            radius: bomb_type.radius,
+            damage: bomb_type.damage,
+            total_count: bombs,
+        };
+    }
 
     pub fn place_attacker(&mut self, attacker: Attacker) {
         self.attacker = Some(attacker);
@@ -143,7 +171,7 @@ impl State {
             None
             // GAME_OVER
         } else {
-            self.frame_no += 1;
+            // self.frame_no += 1;
 
             let attacker = self.attacker.clone().unwrap();
 
@@ -231,7 +259,7 @@ impl State {
         }
     }
 
-    pub fn place_bombs(&mut self, attacker_current: Attacker) -> Option<&Self> {
+    pub fn place_bombs(&mut self, attacker_delta: Vec<Coords>,bomb_position:Coords) -> Option<&Self> {
         let mut attacker = self.attacker.clone().unwrap();
 
 
@@ -239,25 +267,46 @@ impl State {
         //                 
 
         // }
-        if attacker_current.bombs[attacker_current.bombs.len() - 1].is_dropped {
-            //dropped a bomb
-            //damage buildings
 
-            if attacker.bombs[attacker.bombs.len() - 1].damage
-                != attacker_current.bombs[attacker_current.bombs.len() - 1].damage
-            {
-                            // GAME_OVER
-
-            }
-            if attacker.bombs[attacker.bombs.len() - 1].blast_radius
-                != attacker_current.bombs[attacker_current.bombs.len() - 1].blast_radius
-            {
-                           // GAME_OVER
-
-            }
-            self.bomb_blast(attacker_current.bombs[attacker_current.bombs.len() - 1]);
-            attacker.bombs.pop();
+        if self.bombs.total_count <= 0 {
+            //Nothing
+            return None;
         }
+
+        if !attacker_delta.contains(&bomb_position) {
+            //GAME_OVER
+        }
+        
+        
+        self.bomb_blast(bomb_position);
+        // else if(self.bombs.get() > 0){
+        //     self.bombs = Some(BombType {
+        //         id: self.bombs.get().id,
+        //         radius: self.bombs.get().radius,
+        //         damage: self.bombs.get().damage,
+        //         total_count: self.bombs.get().total_count - 1,
+        //     });
+        // }
+      
+        // if attacker_current.bombs[attacker_current.bombs.len() - 1].is_dropped {
+        //     //dropped a bomb
+        //     //damage buildings
+
+        //     if attacker.bombs[attacker.bombs.len() - 1].damage
+        //         != attacker_current.bombs[attacker_current.bombs.len() - 1].damage
+        //     {
+        //                     // GAME_OVER
+
+        //     }
+        //     if attacker.bombs[attacker.bombs.len() - 1].blast_radius
+        //         != attacker_current.bombs[attacker_current.bombs.len() - 1].blast_radius
+        //     {
+        //                    // GAME_OVER
+
+        //     }
+        //     self.bomb_blast(attacker_current.bombs[attacker_current.bombs.len() - 1]);
+        //     attacker.bombs.pop();
+        // }
 
         return Some(self)
     }
@@ -282,7 +331,7 @@ impl State {
             None
             // GAME_OVER
         } else {
-            self.frame_no += 1;
+            // self.frame_no += 1;
 
             // if !defenders.is_empty() {
             //     for defender in defenders {
@@ -391,16 +440,17 @@ impl State {
         }
     }
 
-    pub fn bomb_blast(&mut self, bomb: Bomb) -> Option<&Self> {
-        if bomb.blast_radius != self.attacker.as_ref().unwrap().bombs[0].blast_radius {
-            return Some(self);
-        }
-        if bomb.damage != self.attacker.as_ref().unwrap().bombs[0].damage {
-            return Some(self);
-        }
-        let total_hit_points = 20000;
+    pub fn bomb_blast(&mut self, bomb_position:Coords) -> Option<&Self> {
+        // if bomb.blast_radius != self.attacker.as_ref().unwrap().bombs[0].blast_radius {
+        //     return Some(self);
+        // }
+        // if bomb.damage != self.attacker.as_ref().unwrap().bombs[0].damage {
+        //     return Some(self);
+        // }
 
         // for (_i, building) in self.buildings.iter_mut().enumerate() {
+
+        let bomb = &mut self.bombs;
         for building in self.buildings.iter_mut() {
             if building.current_hp != 0 {
                 // let damage_buildings = self.calculate_damage_area(building, bomb);
@@ -412,10 +462,10 @@ impl State {
                     })
                     .collect();
 
-                let bomb_matrix: HashSet<Coords> = (bomb.pos.y - bomb.blast_radius
-                    ..bomb.pos.y + bomb.blast_radius + 1)
+                let bomb_matrix: HashSet<Coords> = (bomb_position.y - bomb.radius
+                    ..bomb_position.y + bomb.radius + 1)
                     .flat_map(|y| {
-                        (bomb.pos.x - bomb.blast_radius..bomb.pos.x + bomb.blast_radius + 1)
+                        (bomb_position.x - bomb.radius ..bomb_position.x + bomb.radius + 1)
                             .map(move |x| Coords { x, y })
                     })
                     .collect();
@@ -436,16 +486,18 @@ impl State {
                         current_damage = old_hp;
                         self.artifacts += building.artifacts_obtained;
                         self.damage_percentage +=
-                            (current_damage as f32 / total_hit_points as f32) * 100.0_f32;
+                            (current_damage as f32 / self.total_hp_buildings as f32) * 100.0_f32;
                     } else {
                         self.damage_percentage +=
-                            (current_damage as f32 / total_hit_points as f32) * 100.0_f32;
+                            (current_damage as f32 / self.total_hp_buildings as f32) * 100.0_f32;
                     }
                 }
             } else {
                 continue;
             }
         }
+
+        self.bombs.total_count -= 1;
 
         // if util::is_road(&bomb.pos) {
         //     // tile not road error
