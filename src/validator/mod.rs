@@ -33,6 +33,8 @@ pub fn game_handler(
     match socket_request.action_type {
         ActionType::PlaceAttacker => {
 
+          
+
             if let Some(attacker_id) = socket_request.attacker_id {
                 let attacker: AttackerType = attacker_type.get(&attacker_id).unwrap().clone();
                 _game_state.place_attacker(Attacker{
@@ -44,33 +46,52 @@ pub fn game_handler(
                     bombs: Vec::new(),
                 });
             }
+           
+            _game_state.update_frame_number(socket_request.frame_number.clone());
+               
+
+            
         },
         ActionType::MoveAttacker => {
             // move_attacker
             // State::new()
-            let _attacker : Attacker = Attacker {
-                id: 1,
-                path_in_current_frame: Vec::new(),
-                attacker_pos: todo!(),
-                attacker_health: todo!(),
-                attacker_speed: todo!(),
-                bombs: todo!(),
-            };
-            let attacker_delta: Vec<Coords> = vec![Coords { x: 1, y: 1 }];
-            _game_state.attacker_movement(1,attacker_delta, _attacker);
-            _game_state.defender_movement(1, attacker_delta, _shortest_path);
+            if let Some(attacker_id) = socket_request.attacker_id {
+                let attacker: AttackerType = attacker_type.get(&attacker_id).unwrap().clone();
+                let attacker_delta: Vec<Coords> = socket_request.attacker_path;
+                
+                
+
+                _game_state.attacker_movement(socket_request.frame_number.clone(),attacker_delta.clone(), Attacker{
+                    id: attacker.id,
+                    path_in_current_frame: Vec::new(),
+                    attacker_pos: socket_request.start_position.unwrap(),
+                    attacker_health: attacker.max_health,
+                    attacker_speed: attacker.speed,
+                    bombs: Vec::new(),
+                });
+
+                _game_state.defender_movement(socket_request.frame_number.clone(), attacker_delta.clone(), _shortest_path);
+                _game_state.update_frame_number(socket_request.frame_number.clone());
+
+            }
+         
+  
         }
         ActionType::PlaceBombs => {
             // place_bombs
-            let _attacker : Attacker = Attacker {
-                id: 1,
-                path_in_current_frame: Vec::new(),
-                attacker_pos: todo!(),
-                attacker_health: todo!(),
-                attacker_speed: todo!(),
-                bombs: todo!(),
-            };
-            _game_state.place_bombs(_attacker);
+            if let Some(attacker_id) = socket_request.attacker_id {
+                let attacker: AttackerType = attacker_type.get(&attacker_id).unwrap().clone();
+                _game_state.place_bombs(Attacker{
+                    id: attacker.id,
+                    path_in_current_frame: Vec::new(),
+                    attacker_pos: socket_request.start_position.unwrap(),
+                    attacker_health: attacker.max_health,
+                    attacker_speed: attacker.speed,
+                    bombs: Vec::new(),
+                });
+            }
+           
+            
         }
         ActionType::Idle => {
             // idle (waiting for user to choose next attacker)

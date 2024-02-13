@@ -127,6 +127,9 @@ impl State {
     // }
 
     //logic
+    pub fn update_frame_number(&mut self, frame_no: i32){
+        self.frame_no = frame_no;
+    }
 
     pub fn attacker_movement(
         &mut self,
