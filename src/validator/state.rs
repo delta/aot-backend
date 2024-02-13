@@ -266,7 +266,6 @@ impl State {
     }
 
     pub fn place_bombs(&mut self, attacker_delta: Vec<Coords>,bomb_position:Coords) -> Option<Vec<BuildingResponse>> {
-        let mut attacker = self.attacker.clone().unwrap();
 
 
         // if attacker_current.bombs.len() - attacker.bombs.len() > 1 {
@@ -282,6 +281,7 @@ impl State {
         if !attacker_delta.contains(&bomb_position) {
             //GAME_OVER
         }
+        
         
         
         let buildings_damaged = self.bomb_blast(bomb_position);
@@ -314,7 +314,7 @@ impl State {
         //     attacker.bombs.pop();
         // }
 
-        return None;
+        buildings_damaged
     }
 
 
