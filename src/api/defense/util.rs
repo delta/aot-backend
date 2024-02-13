@@ -214,7 +214,7 @@ pub fn get_details_from_map_layout(
         })
         .collect();
 
-    let blocks = fetch_building_blocks(conn)?;
+    let blocks = fetch_building_blocks(conn, &map.player)?;
     // let levels_fixture = levels_fixture::table
     //     .find(map.level_id)
     //     .first::<LevelsFixture>(conn)
@@ -232,8 +232,8 @@ pub fn get_details_from_map_layout(
     //         error: err,
     //     })?;
 
-    let mine_types = fetch_mine_types(conn)?;
-    let defender_types = fetch_defender_types(conn)?;
+    let mine_types = fetch_mine_types(conn, &map.player)?;
+    let defender_types = fetch_defender_types(conn, &map.player)?;
     let user_response = if let Some(user) = user {
         Some(LoginResponse {
             user_id: user.id,
@@ -264,7 +264,9 @@ pub fn get_map_details_for_attack(
     conn: &mut PgConnection,
     map: MapLayout,
 ) -> Result<DefenseResponse> {
-    use crate::schema::{block_type, emp_type, level_constraints, levels_fixture, map_spaces};
+    use crate::schema::{
+        available_blocks, block_type, emp_type, level_constraints, levels_fixture, map_spaces,
+    };
 
     let map_spaces = map_spaces::table
         .inner_join(block_type::table)
@@ -287,7 +289,7 @@ pub fn get_map_details_for_attack(
             }
         })
         .collect();
-    let blocks = fetch_building_blocks(conn)?;
+    let blocks = fetch_building_blocks(conn, &map.player)?;
     let levels_fixture = levels_fixture::table
         .find(map.level_id)
         .first::<LevelsFixture>(conn)
@@ -306,16 +308,21 @@ pub fn get_map_details_for_attack(
         })?;
 
     let bomb_types = emp_type::table
-        .load::<EmpType>(conn)
+        .inner_join(available_blocks::table)
+        .filter(available_blocks::user_id.eq(&map.player))
+        .load::<(EmpType, AvailableBlocks)>(conn)
         .map_err(|err| DieselError {
             table: "emp_type",
             function: function!(),
             error: err,
-        })?;
+        })?
+        .into_iter()
+        .map(|(emp_type, _)| emp_type)
+        .collect();
 
-    let mine_types = fetch_mine_types(conn)?;
-    let defender_types = fetch_defender_types(conn)?;
-    let attacker_types = fetch_attacker_types(conn)?;
+    let mine_types = fetch_mine_types(conn, &map.player)?;
+    let defender_types = fetch_defender_types(conn, &map.player)?;
+    let attacker_types = fetch_attacker_types(conn, &map.player)?;
 
     Ok(DefenseResponse {
         map_spaces,
@@ -578,21 +585,24 @@ pub fn fetch_top_defenses(user_id: i32, conn: &mut PgConnection) -> Result<GameH
     Ok(GameHistoryResponse { games })
 }
 
-pub fn fetch_mine_types(conn: &mut PgConnection) -> Result<Vec<MineTypeResponse>> {
+pub fn fetch_mine_types(conn: &mut PgConnection, user_id: &i32) -> Result<Vec<MineTypeResponse>> {
+    use crate::schema::available_blocks;
     use crate::schema::block_type;
     use crate::schema::mine_type;
 
-    let joined_table = block_type::table.inner_join(mine_type::table);
+    let joined_table = available_blocks::table
+        .inner_join(block_type::table.inner_join(mine_type::table))
+        .filter(available_blocks::user_id.eq(user_id));
 
     let mines: Result<Vec<MineTypeResponse>> = joined_table
-        .load::<(BlockType, MineType)>(conn)
+        .load::<(AvailableBlocks, (BlockType, MineType))>(conn)
         .map_err(|err| DieselError {
             table: "mine_type",
             function: function!(),
             error: err,
         })?
         .into_iter()
-        .map(|(block_type, mine_type)| {
+        .map(|(_, (block_type, mine_type))| {
             Ok(MineTypeResponse {
                 id: mine_type.id,
                 radius: mine_type.radius,
@@ -607,19 +617,24 @@ pub fn fetch_mine_types(conn: &mut PgConnection) -> Result<Vec<MineTypeResponse>
     mines
 }
 
-pub fn fetch_defender_types(conn: &mut PgConnection) -> Result<Vec<DefenderTypeResponse>> {
-    use crate::schema::{block_type, defender_type};
+pub fn fetch_defender_types(
+    conn: &mut PgConnection,
+    user_id: &i32,
+) -> Result<Vec<DefenderTypeResponse>> {
+    use crate::schema::{available_blocks, block_type, defender_type};
 
-    let joined_table = block_type::table.inner_join(defender_type::table);
+    let joined_table = available_blocks::table
+        .inner_join(block_type::table.inner_join(defender_type::table))
+        .filter(available_blocks::user_id.eq(user_id));
     let defenders: Result<Vec<DefenderTypeResponse>> = joined_table
-        .load::<(BlockType, DefenderType)>(conn)
+        .load::<(AvailableBlocks, (BlockType, DefenderType))>(conn)
         .map_err(|err| DieselError {
             table: "defender_type",
             function: function!(),
             error: err,
         })?
         .into_iter()
-        .map(|(block_type, defender_type)| {
+        .map(|(_, (block_type, defender_type))| {
             Ok(DefenderTypeResponse {
                 id: defender_type.id,
                 radius: defender_type.radius,
@@ -635,21 +650,26 @@ pub fn fetch_defender_types(conn: &mut PgConnection) -> Result<Vec<DefenderTypeR
     defenders
 }
 
-pub fn fetch_building_blocks(conn: &mut PgConnection) -> Result<Vec<BuildingTypeResponse>> {
-    use crate::schema::{block_type, building_type};
+pub fn fetch_building_blocks(
+    conn: &mut PgConnection,
+    user_id: &i32,
+) -> Result<Vec<BuildingTypeResponse>> {
+    use crate::schema::{available_blocks, block_type, building_type};
 
-    let joined_table = block_type::table
-        .filter(block_type::category.eq(BlockCategory::Building))
-        .inner_join(building_type::table);
+    let joined_table = available_blocks::table
+        .inner_join(block_type::table.inner_join(building_type::table))
+        .filter(available_blocks::user_id.eq(user_id))
+        .filter(block_type::category.eq(BlockCategory::Building));
+
     let buildings: Vec<BuildingTypeResponse> = joined_table
-        .load::<(BlockType, BuildingType)>(conn)
+        .load::<(AvailableBlocks, (BlockType, BuildingType))>(conn)
         .map_err(|err| DieselError {
             table: "block_type",
             function: function!(),
             error: err,
         })?
         .into_iter()
-        .map(|(block_type, building_type)| BuildingTypeResponse {
+        .map(|(_, (block_type, building_type))| BuildingTypeResponse {
             id: building_type.id,
             name: building_type.name,
             width: building_type.width,
@@ -695,15 +715,22 @@ pub fn fetch_blocks(conn: &mut PgConnection, user_id: &i32) -> Result<HashMap<i3
         .collect::<HashMap<i32, BlockType>>())
 }
 
-pub fn fetch_attacker_types(conn: &mut PgConnection) -> Result<Vec<AttackerType>> {
-    use crate::schema::attacker_type::dsl::*;
-    Ok(attacker_type
-        .load::<AttackerType>(conn)
+pub fn fetch_attacker_types(conn: &mut PgConnection, user_id: &i32) -> Result<Vec<AttackerType>> {
+    use crate::schema::{attacker_type, available_blocks};
+    let results: Vec<AttackerType> = attacker_type::table
+        .inner_join(available_blocks::table)
+        .filter(available_blocks::user_id.eq(user_id))
+        .load::<(AttackerType, AvailableBlocks)>(conn)
         .map_err(|err| DieselError {
             table: "attacker_type",
             function: function!(),
             error: err,
-        })?)
+        })?
+        .into_iter()
+        .map(|(attacker_type, _)| attacker_type)
+        .collect();
+
+    Ok(results)
 }
 
 pub fn calculate_shortest_paths(conn: &mut PgConnection, map_id: i32) -> Result<()> {

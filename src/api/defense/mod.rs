@@ -156,8 +156,8 @@ async fn confirm_base_details(
             util::fetch_blocks(&mut conn, &defender_id)?,
             util::get_level_constraints(&mut conn, map.level_id, &defender_id)?,
             util::fetch_buildings(&mut conn)?,
-            util::fetch_defender_types(&mut conn)?,
-            util::fetch_mine_types(&mut conn)?,
+            util::fetch_defender_types(&mut conn, &defender_id)?,
+            util::fetch_mine_types(&mut conn, &defender_id)?,
         ))
             as anyhow::Result<(
                 MapLayout,
