@@ -49,6 +49,6 @@ async fn upgrade(
         "mine" => upgrade_mine(user_id, &mut conn, item_id),
         _ => return Err(ErrorBadRequest("Invalid item type")),
     }
-    .map_err(|err| error::handle_error(err.into()))?;
+    .map_err(|err| ErrorBadRequest(err.to_string()))?;
     Ok(HttpResponse::Ok().finish())
 }

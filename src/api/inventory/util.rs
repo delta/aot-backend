@@ -3,7 +3,8 @@ use crate::models::{
     AttackerType, BlockCategory, BuildingType, DefenderType, EmpType, ItemCategory, MineType,
 };
 use crate::schema::{
-    attacker_type, available_blocks, block_type, building_type, defender_type, emp_type, mine_type,
+    artifact, attacker_type, available_blocks, block_type, building_type, defender_type, emp_type,
+    mine_type,
 };
 use crate::schema::{map_layout, map_spaces, user};
 use crate::util::function;
@@ -673,8 +674,12 @@ pub(crate) fn upgrade_building(
         })?;
 
     let id_of_map = get_user_map_id(player_id, conn)?;
-
-    //updat the building level by replacing the blockid of the next level building in place of the block id of the current level building in the available blocks table
+    let bank_block_type_id = get_block_id_of_bank(conn)?;
+    let bank_map_space_id = get_bank_map_space_id(conn, &id_of_map, &bank_block_type_id)?;
+    let artifacts_in_bank = get_building_artifact_count(conn, &id_of_map, &bank_map_space_id)?;
+    if artifacts_in_bank < cost {
+        return Err(anyhow::anyhow!("Not enough artifacts in bank"));
+    }
     run_transaction(
         conn,
         block_id,
@@ -682,7 +687,7 @@ pub(crate) fn upgrade_building(
         player_id,
         cost,
         user_artifacts,
-        id_of_map,
+        bank_map_space_id,
     )
 }
 
@@ -765,7 +770,12 @@ pub(crate) fn upgrade_defender(
         })?;
 
     let id_of_map = get_user_map_id(player_id, conn)?;
-
+    let bank_block_type_id = get_block_id_of_bank(conn)?;
+    let bank_map_space_id = get_bank_map_space_id(conn, &id_of_map, &bank_block_type_id)?;
+    let artifacts_in_bank = get_building_artifact_count(conn, &id_of_map, &bank_map_space_id)?;
+    if artifacts_in_bank < cost {
+        return Err(anyhow::anyhow!("Not enough artifacts in bank"));
+    }
     run_transaction(
         conn,
         block_id,
@@ -773,7 +783,7 @@ pub(crate) fn upgrade_defender(
         player_id,
         cost,
         user_artifacts,
-        id_of_map,
+        bank_map_space_id,
     )
 }
 
@@ -848,7 +858,12 @@ pub(crate) fn upgrade_mine(player_id: i32, conn: &mut PgConnection, block_id: i3
         })?;
 
     let id_of_map = get_user_map_id(player_id, conn)?;
-
+    let bank_block_type_id = get_block_id_of_bank(conn)?;
+    let bank_map_space_id = get_bank_map_space_id(conn, &id_of_map, &bank_block_type_id)?;
+    let artifacts_in_bank = get_building_artifact_count(conn, &id_of_map, &bank_map_space_id)?;
+    if artifacts_in_bank < cost {
+        return Err(anyhow::anyhow!("Not enough artifacts in bank"));
+    }
     run_transaction(
         conn,
         block_id,
@@ -856,7 +871,7 @@ pub(crate) fn upgrade_mine(player_id: i32, conn: &mut PgConnection, block_id: i3
         player_id,
         cost,
         user_artifacts,
-        id_of_map,
+        bank_map_space_id,
     )
 }
 
@@ -913,7 +928,13 @@ pub(crate) fn upgrade_attacker(
     if cost > user_artifacts {
         return Err(anyhow::anyhow!("Not enough artifacts"));
     };
-
+    let id_of_map = get_user_map_id(player_id, conn)?;
+    let bank_block_type_id = get_block_id_of_bank(conn)?;
+    let bank_map_space_id = get_bank_map_space_id(conn, &id_of_map, &bank_block_type_id)?;
+    let artifacts_in_bank = get_building_artifact_count(conn, &id_of_map, &bank_map_space_id)?;
+    if artifacts_in_bank < cost {
+        return Err(anyhow::anyhow!("Not enough artifacts in bank"));
+    }
     let next_level_attacker_id: i32 = attacker_type::table
         .filter(attacker_type::name.eq(name))
         .filter(attacker_type::level.eq(level + 1))
@@ -924,13 +945,22 @@ pub(crate) fn upgrade_attacker(
             function: function!(),
             error: err,
         })?;
-
     conn.transaction(|conn| {
         diesel::update(
             available_blocks::table.filter(available_blocks::attacker_type_id.eq(attacker_id)),
         )
         .set(available_blocks::attacker_type_id.eq(next_level_attacker_id))
         .execute(conn)?;
+
+        //update artifacts in bank
+        diesel::update(artifact::table.filter(artifact::map_space_id.eq(bank_map_space_id)))
+            .set(artifact::count.eq(artifact::count - cost))
+            .execute(conn)
+            .map_err(|err| DieselError {
+                table: "artifact",
+                function: function!(),
+                error: err,
+            })?;
 
         diesel::update(user::table.filter(user::id.eq(player_id)))
             .set(user::artifacts.eq(user_artifacts - cost))
@@ -993,10 +1023,27 @@ pub(crate) fn upgrade_emp(player_id: i32, conn: &mut PgConnection, emp_id: i32) 
             error: err,
         })?;
 
+    let id_of_map = get_user_map_id(player_id, conn)?;
+    let bank_block_type_id = get_block_id_of_bank(conn)?;
+    let bank_map_space_id = get_bank_map_space_id(conn, &id_of_map, &bank_block_type_id)?;
+    let artifacts_in_bank = get_building_artifact_count(conn, &id_of_map, &bank_map_space_id)?;
+    if artifacts_in_bank < cost {
+        return Err(anyhow::anyhow!("Not enough artifacts in bank"));
+    }
     conn.transaction(|conn| {
         diesel::update(available_blocks::table.filter(available_blocks::emp_type_id.eq(emp_id)))
             .set(available_blocks::emp_type_id.eq(next_level_emp_id))
             .execute(conn)?;
+
+        //update artifacts in bank
+        diesel::update(artifact::table.filter(artifact::map_space_id.eq(bank_map_space_id)))
+            .set(artifact::count.eq(artifact::count - cost))
+            .execute(conn)
+            .map_err(|err| DieselError {
+                table: "artifact",
+                function: function!(),
+                error: err,
+            })?;
 
         diesel::update(user::table.filter(user::id.eq(player_id)))
             .set(user::artifacts.eq(user_artifacts - cost))
@@ -1006,6 +1053,7 @@ pub(crate) fn upgrade_emp(player_id: i32, conn: &mut PgConnection, emp_id: i32) 
     })
 }
 
+#[warn(clippy::too_many_arguments)]
 fn run_transaction(
     conn: &mut PgConnection,
     block_id: i32,
@@ -1013,9 +1061,11 @@ fn run_transaction(
     player_id: i32,
     cost: i32,
     user_artifacts: i32,
-    id_of_map: i32,
+    bank_map_space_id: i32,
 ) -> Result<(), anyhow::Error> {
     conn.transaction(|conn| {
+        let id_of_map = get_user_map_id(player_id, conn)?;
+
         diesel::update(
             available_blocks::table.filter(available_blocks::block_type_id.eq(block_id)),
         )
@@ -1025,6 +1075,16 @@ fn run_transaction(
         diesel::update(user::table.filter(user::id.eq(player_id)))
             .set(user::artifacts.eq(user_artifacts - cost))
             .execute(conn)?;
+
+        //update artifacts in bank
+        diesel::update(artifact::table.filter(artifact::map_space_id.eq(bank_map_space_id)))
+            .set(artifact::count.eq(artifact::count - cost))
+            .execute(conn)
+            .map_err(|err| DieselError {
+                table: "artifact",
+                function: function!(),
+                error: err,
+            })?;
 
         //update map spaces
         diesel::update(
@@ -1064,4 +1124,51 @@ fn get_user_artifacts(player_id: i32, conn: &mut PgConnection) -> Result<i32> {
             error: err,
         })?;
     Ok(artifacts)
+}
+
+pub fn get_building_artifact_count(
+    conn: &mut PgConnection,
+    filtered_layout_id: &i32,
+    given_map_space_id: &i32,
+) -> Result<i32> {
+    let building_artifact_count = map_spaces::table
+        .inner_join(artifact::table)
+        .filter(map_spaces::map_id.eq(filtered_layout_id)) //Eg:1
+        .filter(map_spaces::id.eq(given_map_space_id))
+        .select(artifact::count)
+        .first::<i32>(conn)
+        .unwrap_or(-1);
+    Ok(building_artifact_count)
+}
+
+pub fn get_block_id_of_bank(conn: &mut PgConnection) -> Result<i32> {
+    let bank_block_type_id = block_type::table
+        .inner_join(building_type::table)
+        .filter(building_type::name.eq("bank"))
+        .select(block_type::id)
+        .first::<i32>(conn)
+        .map_err(|err| DieselError {
+            table: "block_type",
+            function: function!(),
+            error: err,
+        })?;
+    Ok(bank_block_type_id)
+}
+
+pub fn get_bank_map_space_id(
+    conn: &mut PgConnection,
+    filtered_layout_id: &i32,
+    bank_block_type_id: &i32,
+) -> Result<i32> {
+    let fetched_bank_map_space_id = map_spaces::table
+        .filter(map_spaces::map_id.eq(filtered_layout_id))
+        .filter(map_spaces::block_type_id.eq(bank_block_type_id))
+        .select(map_spaces::id)
+        .first::<i32>(conn)
+        .map_err(|err| DieselError {
+            table: "map_spaces",
+            function: function!(),
+            error: err,
+        })?;
+    Ok(fetched_bank_map_space_id)
 }
