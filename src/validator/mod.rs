@@ -21,11 +21,7 @@ pub mod error;
 pub mod state;
 pub mod util;
 
-// use crate::validator::state::State::place_attacker;
 
-// use crate::validator::state::State::place_attacker;
-// get_attacker_types
-// use crate::api::attack::util::get_attacker_types;
 
 pub fn game_handler(
     attacker_type: &HashMap<i32, AttackerType>,
@@ -36,10 +32,7 @@ pub fn game_handler(
     _bomb_types: &Vec<BombType>,
     _game_log: &mut GameLog,
 ) -> Option<Result<SocketResponse>> {
-    // redis for storing mapping
-    // fetch validator instance (has redis)
-    // iterate through input data and call appropriate instance functions
-    // form response and send
+
     let mut defender_trigger_result: DefenderReturnType;
     let mut exploded_mines_result: Option<Vec<MineDetails>> = None;
     let mut buildings_damaged_result: Option<Vec<BuildingResponse>> = None;
@@ -157,12 +150,112 @@ pub fn game_handler(
             // is_mine
             let attacker_delta: Vec<Coords> = socket_request.attacker_path;
             exploded_mines_result = _game_state.mine_blast(attacker_delta);
+            return Some(Ok(SocketResponse {
+                frame_number: socket_request.frame_number,
+                result_type: ResultType::DefendersTriggered,
+                is_alive: Some(true),
+        
+                attacker_health: None,
+                exploded_mines: exploded_mines_result,
+                triggered_defenders: None,
+                // defender_damaged: return_state.unwrap().frame_no,
+                damaged_buildings: None,
+                artifacts_gained_total:  None,
+                is_sync: false,
+                // state: Some(GameStateResponse {
+                //     frame_no: defender_trigger_result.clone().unwrap().0,
+                //     attacker_user_id: defender_trigger_result
+                //         .clone()
+                //         .unwrap()
+                //         .2
+                //         .attacker_user_id,
+                //     defender_user_id: defender_trigger_result
+                //         .clone()
+                //         .unwrap()
+                //         .2
+                //         .defender_user_id,
+                //     attacker: defender_trigger_result.clone().unwrap().2.attacker,
+                //     attacker_death_count: defender_trigger_result
+                //         .clone()
+                //         .unwrap()
+                //         .2
+                //         .attacker_death_count,
+                //     bombs: defender_trigger_result.clone().unwrap().2.bombs,
+                //     damage_percentage: defender_trigger_result
+                //         .clone()
+                //         .unwrap()
+                //         .2
+                //         .damage_percentage,
+                //     artifacts: defender_trigger_result.clone().unwrap().2.artifacts,
+                //     defenders: defender_trigger_result.clone().unwrap().2.defenders,
+                //     mines: defender_trigger_result.clone().unwrap().2.mines,
+                //     buildings: defender_trigger_result.clone().unwrap().2.buildings,
+                //     total_hp_buildings: defender_trigger_result
+                //         .clone()
+                //         .unwrap()
+                //         .2
+                //         .total_hp_buildings,
+                // }),
+                is_game_over: false,
+                message: Some(String::from("return test")),
+            }));
         }
         ActionType::PlaceBombs => {
             // place_bombs
             let attacker_delta: Vec<Coords> = socket_request.attacker_path;
             buildings_damaged_result =
                 _game_state.place_bombs(attacker_delta, socket_request.bomb_position);
+
+
+              return Some(Ok(SocketResponse {
+                frame_number: socket_request.frame_number,
+                result_type: ResultType::DefendersTriggered,
+                is_alive: Some(true),
+        
+                attacker_health: None,
+                exploded_mines: None,
+                triggered_defenders: None,
+                // defender_damaged: return_state.unwrap().frame_no,
+                damaged_buildings:  buildings_damaged_result,
+                artifacts_gained_total:  None,
+                is_sync: false,
+                // state: Some(GameStateResponse {
+                //     frame_no: defender_trigger_result.clone().unwrap().0,
+                //     attacker_user_id: defender_trigger_result
+                //         .clone()
+                //         .unwrap()
+                //         .2
+                //         .attacker_user_id,
+                //     defender_user_id: defender_trigger_result
+                //         .clone()
+                //         .unwrap()
+                //         .2
+                //         .defender_user_id,
+                //     attacker: defender_trigger_result.clone().unwrap().2.attacker,
+                //     attacker_death_count: defender_trigger_result
+                //         .clone()
+                //         .unwrap()
+                //         .2
+                //         .attacker_death_count,
+                //     bombs: defender_trigger_result.clone().unwrap().2.bombs,
+                //     damage_percentage: defender_trigger_result
+                //         .clone()
+                //         .unwrap()
+                //         .2
+                //         .damage_percentage,
+                //     artifacts: defender_trigger_result.clone().unwrap().2.artifacts,
+                //     defenders: defender_trigger_result.clone().unwrap().2.defenders,
+                //     mines: defender_trigger_result.clone().unwrap().2.mines,
+                //     buildings: defender_trigger_result.clone().unwrap().2.buildings,
+                //     total_hp_buildings: defender_trigger_result
+                //         .clone()
+                //         .unwrap()
+                //         .2
+                //         .total_hp_buildings,
+                // }),
+                is_game_over: false,
+                message: Some(String::from("return test")),
+            }));    
         }
         ActionType::Idle => {
             // idle (waiting for user to choose next attacker)
