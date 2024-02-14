@@ -1,8 +1,9 @@
 use crate::api::attack::rating::new_rating;
 use crate::api::auth::TokenClaims;
+use crate::api::defense::shortest_path::run_shortest_paths;
 use crate::api::defense::util::{
-    fetch_map_layout, get_map_details_for_attack, AttackBaseResponse, DefenseResponse,
-    SimulationBaseResponse,
+    fetch_map_layout, get_map_details_for_attack, get_map_details_for_simulation,
+    AttackBaseResponse, DefenseResponse, SimulationBaseResponse,
 };
 use crate::api::error::AuthError;
 use crate::api::game::util::UserDetail;
@@ -16,10 +17,10 @@ use crate::error::DieselError;
 use crate::models::{
     Artifact, AttackerType, BlockCategory, BlockType, BuildingType, DefenderType, EmpType, Game,
     LevelsFixture, MapLayout, MapSpaces, MineType, NewAttackerPath, NewGame, NewSimulationLog,
-    ShortestPath, User,
+    User,
 };
 use crate::schema::user;
-use crate::simulation::blocks::{Coords, SourceDest};
+use crate::simulation::blocks::Coords;
 use crate::simulation::{RenderAttacker, RenderMine};
 use crate::simulation::{RenderDefender, Simulator};
 use crate::util::function;
@@ -779,73 +780,50 @@ pub fn get_shortest_paths_for_attack(
     conn: &mut PgConnection,
     map_id: i32,
 ) -> Result<Vec<ShortestPathResponse>> {
-    use crate::schema::shortest_path::dsl::*;
-    let results = shortest_path
-        .filter(base_id.eq(map_id))
-        .load::<ShortestPath>(conn)
-        .map_err(|err| DieselError {
-            table: "shortest_path",
-            function: function!(),
-            error: err,
-        })?;
-    let mut shortest_paths: Vec<ShortestPathResponse> = Vec::new();
-    for path in results {
-        shortest_paths.push(ShortestPathResponse {
-            source: Coords {
-                x: path.source_x,
-                y: path.source_y,
-            },
-            dest: Coords {
-                x: path.dest_x,
-                y: path.dest_y,
-            },
-            next_hop: Coords {
-                x: path.next_hop_x,
-                y: path.next_hop_y,
-            },
-        });
+    let shortest_paths = run_shortest_paths(conn, map_id);
+
+    let mut shortest_paths_response: Vec<ShortestPathResponse> = Vec::new();
+
+    if let Ok(shortest_paths) = shortest_paths {
+        for path in shortest_paths.iter() {
+            shortest_paths_response.push(ShortestPathResponse {
+                source: Coords {
+                    x: path.0.source_x,
+                    y: path.0.source_y,
+                },
+                dest: Coords {
+                    x: path.0.dest_x,
+                    y: path.0.dest_y,
+                },
+                next_hop: Coords {
+                    x: path.1.x,
+                    y: path.1.y,
+                },
+            });
+        }
     }
-    Ok(shortest_paths)
+
+    Ok(shortest_paths_response)
 }
 
-pub fn get_shortest_paths(
-    conn: &mut PgConnection,
-    map_id: i32,
-) -> Result<HashMap<SourceDest, Coords>> {
-    use crate::schema::shortest_path::dsl::*;
-    let results = shortest_path
-        .filter(base_id.eq(map_id))
-        .load::<ShortestPath>(conn)
-        .map_err(|err| DieselError {
-            table: "shortest_path",
-            function: function!(),
-            error: err,
-        })?;
-    let mut shortest_paths: HashMap<SourceDest, Coords> = HashMap::new();
-    for path in results {
-        shortest_paths.insert(
-            SourceDest {
-                source_x: path.source_x,
-                source_y: path.source_y,
-                dest_x: path.dest_x,
-                dest_y: path.dest_y,
-            },
-            Coords {
-                x: path.next_hop_x,
-                y: path.next_hop_y,
-            },
-        );
-    }
-    Ok(shortest_paths)
-}
-
-pub fn get_opponent_base_details(
+pub fn get_opponent_base_details_for_attack(
     defender_id: i32,
     conn: &mut PgConnection,
 ) -> Result<DefenseResponse> {
     let map = fetch_map_layout(conn, &defender_id)?;
 
     let response = get_map_details_for_attack(conn, map)?;
+
+    Ok(response)
+}
+
+pub fn get_opponent_base_details_for_simulation(
+    defender_id: i32,
+    conn: &mut PgConnection,
+) -> Result<SimulationBaseResponse> {
+    let map = fetch_map_layout(conn, &defender_id)?;
+
+    let response = get_map_details_for_simulation(conn, map)?;
 
     Ok(response)
 }

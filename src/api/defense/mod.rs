@@ -12,7 +12,7 @@ use actix_web::{Responder, Result};
 use serde::Deserialize;
 use std::collections::HashMap;
 
-mod shortest_path;
+pub mod shortest_path;
 pub mod util;
 mod validate;
 

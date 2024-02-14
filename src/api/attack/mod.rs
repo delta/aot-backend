@@ -1,5 +1,6 @@
 use self::util::{get_valid_road_paths, AttackResponse, GameLog, NewAttack, ResultResponse};
 use super::auth::session::AuthUser;
+use super::defense::shortest_path::run_shortest_paths;
 use super::defense::util::{
     AttackBaseResponse, DefenseResponse, MineTypeResponseWithoutBlockId, SimulationBaseResponse,
 };
@@ -8,7 +9,6 @@ use super::{error, PgPool, RedisPool};
 use crate::api;
 use crate::api::attack::socket::{ResultType, SocketRequest};
 use crate::api::attack::util::ShortestPathResponse;
-use crate::api::defense::util::calculate_shortest_paths;
 use crate::api::util::HistoryboardQuery;
 use crate::constants::MAX_BOMBS_PER_ATTACK;
 use crate::models::{AttackerType, LevelsFixture, User};
@@ -100,8 +100,10 @@ async fn init_attack(
 
     //Fetch base details and shortest paths data
     let opponent_base = web::block(move || {
-        Ok(util::get_opponent_base_details(opponent_id, &mut conn)?)
-            as anyhow::Result<DefenseResponse>
+        Ok(util::get_opponent_base_details_for_attack(
+            opponent_id,
+            &mut conn,
+        )?) as anyhow::Result<DefenseResponse>
     })
     .await?
     .map_err(|err| error::handle_error(err.into()))?;
@@ -120,11 +122,6 @@ async fn init_attack(
     } else {
         return Err(ErrorBadRequest("Invalid base"));
     };
-    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-
-    web::block(move || calculate_shortest_paths(&mut conn, map_id) as anyhow::Result<()>)
-        .await?
-        .map_err(|err| error::handle_error(err.into()))?;
 
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
 
@@ -223,8 +220,7 @@ async fn socket_handler(
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
 
     let shortest_paths = web::block(move || {
-        Ok(util::get_shortest_paths(&mut conn, map_id)?)
-            as anyhow::Result<HashMap<SourceDest, Coords>>
+        Ok(run_shortest_paths(&mut conn, map_id)?) as anyhow::Result<HashMap<SourceDest, Coords>>
     })
     .await?
     .map_err(|err| error::handle_error(err.into()))?;
@@ -310,8 +306,10 @@ async fn socket_handler(
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
 
     let defender_base_details = web::block(move || {
-        Ok(util::get_opponent_base_details(defender_id, &mut conn)?)
-            as anyhow::Result<DefenseResponse>
+        Ok(util::get_opponent_base_details_for_simulation(
+            defender_id,
+            &mut conn,
+        )?) as anyhow::Result<SimulationBaseResponse>
     })
     .await?
     .map_err(|err| error::handle_error(err.into()))?;
@@ -323,14 +321,7 @@ async fn socket_handler(
     let game_log: GameLog = GameLog {
         attacker: attacker_user_details.unwrap(),
         defender: defender_user_details.unwrap(),
-        base: SimulationBaseResponse {
-            map_spaces: defender_base_details.map_spaces,
-            defender_types: defender_base_details.defender_types,
-            blocks: defender_base_details.blocks,
-            mine_types: defender_base_details.mine_types,
-            attacker_types: defender_base_details.attacker_types,
-            bomb_types: defender_base_details.bomb_types,
-        },
+        base: defender_base_details,
         events: Vec::new(),
         result: ResultResponse {
             damage_done: 0,

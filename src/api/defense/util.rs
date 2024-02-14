@@ -1,7 +1,6 @@
 /// CRUD functions
 use super::MapSpacesEntry;
 use crate::api::auth::LoginResponse;
-use crate::api::defense::shortest_path::run_shortest_paths;
 use crate::api::error::AuthError;
 use crate::api::game::util::UserDetail;
 use crate::api::user::util::fetch_user;
@@ -18,7 +17,7 @@ use diesel::{prelude::*, select};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct MapSpacesResponseWithArifacts {
     pub id: i32,
     pub x_coordinate: i32,
@@ -98,7 +97,7 @@ pub struct AttackBaseResponse {
 
 #[derive(Serialize, Clone)]
 pub struct SimulationBaseResponse {
-    pub map_spaces: Vec<MapSpaces>,
+    pub map_spaces: Vec<MapSpacesResponseWithArifacts>,
     pub blocks: Vec<BuildingTypeResponse>,
     pub defender_types: Vec<DefenderTypeResponse>,
     pub mine_types: Vec<MineTypeResponse>,
@@ -345,6 +344,61 @@ pub fn get_map_details_for_attack(
         attacker_types,
         user: None,
         is_map_valid: map.is_valid,
+    })
+}
+
+pub fn get_map_details_for_simulation(
+    conn: &mut PgConnection,
+    map: MapLayout,
+) -> Result<SimulationBaseResponse> {
+    use crate::schema::{artifact, available_blocks, emp_type, map_spaces};
+
+    let map_spaces: Vec<MapSpacesResponseWithArifacts> = map_spaces::table
+        .left_join(artifact::table)
+        .filter(map_spaces::map_id.eq(map.id))
+        .select((map_spaces::all_columns, artifact::count.nullable()))
+        .load::<(MapSpaces, Option<i32>)>(conn)
+        .map_err(|err| DieselError {
+            table: "map_spaces",
+            function: function!(),
+            error: err,
+        })?
+        .into_iter()
+        .map(|(map_space, count)| MapSpacesResponseWithArifacts {
+            id: map_space.id,
+            x_coordinate: map_space.x_coordinate,
+            y_coordinate: map_space.y_coordinate,
+            block_type_id: map_space.block_type_id,
+            artifacts: count,
+        })
+        .collect();
+
+    let blocks = fetch_building_blocks(conn, &map.player)?;
+
+    let bomb_types = emp_type::table
+        .inner_join(available_blocks::table)
+        .filter(available_blocks::user_id.eq(&map.player))
+        .load::<(EmpType, AvailableBlocks)>(conn)
+        .map_err(|err| DieselError {
+            table: "emp_type",
+            function: function!(),
+            error: err,
+        })?
+        .into_iter()
+        .map(|(emp_type, _)| emp_type)
+        .collect();
+
+    let mine_types = fetch_mine_types(conn, &map.player)?;
+    let defender_types = fetch_defender_types(conn, &map.player)?;
+    let attacker_types = fetch_attacker_types(conn, &map.player)?;
+
+    Ok(SimulationBaseResponse {
+        map_spaces,
+        blocks,
+        bomb_types,
+        mine_types,
+        defender_types,
+        attacker_types,
     })
 }
 
@@ -743,20 +797,20 @@ pub fn fetch_attacker_types(conn: &mut PgConnection, user_id: &i32) -> Result<Ve
     Ok(results)
 }
 
-pub fn calculate_shortest_paths(conn: &mut PgConnection, map_id: i32) -> Result<()> {
-    use crate::schema::shortest_path::dsl::*;
+// pub fn calculate_shortest_paths(conn: &mut PgConnection, map_id: i32) -> Result<()> {
+//     use crate::schema::shortest_path::dsl::*;
 
-    diesel::delete(shortest_path.filter(base_id.eq(map_id)))
-        .execute(conn)
-        .map_err(|err| DieselError {
-            table: "shortest_path",
-            function: function!(),
-            error: err,
-        })?;
-    run_shortest_paths(conn, map_id)?;
+//     diesel::delete(shortest_path.filter(base_id.eq(map_id)))
+//         .execute(conn)
+//         .map_err(|err| DieselError {
+//             table: "shortest_path",
+//             function: function!(),
+//             error: err,
+//         })?;
+//     run_shortest_paths(conn, map_id)?;
 
-    Ok(())
-}
+//     Ok(())
+// }
 
 pub fn add_default_base(conn: &mut PgConnection, user_id: i32) -> Result<()> {
     use crate::schema::{artifact, available_blocks, map_layout, map_spaces, user};
