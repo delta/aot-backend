@@ -18,6 +18,17 @@ pub enum ItemCategory {
     Block,
 }
 
+#[derive(Queryable, Serialize, Clone)]
+pub struct EmpType {
+    pub id: i32,
+    pub att_type: String,
+    pub attack_radius: i32,
+    pub attack_damage: i32,
+    pub cost: i32,
+    pub name: String,
+    pub level: i32,
+}
+
 #[derive(Queryable, Serialize)]
 pub struct AttackType {
     pub id: i32,
@@ -187,7 +198,7 @@ pub struct NewMapLayout<'a> {
     pub level_id: &'a i32,
 }
 
-#[derive(Queryable, Debug, Serialize, Deserialize)]
+#[derive(Queryable, Debug, Serialize, Deserialize, Clone)]
 pub struct MapSpaces {
     pub id: i32,
     pub map_id: i32,

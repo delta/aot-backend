@@ -1,7 +1,8 @@
- 
-use self::util::{get_valid_road_paths, AttackResponse, NewAttack};
+use self::util::{get_valid_road_paths, AttackResponse, GameLog, NewAttack, ResultResponse};
 use super::auth::session::AuthUser;
-use super::defense::util::{AttackBaseResponse, DefenseResponse, MineTypeResponseWithoutBlockId};
+use super::defense::util::{
+    AttackBaseResponse, DefenseResponse, MineTypeResponseWithoutBlockId, SimulationBaseResponse,
+};
 use super::user::util::fetch_user;
 use super::{error, PgPool, RedisPool};
 use crate::api;
@@ -283,36 +284,84 @@ async fn socket_handler(
             .await?
             .map_err(|err| error::handle_error(err.into()))?;
 
-
     let (response, session, mut msg_stream) = actix_ws::handle(&req, body)?;
 
     let mut session_clone = session.clone();
 
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-    let attacker_type =
-        web::block(move || Ok(util::get_attacker_types(&mut conn)?) as anyhow::Result<HashMap<i32,AttackerType>>)
+    let attacker_type = web::block(move || {
+        Ok(util::get_attacker_types(&mut conn)?) as anyhow::Result<HashMap<i32, AttackerType>>
+    })
+    .await?
+    .map_err(|err| error::handle_error(err.into()))?;
+
+    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+
+    let attacker_user_details =
+        web::block(move || Ok(fetch_user(&mut conn, attacker_id)?) as anyhow::Result<Option<User>>)
             .await?
             .map_err(|err| error::handle_error(err.into()))?;
-   
-    actix_rt::spawn(async move {
-        let mut game_state = State::new(
-            attacker_id,
-           defender_id,
-            defenders,
-            mines,
-            buildings,
-        );
-        // let mut content:Vec<u8> = Vec::new();
 
+    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+
+    let defender_user_details =
+        web::block(move || Ok(fetch_user(&mut conn, defender_id)?) as anyhow::Result<Option<User>>)
+            .await?
+            .map_err(|err| error::handle_error(err.into()))?;
+
+    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+
+    let defender_base_details = web::block(move || {
+        Ok(util::get_opponent_base_details(defender_id, &mut conn)?)
+            as anyhow::Result<DefenseResponse>
+    })
+    .await?
+    .map_err(|err| error::handle_error(err.into()))?;
+
+    if attacker_user_details.is_none() || defender_user_details.is_none() {
+        return Err(ErrorBadRequest("Internal Server Error"));
+    }
+
+    let game_log: GameLog = GameLog {
+        attacker: attacker_user_details.unwrap(),
+        defender: defender_user_details.unwrap(),
+        base: SimulationBaseResponse {
+            map_spaces: defender_base_details.map_spaces,
+            defender_types: defender_base_details.defender_types,
+            blocks: defender_base_details.blocks,
+            mine_types: defender_base_details.mine_types,
+            attacker_types: defender_base_details.attacker_types,
+            bomb_types: defender_base_details.bomb_types,
+        },
+        events: Vec::new(),
+        result: ResultResponse {
+            damage_done: 0,
+            artifacts_collected: 0,
+            bombs_used: 0,
+            attackers_used: 0,
+            is_attacker_alive: true,
+            new_attacker_trophies: 0,
+            new_defender_trophies: 0,
+            old_attacker_trophies: 0,
+            old_defender_trophies: 0,
+        },
+    };
+
+    actix_rt::spawn(async move {
+        let mut game_state = State::new(attacker_id, defender_id, defenders, mines, buildings);
+
+        let mut game_logs = &mut game_log.clone();
+
+        let mut conn = pool
+            .get()
+            .map_err(|err| error::handle_error(err.into()))
+            .unwrap();
         let shortest_path = &shortest_paths.clone();
         let roads = &roads.clone();
         let bomb_types = &bomb_types.clone();
         let attacker_type = &attacker_type.clone();
 
-    
         while let Some(Ok(msg)) = msg_stream.next().await {
-
-
             match msg {
                 Message::Ping(bytes) => {
                     if session_clone.pong(&bytes).await.is_err() {
@@ -330,6 +379,7 @@ async fn socket_handler(
                             shortest_path,
                             roads,
                             bomb_types,
+                            &mut game_logs,
                         );
                         match response_result {
                             Some(Ok(response)) => {
@@ -340,6 +390,7 @@ async fn socket_handler(
                                             return;
                                         }
                                         let _ = session_clone.clone().close(None).await;
+                                        let _ = util::terminate_game(&mut game_logs, &mut conn);
                                     }
                                 } else {
                                     println!("Error serializing JSON");
@@ -366,6 +417,7 @@ async fn socket_handler(
                 }
                 Message::Close(s) => {
                     println!("Received close: {:?}", s);
+                    let _ = util::terminate_game(&mut game_logs, &mut conn);
                     break;
                 }
                 _ => (),

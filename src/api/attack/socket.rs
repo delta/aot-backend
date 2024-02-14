@@ -1,7 +1,10 @@
 use serde::{Deserialize, Serialize};
 
 // use crate::validator::util::Coords;
-use crate::{simulation::blocks::Coords, validator::util::{Attacker, BombType, BuildingDetails, DefenderDetails, MineDetails}};
+use crate::{
+    simulation::blocks::Coords,
+    validator::util::{Attacker, BombType, BuildingDetails, DefenderDetails, MineDetails},
+};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SocketRequest {
@@ -59,7 +62,7 @@ pub struct MineResponse {
     pub radius: i32,
 }
 
-#[derive(Serialize, Deserialize,Clone, Copy)]
+#[derive(Serialize, Deserialize, Clone, Copy)]
 pub struct DefenderResponse {
     pub id: i32,
     pub position: Coords,
@@ -91,7 +94,7 @@ pub struct GameStateResponse {
     pub damage_percentage: f32,
     pub artifacts: i32,
     pub defenders: Vec<DefenderDetails>,
-    pub mines: Vec<MineDetails>, 
+    pub mines: Vec<MineDetails>,
     pub buildings: Vec<BuildingDetails>,
     pub total_hp_buildings: i32,
 }

@@ -23,7 +23,7 @@ fn trophy_scale(old_attacker_rating: f32, old_defender_rating: f32) -> (f32, f32
 
 /* change rating datatype to int */
 #[allow(dead_code)]
-fn new_rating(
+pub fn new_rating(
     old_attacker_rating: i32,
     old_defender_rating: i32,
     attack_score: f32,

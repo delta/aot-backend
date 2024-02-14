@@ -32,7 +32,7 @@ pub struct SourceDest {
     pub dest_y: i32,
 }
 
-#[derive(Debug, Serialize, Clone, PartialEq, Eq, Hash, Copy,Deserialize)]
+#[derive(Debug, Serialize, Clone, PartialEq, Eq, Hash, Copy, Deserialize)]
 pub struct Coords {
     pub x: i32,
     pub y: i32,

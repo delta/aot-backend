@@ -66,7 +66,7 @@ pub struct DefenderTypeResponse {
     pub cost: i32,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct BuildingTypeResponse {
     pub id: i32,
     pub name: String,
@@ -94,6 +94,16 @@ pub struct AttackBaseResponse {
     pub blocks: Vec<BuildingTypeResponse>,
     pub defender_types: Vec<DefenderTypeResponse>,
     pub mine_types: Vec<MineTypeResponseWithoutBlockId>,
+}
+
+#[derive(Serialize, Clone)]
+pub struct SimulationBaseResponse {
+    pub map_spaces: Vec<MapSpaces>,
+    pub blocks: Vec<BuildingTypeResponse>,
+    pub defender_types: Vec<DefenderTypeResponse>,
+    pub mine_types: Vec<MineTypeResponse>,
+    pub attacker_types: Vec<AttackerType>,
+    pub bomb_types: Vec<EmpType>,
 }
 
 #[derive(Serialize)]

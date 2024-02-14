@@ -1,6 +1,8 @@
+use crate::api::attack::rating::new_rating;
 use crate::api::auth::TokenClaims;
 use crate::api::defense::util::{
     fetch_map_layout, get_map_details_for_attack, AttackBaseResponse, DefenseResponse,
+    SimulationBaseResponse,
 };
 use crate::api::error::AuthError;
 use crate::api::game::util::UserDetail;
@@ -13,16 +15,15 @@ use crate::constants::*;
 use crate::error::DieselError;
 use crate::models::{
     Artifact, AttackerType, BlockCategory, BlockType, BuildingType, DefenderType, EmpType, Game,
-    LevelsFixture, MapLayout, MapSpaces, MineType, NewAttackerPath, NewGame, ShortestPath, User,
+    LevelsFixture, MapLayout, MapSpaces, MineType, NewAttackerPath, NewGame, NewSimulationLog,
+    ShortestPath, User,
 };
 use crate::schema::user;
 use crate::simulation::blocks::{Coords, SourceDest};
 use crate::simulation::{RenderAttacker, RenderMine};
 use crate::simulation::{RenderDefender, Simulator};
 use crate::util::function;
-use crate::validator::util::{
-    BombType, BuildingDetails, DefenderDetails, MineDetails,
-};
+use crate::validator::util::{BombType, BuildingDetails, DefenderDetails, MineDetails};
 use ::serde::{Deserialize, Serialize};
 use anyhow::{Context, Result};
 use chrono;
@@ -64,6 +65,45 @@ pub struct AttackToken {
     pub defender_id: i32,
     pub iat: usize,
     pub exp: usize,
+}
+#[derive(Serialize, Clone)]
+pub enum Direction {
+    Up,
+    Down,
+    Left,
+    Right,
+}
+
+#[derive(Serialize, Clone)]
+pub struct EventResponse {
+    pub attacker_initial_position: Option<Coords>,
+    pub attacker_id: Option<i32>,
+    pub bomb_id: Option<i32>,
+    pub coords: Coords,
+    pub direction: Direction,
+    pub is_bomb: bool,
+}
+
+#[derive(Serialize, Clone)]
+pub struct ResultResponse {
+    pub damage_done: i32,
+    pub artifacts_collected: i32,
+    pub bombs_used: i32,
+    pub attackers_used: i32,
+    pub is_attacker_alive: bool,
+    pub new_attacker_trophies: i32,
+    pub new_defender_trophies: i32,
+    pub old_attacker_trophies: i32,
+    pub old_defender_trophies: i32,
+}
+
+#[derive(Serialize, Clone)]
+pub struct GameLog {
+    pub attacker: User,
+    pub defender: User,
+    pub base: SimulationBaseResponse,
+    pub events: Vec<EventResponse>,
+    pub result: ResultResponse,
 }
 
 pub fn get_valid_emp_ids(conn: &mut PgConnection) -> Result<HashSet<i32>> {
@@ -1021,7 +1061,7 @@ pub fn get_bomb_types(conn: &mut PgConnection) -> Result<Vec<BombType>> {
             id: emp.id,
             radius: emp.attack_radius,
             damage: emp.attack_damage,
-            total_count: 0
+            total_count: 0,
         })
         .collect();
     Ok(bomb_types)
@@ -1080,4 +1120,63 @@ pub async fn timeout_task(
             break;
         }
     }
+}
+
+pub fn terminate_game(game_log: &mut GameLog, conn: &mut PgConnection) -> Result<()> {
+    use crate::schema::{game, simulation_log};
+    let damage_done = game_log.result.damage_done;
+
+    let (attack_score, defense_score) = if damage_done < WIN_THRESHOLD {
+        (damage_done - 100, 100 - damage_done)
+    } else {
+        (damage_done, -damage_done)
+    };
+
+    let new_trophies = new_rating(
+        game_log.attacker.trophies,
+        game_log.defender.trophies,
+        attack_score as f32,
+        defense_score as f32,
+    );
+
+    game_log.result.new_attacker_trophies = new_trophies.0;
+    game_log.result.new_defender_trophies = new_trophies.1;
+
+    let new_game = NewGame {
+        attack_id: &game_log.attacker.id,
+        defend_id: &game_log.defender.id,
+        map_layout_id: &-1,
+        attack_score: &attack_score,
+        defend_score: &defense_score,
+        artifacts_collected: &game_log.result.artifacts_collected,
+        damage_done: &damage_done,
+        emps_used: &game_log.result.bombs_used,
+        is_attacker_alive: &game_log.result.is_attacker_alive,
+    };
+
+    let game_entry: Game = diesel::insert_into(game::table)
+        .values(&new_game)
+        .get_result(conn)
+        .map_err(|err| DieselError {
+            table: "game_log",
+            function: function!(),
+            error: err,
+        })?;
+
+    if let Ok(sim_log) = serde_json::to_string(&game_log) {
+        let new_simulation_log = NewSimulationLog {
+            game_id: &game_entry.id,
+            log_text: &sim_log,
+        };
+
+        diesel::insert_into(simulation_log::table)
+            .values(new_simulation_log)
+            .execute(conn)
+            .map_err(|err| DieselError {
+                table: "simulation_log",
+                function: function!(),
+                error: err,
+            })?;
+    }
+    Ok(())
 }
