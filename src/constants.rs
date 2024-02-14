@@ -14,4 +14,4 @@ pub const HIGHEST_TROPHY: f32 = 2_000.0;
 pub const BONUS_SCALE: i32 = 2;
 pub const GAME_ID_EXPIRATION_TIME_IN_MINUTES: i32 = 10;
 pub const MAX_BOMBS_PER_ATTACK: i32 = 30;
-pub const BLOCK_TYPE_ID_OF_BANK: i32 = 5;
+//pub const BLOCK_TYPE_ID_OF_BANK: i32 = 5;

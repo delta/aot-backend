@@ -5,7 +5,6 @@ use super::user::util::fetch_user;
 use super::PgPool;
 use crate::api::error;
 use crate::api::util::HistoryboardQuery;
-use crate::constants::BLOCK_TYPE_ID_OF_BANK;
 use crate::models::*;
 use actix_web::error::{ErrorBadRequest, ErrorNotFound};
 use actix_web::web::{self, Data, Json};
@@ -62,8 +61,14 @@ async fn post_transfer_artifacts(
     user: AuthUser,
 ) -> Result<impl Responder> {
     let user_id = user.0;
-    let bank_block_type_id = BLOCK_TYPE_ID_OF_BANK;
     let transfer = transfer.into_inner();
+
+    let mut conn = pg_pool
+        .get()
+        .map_err(|err| error::handle_error(err.into()))?;
+    let bank_block_type_id = web::block(move || util::get_block_id_of_bank(&mut conn, &user_id))
+        .await?
+        .map_err(|err| error::handle_error(err.into()))?;
 
     // let is_defender = match util::check_user_under_attack(&redis_pool, &user_id) {       //Uncomment to check for user under attack//
     //     Ok(result) => result,

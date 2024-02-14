@@ -234,6 +234,24 @@ pub fn create_artifact_record(
     Ok(())
 }
 
+pub fn get_block_id_of_bank(conn: &mut PgConnection, player: &i32) -> Result<i32> {
+    use crate::schema::{available_blocks, block_type, building_type};
+    let bank_block_type_id = available_blocks::table
+        .filter(available_blocks::user_id.eq(player))
+        .inner_join(block_type::table)
+        .filter(block_type::category.eq(BlockCategory::Building))
+        .inner_join(building_type::table.on(building_type::id.eq(block_type::building_type)))
+        .filter(building_type::name.ilike("%bank%"))
+        .select(block_type::id)
+        .first::<i32>(conn)
+        .map_err(|err| DieselError {
+            table: "block_type",
+            function: function!(),
+            error: err,
+        })?;
+    Ok(bank_block_type_id)
+}
+
 pub fn get_bank_map_space_id(
     conn: &mut PgConnection,
     filtered_layout_id: &i32,
