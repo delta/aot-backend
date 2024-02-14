@@ -30,7 +30,7 @@ pub mod util;
 
 // use crate::validator::state::State::place_attacker;
 // get_attacker_types
-use crate::api::attack::util::get_attacker_types;
+// use crate::api::attack::util::get_attacker_types;
 
 pub fn game_handler(
     attacker_type: &HashMap<i32, AttackerType>,

@@ -12,8 +12,6 @@ use crate::api::defense::util::calculate_shortest_paths;
 use crate::api::util::HistoryboardQuery;
 use crate::constants::MAX_BOMBS_PER_ATTACK;
 use crate::models::{AttackerType, LevelsFixture, User};
-use crate::schema::attacker_type;
-use crate::simulation::attack::attacker;
 use crate::simulation::blocks::{Coords, SourceDest};
 use crate::validator::state::State;
 use crate::validator::util::{BombType, BuildingDetails, DefenderDetails, MineDetails};

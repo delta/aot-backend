@@ -18,7 +18,7 @@ pub enum ItemCategory {
     Block,
 }
 
-#[derive(Queryable, Serialize, Clone)]
+#[derive(Queryable, Serialize, Clone, Debug)]
 pub struct EmpType {
     pub id: i32,
     pub att_type: String,
@@ -336,15 +336,4 @@ pub struct AttackerType {
     pub level: i32,
     pub cost: i32,
     pub name: String,
-}
-
-#[derive(Queryable, Clone, Debug, Serialize)]
-pub struct EmpType {
-    pub id: i32,
-    pub att_type: String,
-    pub attack_radius: i32,
-    pub attack_damage: i32,
-    pub cost: i32,
-    pub name: String,
-    pub level: i32,
 }
