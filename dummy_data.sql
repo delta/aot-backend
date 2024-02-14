@@ -28,7 +28,7 @@ COPY public.levels_fixture FROM stdin;
 \.
 
 COPY public.user FROM stdin;
-1	Bot	donwick32@gmail.com	bot	true	0	0	1000	0	500
+1	Bot	khadeer.irkm@gmail.com	bot	true	0	0	1000	0	500
 \.
 
 COPY public.map_layout FROM stdin;
@@ -67,28 +67,28 @@ COPY public.building_type FROM stdin;
 28	Building_13	3	3	70	2	10	90
 29	Building_14	4	4	90	2	35	110
 30	Building_15	5	5	110	2	60	130
-31	Building_1	3	3	120	3	100	160
-32	Building_2	4	4	140	3	125	180
-33	Building_3	5	5	160	3	150	200
-34	Building_4	3	3	110	3	75	140
-35	Building_5	4	4	130	3	100	160
-36	Building_6	5	5	150	3	125	180
-37	Building_7	3	3	100	3	50	120
-38	Building_8	4	4	120	3	75	140
-39	Building_9	5	5	140	3	100	160
-40	Building_10	3	3	90	3	45	110
+31	Building_1	3	3	120	3	-1	160
+32	Building_2	4	4	140	3	-1	180
+33	Building_3	5	5	160	3	-1	200
+34	Building_4	3	3	110	3	-1	140
+35	Building_5	4	4	130	3	-1	160
+36	Building_6	5	5	150	3	-1	180
+37	Building_7	3	3	100	3	-1	120
+38	Building_8	4	4	120	3	-1	140
+39	Building_9	5	5	140	3	-1	160
+40	Building_10	3	3	90	3	-1	110
 \.
 
 COPY public.defender_type FROM stdin;
-1	4	50	8	1	0
-2	4	40	10	1	0
-3	4	30	6	1	0
-4	5	60	7	2	150
-5	4	50	8	2	250
-6	4	40	9	2	350
-7	4	70	9	3	200
-8	4	60	10	3	300
-9	4	50	8	3	400
+1	4	50	8	1	0	defender_1
+2	4	40	10	1	0	defender_2
+3	4	30	6	1	0	defender_3
+4	5	60	7	2	150	defender_1
+5	4	50	8	2	250	defender_2
+6	4	40	9	2	350	defender_3
+7	4	70	9	3	-1	defender_1
+8	4	60	10	3	-1	defender_2
+9	4	50	8	3	-1	defender_3
 \.
 
 COPY public.emp_type FROM stdin;
@@ -98,21 +98,21 @@ COPY public.emp_type FROM stdin;
 4	Bomb_1	4	30	120	Bomb_1	2
 5	Bomb_2	6	40	180	Bomb_2	2
 6	Bomb_3	5	35	150	Bomb_3	2
-7	Bomb_1	5	40	140	Bomb_1	3
-8	Bomb_2	7	50	210	Bomb_2	3
-9	Bomb_3	6	45	180	Bomb_3	3
+7	Bomb_1	5	40	-1	Bomb_1	3
+8	Bomb_2	7	50	-1	Bomb_2	3
+9	Bomb_3	6	45	-1	Bomb_3	3
 \.
 
 COPY public.mine_type FROM stdin;
-1	5	50	1	0
-2	6	60	1	0
-3	7	70	1	0
-4	6	70	2	120
-5	7	80	2	180
-6	8	90	2	240
-7	7	90	3	150
-8	8	100	3	220
-9	9	110	3	300
+1	5	50	1	0	mine_1
+2	6	60	1	0	mine_2
+3	7	70	1	0	mine_3
+4	6	70	2	120	mine_1
+5	7	80	2	180	mine_2
+6	8	90	2	240	mine_3
+7	7	90	3	-1	mine_1
+8	8	100	3	-1	mine_2
+9	9	110	3	-1	mine_3
 \.
 
 COPY public.attacker_type FROM stdin;
@@ -122,9 +122,9 @@ COPY public.attacker_type FROM stdin;
 4	150	2	15	2	80	Attacker_1
 5	180	3	18	2	100	Attacker_2
 6	120	4	12	2	60	Attacker_3
-7	200	2	20	3	120	Attacker_1
-8	240	3	24	3	150	Attacker_2
-9	160	4	16	3	90	Attacker_3
+7	200	2	20	3	-1	Attacker_1
+8	240	3	24	3	-1	Attacker_2
+9	160	4	16	3	-1	Attacker_3
 \.
 
 COPY public.block_type FROM stdin;
