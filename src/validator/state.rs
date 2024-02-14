@@ -20,7 +20,7 @@ use crate::{
     },
     schema::shortest_path,
     simulation::defense::defender,
-    validator::util::{Attacker, Bomb, BuildingDetails, DefenderDetails, MineDetails},
+    validator::util::{Attacker, Bomb,DefenderReturnType, BuildingDetails, DefenderDetails, MineDetails},
 };
 
 use rayon::iter;
@@ -342,7 +342,7 @@ impl State {
         &mut self,
         attacker_delta: Vec<Coords>,
         shortest_path: &HashMap<SourceDest, Coords>,
-    ) -> Option<(i32, Vec<DefenderResponse>, &mut Self)> {
+    ) -> DefenderReturnType {
         // self.frame_no += 1;
 
         // if !defenders.is_empty() {
@@ -440,7 +440,18 @@ impl State {
         //     // }
         // }
 
-        Some((attacker.attacker_health, defenders_triggered, self))
+        DefenderReturnType {
+            attacker_health: attacker.attacker_health,
+            defender_response:defenders_triggered ,
+            state: self.clone(),
+        }
+        
+        // Some((23, vec![DefenderResponse {
+        //     id: 1,
+        //     position: Coords { x: 1, y: 1 },
+        //     damage: 1,
+        
+        // }], self))
     }
 
     pub fn mine_blast(

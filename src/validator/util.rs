@@ -1,5 +1,5 @@
 // use crate::{constants::ROAD_ID, validator::state::State};
-use crate::simulation::blocks::Coords;
+use crate::{api::attack::socket::DefenderResponse, simulation::blocks::Coords};
 use crate::validator::state::State;
 use serde::{Deserialize, Serialize};
 
@@ -73,6 +73,14 @@ pub struct BuildingDetails {
 pub struct SourceDest {
     pub source: Coords,
     pub dest: Coords,
+}
+#[derive(Serialize, Clone)]
+
+pub struct DefenderReturnType {
+    pub attacker_health: i32,
+    pub defender_response: Vec<DefenderResponse>,
+    pub state: State,
+
 }
 
 #[derive(Serialize)]

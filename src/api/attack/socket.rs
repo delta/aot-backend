@@ -18,6 +18,11 @@ pub struct SocketRequest {
     pub is_game_over: Option<bool>,
 }
 
+pub struct Test{
+    pub x: i32,
+    pub y: i32,
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct SocketResponse {
     pub frame_number: i32,
@@ -28,9 +33,9 @@ pub struct SocketResponse {
     pub triggered_defenders: Option<Vec<DefenderResponse>>,
     // pub defender_damaged: Option<DefenderResponse>,
     pub damaged_buildings: Option<Vec<BuildingResponse>>,
-    pub artifacts_gained_total: i32,
+    pub artifacts_gained_total: Option<i32>,
     pub is_sync: bool,
-    pub state: Option<GameStateResponse>,
+    // pub state: Option<GameStateResponse>,
     pub is_game_over: bool,
     pub message: Option<String>,
 }
@@ -68,6 +73,7 @@ pub struct DefenderResponse {
     pub position: Coords,
     pub damage: i32,
 }
+
 
 #[derive(Serialize, Deserialize)]
 pub struct BuildingResponse {

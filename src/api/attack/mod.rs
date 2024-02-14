@@ -61,9 +61,9 @@ async fn init_attack(
         .map_err(|err| error::handle_error(err.into()))?;
 
     // Check if attacker is already in a game
-    if let Ok(Some(_)) = util::get_game_id_from_redis(attacker_id, redis_conn) {
-        return Err(ErrorBadRequest("Only one attack is allowed at a time"));
-    }
+    // if let Ok(Some(_)) = util::get_game_id_from_redis(attacker_id, redis_conn) {
+    //     return Err(ErrorBadRequest("Only one attack is allowed at a time"));
+    // }
 
     //Generate random opponent id
     let random_opponent_id = web::block(move || {
@@ -197,9 +197,9 @@ async fn socket_handler(
         .get()
         .map_err(|err| error::handle_error(err.into()))?;
 
-    if let Ok(Some(_)) = util::get_game_id_from_redis(attacker_id, redis_conn) {
-        return Err(ErrorBadRequest("Only one attack is allowed at a time"));
-    }
+    // if let Ok(Some(_)) = util::get_game_id_from_redis(attacker_id, redis_conn) {
+    //     return Err(ErrorBadRequest("Only one attack is allowed at a time"));
+    // }
 
     //Fetch map_id of the defender
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
@@ -280,7 +280,7 @@ async fn socket_handler(
 
     let (response, session, mut msg_stream) = actix_ws::handle(&req, body)?;
 
-    let mut session_clone = session.clone();
+    let mut session_clone =  session.clone();
 
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let attacker_type = web::block(move || {
@@ -351,6 +351,7 @@ async fn socket_handler(
         let attacker_type = &attacker_type.clone();
 
         while let Some(Ok(msg)) = msg_stream.next().await {
+            println!("Received message: {:?}", msg);
             match msg {
                 Message::Ping(bytes) => {
                     if session_clone.pong(&bytes).await.is_err() {
