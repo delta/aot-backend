@@ -1085,7 +1085,7 @@ pub async fn timeout_task(
     defender_id: i32,
 ) {
     // Set the timeout duration
-    let timeout_duration = time::Duration::from_secs(60);
+    let timeout_duration = time::Duration::from_secs(180);
 
     loop {
         // Sleep for a short duration to check the timeout periodically
