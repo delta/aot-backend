@@ -18,10 +18,7 @@ pub struct SocketRequest {
     pub is_game_over: Option<bool>,
 }
 
-pub struct Test {
-    pub x: i32,
-    pub y: i32,
-}
+
 
 #[derive(Serialize, Deserialize)]
 pub struct SocketResponse {
@@ -57,6 +54,8 @@ pub enum ResultType {
     DefendersTriggered,
     BuildingsDamaged,
     GameOver,
+    PlacedAttacker,
+    Nothing,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -74,7 +73,8 @@ pub struct DefenderResponse {
     pub damage: i32,
 }
 
-#[derive(Serialize, Deserialize)]
+
+#[derive(Serialize, Deserialize,Clone)]
 pub struct BuildingResponse {
     pub id: i32,
     pub position: Coords,

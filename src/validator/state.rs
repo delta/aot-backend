@@ -28,7 +28,7 @@ use crate::{
 use rayon::iter;
 use serde::{Deserialize, Serialize};
 
-use super::util::BombType;
+use super::util::{BombType, IsTriggered};
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct State {
@@ -177,31 +177,55 @@ impl State {
     pub fn attacker_movement(
         &mut self,
         frame_no: i32,
-        attacker_delta: Vec<Coords>,
+        roads: &HashSet<(i32, i32)>,
         attacker_current: Attacker,
         // defenders_current: Vec<DefenderDetails>,
     ) -> Option<Attacker> {
-        if (frame_no - self.frame_no) != 1 {
-            // Some(self) // invalid frame error
-            None
-            // GAME_OVER
-        } else {
+        // if (frame_no - self.frame_no) != 1 {
+        //     // Some(self) // invalid frame error
+        //     None
+        //     // GAME_OVER
+        // } else {
             // self.frame_no += 1;
 
-            let attacker = self.attacker.clone().unwrap();
+            // if(roads.contain())
 
-            if attacker.attacker_speed != attacker_current.attacker_speed {
-                // invalid event error
-                // GAME_OVER
+            println!("state frame: {} current frame: {}",self.frame_no,frame_no);
+
+            for coord in attacker_current.path_in_current_frame.clone().into_iter() {
+                if !roads.contains(&(coord.x, coord.y)) {
+                    
+                    // GAME_OVER
+                    
+                println!("attacker out of road at {} frame",frame_no);
+
+                }
+            }
+                
+            
+
+            let mut attacker = attacker_current.clone();
+
+      
+
+            // if attacker.attacker_speed != attacker_current.attacker_speed || attacker.attacker_speed != 0 {
+            //     // invalid event error
+            //     // GAME_OVER
+            //     println!("attacker speed abuse at {} frame",frame_no);
+
+            // }
+
+            if attacker.attacker_speed != attacker.path_in_current_frame.len() as i32 {
+                println!("attacker speed abuse at {} frame --- speed  :{}, length: {}",frame_no,attacker.attacker_speed,attacker.path_in_current_frame.len());
             }
 
-            let new_pos = attacker.attacker_pos;
+            // let new_pos = attacker.attacker_pos;
             let mut coord_temp: Coords = Coords {
-                x: attacker_delta[0].x,
-                y: attacker_delta[0].y,
+                x: attacker_current.path_in_current_frame[0].x,
+                y: attacker_current.path_in_current_frame[0].y,
             };
 
-            for coord in attacker_delta {
+            for coord in attacker_current.path_in_current_frame {
                 if (coord_temp.x - coord.x > 1)
                     || (coord_temp.y - coord.y > 1)
                     || ((coord_temp.x - coord.x).abs() == 1 && coord_temp.y != coord.y)
@@ -209,18 +233,31 @@ impl State {
                 {
                     // invalid movement error
                     // GAME_OVER
+                println!("attacker skipped a tile at {} frame",frame_no);
+
                 }
 
+
+                let new_pos = coord;
+
+
                 for defender in self.defenders.iter_mut() {
-                    if defender.is_alive
+                    println!("defender x:{}, y:{}, isAlive: {}, id: {}", defender.defender_pos.x, defender.defender_pos.y,defender.is_alive,defender.id);
+                    println!("attacker x:{}, y:{}", new_pos.x, new_pos.y);
+                    println!("radius: {}",defender.radius);
+                    
+                    // println!("x:{}, y:{}, isAlive: {}, id: {}", defender.defender_pos.x, defender.defender_pos.y,defender.is_alive,defender.id);
+                    if !defender.is_alive
                         && defender.id != -1
-                        && ((defender.defender_pos.x - new_pos.x).pow(2) as f32
-                            + (defender.defender_pos.y - new_pos.y).pow(2) as f32)
-                            .sqrt()
-                            <= defender.radius as f32
+                        && ((defender.defender_pos.x - new_pos.x).abs()
+                            + (defender.defender_pos.y - new_pos.y).abs())
+                           
+                            <= defender.radius
                     {
-                        println!("x:{}, y:{}", new_pos.x, new_pos.y);
+                        println!("defender triggered when attacker was at ---- x:{}, y:{}", new_pos.x, new_pos.y);
                         defender.target_id = Some(attacker.id);
+                        attacker.trigger_defender = true;
+                        defender.is_alive = true;
                     }
                 }
 
@@ -266,17 +303,31 @@ impl State {
             //     self.bomb_blast(attacker_current.bombs[attacker_current.bombs.len() - 1]);
             //     attacker.bombs.pop();
             // }
+           
             self.frame_no += 1;
-            self.attacker_movement_update(&new_pos);
-            Some(attacker_current)
-        }
+            // self.attacker_movement_update(&new_pos);
+            // attacker.attacker_pos.x = new_pos.x;
+            // attacker.attacker_pos.y = new_pos.y;
+
+            let attacker_result = Attacker {
+                id: attacker.id,
+                attacker_pos: attacker.path_in_current_frame.last().unwrap().clone(),
+                attacker_health: attacker.attacker_health,
+                attacker_speed: attacker.attacker_speed,
+                path_in_current_frame: attacker.path_in_current_frame.clone(),
+                bombs: attacker.bombs.clone(),
+                trigger_defender: attacker.trigger_defender,
+            
+            };
+            Some(attacker_result)
+        // }
     }
 
     pub fn place_bombs(
         &mut self,
         attacker_delta: Vec<Coords>,
         bomb_position: Coords,
-    ) -> Option<Vec<BuildingResponse>> {
+    ) -> Vec<BuildingResponse> {
         // if attacker_current.bombs.len() - attacker.bombs.len() > 1 {
         //
 
@@ -284,12 +335,14 @@ impl State {
 
         if self.bombs.total_count <= 0 {
             //Nothing
-            return None;
+            println!()
         }
 
-        if !attacker_delta.contains(&bomb_position) {
-            //GAME_OVER
-        }
+        // if !attacker_delta.contains(&bomb_position) {
+        //     //GAME_OVER
+        // }
+
+        
 
         let buildings_damaged = self.bomb_blast(bomb_position);
         // else if(self.bombs.get() > 0){
@@ -359,6 +412,14 @@ impl State {
         //        }
         //     }
         // }
+
+        // for coord in attacker_current.path_in_current_frame.clone().into_iter() {
+        //     if !roads.contains(&(coord.x, coord.y)) {
+        //         // tile not road error
+        //         // GAME_OVER
+        //     }
+        // }
+
         let mut attacker = self.attacker.as_ref().unwrap().clone();
 
         let ratio: f32 = attacker.attacker_speed as f32 / self.defenders[0].speed as f32;
@@ -367,6 +428,7 @@ impl State {
         let mut defenders_triggered: Vec<DefenderResponse> = Vec::new();
         for defender in self.defenders.clone().iter_mut() {
             if defender.target_id != None && defender.is_alive {
+
                 if defender.path_in_current_frame.len() > 0 {
                     defender.defender_pos =
                         defender.path_in_current_frame[defender.path_in_current_frame.len() - 1];
@@ -386,8 +448,10 @@ impl State {
                         .get(&SourceDest {
                             source_x: defender.defender_pos.x,
                             source_y: defender.defender_pos.y,
-                            dest_x: attacker_delta[attacker_pointer_coord as usize + 1].x,
-                            dest_y: attacker_delta[attacker_pointer_coord as usize + 1].y,
+
+                            /* ADD WITH OVERFLOW ERROR */
+                            dest_x: attacker_delta[attacker_pointer_coord as usize + 1].x.wrapping_add(0),
+                            dest_y: attacker_delta[attacker_pointer_coord as usize + 1].y.wrapping_add(0),
                         })
                         .unwrap();
 
@@ -460,37 +524,51 @@ impl State {
         &mut self,
         // frame_no: i32,
         // mut mines: &Vec<MineDetails>,
-        attacker_delta: Vec<Coords>,
-    ) -> Option<Vec<MineDetails>> {
+        // attacker_delta: Vec<Coords>,
+        start_pos: Option<Coords>
+    ) -> Vec<MineDetails> {
         // if (frame_no - self.frame_no) != 1 {
         //     //GAME_OVER
         //     None
         // } else {
-        self.frame_no += 1;
+        // self.frame_no += 1;
         let mut damage_to_attacker;
+        let attack_current_pos = start_pos.unwrap();
 
         let mut triggered_mines: Vec<MineDetails> = Vec::new();
 
         for (_i, mine) in self.mines.clone().iter_mut().enumerate() {
-            for attacker_pos in attacker_delta.iter() {
-                if attacker_pos.x == mine.pos.x && attacker_pos.y == mine.pos.y {
-                    damage_to_attacker = mine.damage;
-                    triggered_mines.push(MineDetails {
-                        id: mine.id,
-                        pos: mine.pos,
-                        radius: mine.radius,
-                        damage: mine.damage,
-                    });
-                    self.mine_blast_update(mine.id, damage_to_attacker);
-                }
+            // for attacker_pos in attacker_delta.iter() {
+            //     if attacker_pos.x == mine.position.x && attacker_pos.y == mine.position.y {
+            //         damage_to_attacker = mine.damage;
+            //         triggered_mines.push(MineDetails {
+            //             id: mine.id,
+            //             position: mine.position,
+            //             radius: mine.radius,
+            //             damage: mine.damage,
+            //         });
+            //         self.mine_blast_update(mine.id, damage_to_attacker);
+            //     }
+            // }
+            if attack_current_pos.x == mine.position.x && attack_current_pos.y == mine.position.y {
+                damage_to_attacker = mine.damage;
+                triggered_mines.push(MineDetails {
+                    id: mine.id,
+                    position: mine.position,
+                    radius: mine.radius,
+                    damage: mine.damage,
+                });
+                self.mine_blast_update(mine.id, damage_to_attacker);
             }
         }
 
-        Some(triggered_mines)
+       
+
+        triggered_mines
         // }
     }
 
-    pub fn bomb_blast(&mut self, bomb_position: Coords) -> Option<Vec<BuildingResponse>> {
+    pub fn bomb_blast(&mut self, bomb_position: Coords) -> Vec<BuildingResponse> {
         // if bomb.blast_radius != self.attacker.as_ref().unwrap().bombs[0].blast_radius {
         //     return Some(self);
         // }
@@ -561,11 +639,7 @@ impl State {
         // if util::is_road(&bomb.pos) {
         //     // tile not road error
         // }
-        if buildings_damaged.len() != 0 {
-            Some(buildings_damaged)
-        } else {
-            None
-        }
+        buildings_damaged
     }
 
     // pub fn calculate_damage_area(&mut self, building: &mut BuildingDetails, bomb: Bomb) -> i32 {

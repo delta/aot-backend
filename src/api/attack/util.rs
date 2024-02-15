@@ -15,9 +15,7 @@ use crate::api::{self, RedisConn};
 use crate::constants::*;
 use crate::error::DieselError;
 use crate::models::{
-    Artifact, AttackerType, BlockCategory, BlockType, BuildingType, DefenderType, EmpType, Game,
-    LevelsFixture, MapLayout, MapSpaces, MineType, NewAttackerPath, NewGame, NewSimulationLog,
-    User,
+    Artifact, AttackerType, AvailableBlocks, BlockCategory, BlockType, BuildingType, DefenderType, EmpType, Game, LevelsFixture, MapLayout, MapSpaces, MineType, NewAttackerPath, NewGame, NewSimulationLog, User
 };
 use crate::schema::game::attack_id;
 use crate::schema::user;
@@ -981,7 +979,7 @@ pub fn get_mines(conn: &mut PgConnection, map_id: i32) -> Result<Vec<MineDetails
             id: mine_id as i32,
             damage: mine_type.damage,
             radius: mine_type.radius,
-            pos: Coords {
+            position: Coords {
                 x: map_space.x_coordinate,
                 y: map_space.y_coordinate,
             },
@@ -991,16 +989,17 @@ pub fn get_mines(conn: &mut PgConnection, map_id: i32) -> Result<Vec<MineDetails
     Ok(mines)
 }
 
-pub fn get_defenders(conn: &mut PgConnection, map_id: i32) -> Result<Vec<DefenderDetails>> {
-    use crate::schema::{block_type, building_type, defender_type, map_spaces};
-    let result: Vec<(MapSpaces, (BlockType, BuildingType, DefenderType))> = map_spaces::table
+pub fn get_defenders(conn: &mut PgConnection, map_id: i32, user_id: i32) -> Result<Vec<DefenderDetails>> {
+    use crate::schema::{block_type, building_type, defender_type, map_spaces, available_blocks};
+    let result: Vec<(MapSpaces, (BlockType, AvailableBlocks, BuildingType, DefenderType))> = map_spaces::table
         .inner_join(
-            block_type::table
+            block_type::table.inner_join(available_blocks::table)
                 .inner_join(building_type::table)
                 .inner_join(defender_type::table),
         )
         .filter(map_spaces::map_id.eq(map_id))
-        .load::<(MapSpaces, (BlockType, BuildingType, DefenderType))>(conn)
+        .filter(available_blocks::user_id.eq(user_id))
+        .load::<(MapSpaces, (BlockType, AvailableBlocks, BuildingType, DefenderType))>(conn)
         .map_err(|err| DieselError {
             table: "map_spaces",
             function: function!(),
@@ -1009,7 +1008,7 @@ pub fn get_defenders(conn: &mut PgConnection, map_id: i32) -> Result<Vec<Defende
 
     let mut defenders: Vec<DefenderDetails> = Vec::new();
 
-    for (defender_id, (map_space, (_, _, defender_type))) in result.iter().enumerate() {
+    for (defender_id, (map_space, (_, _, _, defender_type))) in result.iter().enumerate() {
         let (hut_x, hut_y) = (map_space.x_coordinate, map_space.y_coordinate);
         // let path: Vec<(i32, i32)> = vec![(hut_x, hut_y)];
         defenders.push(DefenderDetails {
@@ -1018,7 +1017,7 @@ pub fn get_defenders(conn: &mut PgConnection, map_id: i32) -> Result<Vec<Defende
             speed: defender_type.speed,
             damage: defender_type.damage,
             defender_pos: Coords { x: hut_x, y: hut_y },
-            is_alive: true,
+            is_alive: false,
             damage_dealt: false,
             target_id: None,
             path_in_current_frame: Vec::new(),

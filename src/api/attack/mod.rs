@@ -1,3 +1,4 @@
+use self::socket::SocketResponse;
 use self::util::{get_valid_road_paths, AttackResponse, GameLog, NewAttack, ResultResponse};
 use super::auth::session::AuthUser;
 use super::defense::shortest_path::run_shortest_paths;
@@ -60,9 +61,9 @@ async fn init_attack(
         .map_err(|err| error::handle_error(err.into()))?;
 
     //Check if attacker is already in a game
-    if let Ok(Some(_)) = util::get_game_id_from_redis(attacker_id, &mut redis_conn) {
-        return Err(ErrorBadRequest("Attacker has an ongoing game"));
-    }
+    // if let Ok(Some(_)) = util::get_game_id_from_redis(attacker_id, &mut redis_conn) {
+    //     return Err(ErrorBadRequest("Attacker has an ongoing game"));
+    // }
 
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let redis_conn = redis_pool
@@ -190,9 +191,9 @@ async fn socket_handler(
         .get()
         .map_err(|err| error::handle_error(err.into()))?;
 
-    if let Ok(Some(_)) = util::get_game_id_from_redis(attacker_id, &mut redis_conn) {
-        return Err(ErrorBadRequest("Attacker has an ongoing game"));
-    }
+    // if let Ok(Some(_)) = util::get_game_id_from_redis(attacker_id, &mut redis_conn) {
+    //     return Err(ErrorBadRequest("Attacker has an ongoing game"));
+    // }
 
     if let Ok(Some(_)) = util::get_game_id_from_redis(defender_id, &mut redis_conn) {
         return Err(ErrorBadRequest("Defender has an ongoing game"));
@@ -238,13 +239,13 @@ async fn socket_handler(
         .get()
         .map_err(|err| error::handle_error(err.into()))?;
 
-    if util::add_game_id_to_redis(attacker_id, defender_id, game_id, redis_conn).is_err() {
-        return Err(ErrorBadRequest("Internal Server Error"));
-    }
+    // if util::add_game_id_to_redis(attacker_id, defender_id, game_id, redis_conn).is_err() {
+    //     return Err(ErrorBadRequest("Internal Server Error"));
+    // }
 
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let defenders = web::block(move || {
-        Ok(util::get_defenders(&mut conn, map_id)?) as anyhow::Result<Vec<DefenderDetails>>
+        Ok(util::get_defenders(&mut conn, map_id, defender_id)?) as anyhow::Result<Vec<DefenderDetails>>
     })
     .await?
     .map_err(|err| error::handle_error(err.into()))?;
@@ -398,6 +399,40 @@ async fn socket_handler(
                                             println!("Error terminating the game");
                                         }
                                     }
+                                    else if response.result_type == ResultType::MinesExploded {
+                                        println!("MinesExploded response sent");
+                                        if session_clone.text(response_json).await.is_err() {
+                                            return;
+                                        }
+                                    }
+                                    else if response.result_type == ResultType::DefendersDamaged {
+                                        println!("DefendersDamaged response sent");
+                                        if session_clone.text(response_json).await.is_err() {
+                                            return;
+                                        }
+                                    }else if response.result_type == ResultType::DefendersTriggered {
+                                        println!("DefendersTriggered response sent");
+                                        if session_clone.text(response_json).await.is_err() {
+                                            return;
+                                        }
+                                    }else if response.result_type == ResultType::BuildingsDamaged {
+                                        println!("BuildingsDamaged response sent");
+                                        if session_clone.text(response_json).await.is_err() {
+                                            return;
+                                        }
+                                    }
+                                    else if response.result_type == ResultType::PlacedAttacker {
+                                        println!("PlacedAttacker response sent");
+                                        if session_clone.text(response_json).await.is_err() {
+                                            return;
+                                        }
+                                    }
+                                    else if response.result_type == ResultType::Nothing {
+                                        println!("Nothing response sent");
+                                        if session_clone.text(response_json).await.is_err() {
+                                            return;
+                                        }
+                                    }
                                 } else {
                                     println!("Error serializing JSON");
                                     if session_clone.text("Error serializing JSON").await.is_err() {
@@ -433,6 +468,27 @@ async fn socket_handler(
             }
         }
 
+        // let GameOverResponse = SocketResponse {
+        //     frame_number: 0,
+        //     result_type: ResultType::GameOver,
+        //     is_alive: None,
+        //     attacker_health: None,
+        //     exploded_mines: None,
+        //     triggered_defenders: None,
+        //     damaged_buildings: None,
+        //     artifacts_gained_total: None,
+        //     is_sync: false,
+        //     is_game_over: true,
+        //     message: None,
+        // };
+     
+        // if let Ok(responsejson )  = serde_json::to_string(&GameOverResponse)
+        // {
+        //     if session_clone.text(responsejson).await.is_err() {
+        //         return;
+        //     }
+        // }
+        
         if let Err(_) = session_clone.clone().close(None).await {
             println!("Error closing the socket connection");
         }

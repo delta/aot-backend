@@ -27,6 +27,12 @@ pub struct Attacker {
     pub attacker_speed: i32,
     pub path_in_current_frame: Vec<Coords>,
     pub bombs: Vec<Bomb>,
+    pub trigger_defender: bool,
+}
+
+#[derive(Serialize, Clone, Deserialize)]
+pub struct IsTriggered {
+    pub is_triggered: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -46,7 +52,7 @@ pub struct DefenderDetails {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct MineDetails {
     pub id: i32,
-    pub pos: Coords,
+    pub position: Coords,
     pub radius: i32,
     pub damage: i32,
 }
