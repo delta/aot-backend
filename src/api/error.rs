@@ -44,6 +44,7 @@ pub enum BaseInvalidError {
     BlockOutsideMap,
     // RoundRoad,
     BlockCountExceeded(i32),
+    InvalidArtifactCount,
     BlocksUnused(String),
     NotConnected(String),
     NotAdjacentToRoad,
@@ -70,6 +71,7 @@ impl ResponseError for BaseInvalidError {
             BaseInvalidError::BlocksUnused(block_type) => {
                 format!("You have some unused {block_type} buildings. Use all of them.")
             }
+            BaseInvalidError::InvalidArtifactCount => "Artifacts count is invalid".to_string(),
             BaseInvalidError::NotConnected(no_path_info) => no_path_info.to_string(),
 
             BaseInvalidError::NotAdjacentToRoad => {

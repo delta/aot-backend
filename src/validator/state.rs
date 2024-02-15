@@ -217,7 +217,7 @@ impl State {
                             .sqrt()
                             <= defender.radius as f32
                     {
-                        println!("x:{}, y:{}",new_pos.x,new_pos.y);
+                        println!("x:{}, y:{}", new_pos.x, new_pos.y);
                         defender.target_id = Some(attacker.id);
                     }
                 }

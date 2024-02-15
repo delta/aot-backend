@@ -1,9 +1,9 @@
-use crate::api::defense::util::add_default_base;
+use crate::api::defense::util::add_user_default_base;
 use crate::api::error;
+use crate::error::DieselError;
 use crate::models::*;
 use crate::schema::user::{self};
 use crate::util::function;
-use crate::{constants::INITIAL_RATING, error::DieselError};
 use anyhow::Result;
 use chrono::{Duration, Utc};
 use diesel::prelude::*;
@@ -91,35 +91,14 @@ pub fn get_oauth_user(pg_conn: &mut PgConnection, email: &str, name: &str) -> Re
     {
         Ok(user)
     } else {
-        // First login
-        let random_string: String = rand::thread_rng()
-            .sample_iter(&Alphanumeric)
-            .take(4)
-            .map(char::from)
-            .collect();
-        let username = &format!("{email}_{random_string}");
-        let new_user = NewUser {
-            name,
-            email,
-            username,
-            is_pragyan: &false,
-            attacks_won: &0,
-            defenses_won: &0,
-            trophies: &INITIAL_RATING,
-            avatar_id: &0,
-            artifacts: &0,
-        };
-        let user: User = diesel::insert_into(user::table)
-            .values(&new_user)
-            .get_result(pg_conn)
-            .map_err(|err| DieselError {
-                table: "user",
-                function: function!(),
-                error: err,
-            })?;
-
-        let _ = add_default_base(pg_conn, user.id).map_err(|err| error::handle_error(err.into()));
-
-        Ok(user)
+        if let Ok(user) = add_user_default_base(pg_conn, name, email)
+            .map_err(|err| error::handle_error(err.into()))
+        {
+            Ok(user)
+        } else {
+            Err(anyhow::anyhow!(
+                "Can't add user to database! Try again later."
+            ))
+        }
     }
 }

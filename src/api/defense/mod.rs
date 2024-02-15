@@ -1,6 +1,7 @@
 use self::util::{DefenderTypeResponse, MineTypeResponse};
 
 use super::auth::session::AuthUser;
+use super::inventory::util::get_user_artifacts;
 use super::user::util::fetch_user;
 use super::PgPool;
 use crate::api::error;
@@ -149,27 +150,30 @@ async fn confirm_base_details(
 
     let map_spaces = map_spaces.into_inner();
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-    let (map, blocks, mut level_constraints, buildings, defenders, mines) = web::block(move || {
-        let map = util::fetch_map_layout(&mut conn, &defender_id)?;
-        Ok((
-            map.clone(),
-            util::fetch_blocks(&mut conn, &defender_id)?,
-            util::get_level_constraints(&mut conn, map.level_id, &defender_id)?,
-            util::fetch_buildings(&mut conn)?,
-            util::fetch_defender_types(&mut conn, &defender_id)?,
-            util::fetch_mine_types(&mut conn, &defender_id)?,
-        ))
-            as anyhow::Result<(
-                MapLayout,
-                HashMap<i32, BlockType>,
-                HashMap<i32, i32>,
-                Vec<BuildingType>,
-                Vec<DefenderTypeResponse>,
-                Vec<MineTypeResponse>,
-            )>
-    })
-    .await?
-    .map_err(|err| error::handle_error(err.into()))?;
+    let (map, blocks, mut level_constraints, buildings, defenders, mines, user_artifacts) =
+        web::block(move || {
+            let map = util::fetch_map_layout(&mut conn, &defender_id)?;
+            Ok((
+                map.clone(),
+                util::fetch_blocks(&mut conn, &defender_id)?,
+                util::get_level_constraints(&mut conn, map.level_id, &defender_id)?,
+                util::fetch_buildings(&mut conn)?,
+                util::fetch_defender_types(&mut conn, &defender_id)?,
+                util::fetch_mine_types(&mut conn, &defender_id)?,
+                get_user_artifacts(defender_id, &mut conn)?,
+            ))
+                as anyhow::Result<(
+                    MapLayout,
+                    HashMap<i32, BlockType>,
+                    HashMap<i32, i32>,
+                    Vec<BuildingType>,
+                    Vec<DefenderTypeResponse>,
+                    Vec<MineTypeResponse>,
+                    i32,
+                )>
+        })
+        .await?
+        .map_err(|err| error::handle_error(err.into()))?;
 
     validate::is_valid_save_layout(
         &map_spaces,
@@ -178,6 +182,7 @@ async fn confirm_base_details(
         &buildings,
         &defenders,
         &mines,
+        &user_artifacts,
     )?;
 
     web::block(move || {

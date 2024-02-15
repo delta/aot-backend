@@ -358,7 +358,7 @@ async fn socket_handler(
                     }
                 }
                 Message::Text(s) => {
-                    println!("Received JSON message: {}",s);
+                    println!("Received JSON message: {}", s);
                     if let Ok(socket_request) = serde_json::from_str::<SocketRequest>(&s) {
                         println!("Parsed JSON message: {:?}", socket_request);
                         let response_result = game_handler(

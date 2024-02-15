@@ -9,13 +9,9 @@ use crate::{
         util::GameLog,
     },
     models::AttackerType,
-    simulation::{
-        attack::attacker,
-        blocks::{Coords, SourceDest},
-    },
+    simulation::blocks::{Coords, SourceDest},
 };
 use anyhow::{Ok, Result};
-use tungstenite::protocol::frame;
 
 use self::{
     state::State,

@@ -19,6 +19,7 @@ DELETE FROM public.mine_type;
 DELETE FROM public.emp_type;
 DELETE FROM public.defender_type;
 DELETE FROM public.building_type;
+DELETE FROM public.game;
 DELETE FROM public.map_layout;
 DELETE FROM public.user;
 DELETE FROM public.levels_fixture;
@@ -27,8 +28,8 @@ COPY public.levels_fixture FROM stdin;
 1	2024_01_01 00:00:00	2025_01_01 00:00:00	40	1	3
 \.
 
-COPY public.user (name, email, username, is_pragyan, attacks_won, defenses_won, trophies, avatar_id, artifacts) FROM stdin;
-Bot	donwick32@gmail.com	bot	true	0	0	1000	0	500
+COPY public.user FROM stdin;
+1	Bot	donwick32@gmail.com	bot	true	0	0	1000	0	270
 \.
 
 COPY public.map_layout FROM stdin;

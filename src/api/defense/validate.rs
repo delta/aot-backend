@@ -100,6 +100,7 @@ pub fn is_valid_save_layout(
     buildings: &[BuildingType],
     defenders: &[DefenderTypeResponse],
     mines: &[MineTypeResponse],
+    user_artifacts: &i32,
 ) -> Result<(), BaseInvalidError> {
     is_valid_update_layout(map_spaces, blocks, buildings)?;
 
@@ -124,18 +125,25 @@ pub fn is_valid_save_layout(
         mines.iter().map(|mine| (mine.id, mine.clone())).collect();
 
     let mut map_buildings: Vec<(i32, i32, i32)> = Vec::new();
+    let mut total_artifacts = 0;
 
     for map_space in map_spaces {
         let MapSpacesEntry {
             block_type_id,
             x_coordinate,
             y_coordinate,
-            ..
+            artifacts,
         } = *map_space;
 
         let block = blocks.get(&block_type_id).unwrap();
 
         let building_type = block.building_type;
+
+        if artifacts > buildings[&building_type].capacity {
+            return Err(BaseInvalidError::InvalidArtifactCount);
+        }
+
+        total_artifacts += artifacts;
 
         // check for level constraints
         if let Some(block_constraint) = block_constraints.get_mut(&block_type_id) {
@@ -163,6 +171,9 @@ pub fn is_valid_save_layout(
         }
     }
 
+    if total_artifacts != *user_artifacts {
+        return Err(BaseInvalidError::InvalidArtifactCount);
+    }
     //print building id,
 
     for (x_coordinate, y_coordinate, width) in map_buildings {
