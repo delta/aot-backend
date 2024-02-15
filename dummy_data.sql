@@ -27,8 +27,8 @@ COPY public.levels_fixture FROM stdin;
 1	2024_01_01 00:00:00	2025_01_01 00:00:00	40	1	3
 \.
 
-COPY public.user FROM stdin;
-1	Bot	khadeer.irkm@gmail.com	bot	true	0	0	1000	0	500
+COPY public.user (name, email, username, is_pragyan, attacks_won, defenses_won, trophies, avatar_id, artifacts) FROM stdin;
+Bot	donwick32@gmail.com	bot	true	0	0	1000	0	500
 \.
 
 COPY public.map_layout FROM stdin;
@@ -206,18 +206,18 @@ COPY public.available_blocks FROM stdin;
 13	1	\N	\N	block	13
 14	1	\N	\N	block	14
 15	1	\N	\N	block	15
-41	1	\N	\N	block	41
-42	1	\N	\N	block	42
-43	1	\N	\N	block	43
-50	1	\N	\N	block	50
-51	1	\N	\N	block	51
-52	1	\N	\N	block	52
-\N	1	1	\N	attacker	16
-\N	1	2	\N	attacker	17
-\N	1	3	\N	attacker	18
-\N	1	\N	1	emp	19
-\N	1	\N	2	emp	20
-\N	1	\N	3	emp	21
+41	1	\N	\N	block	16
+42	1	\N	\N	block	17
+43	1	\N	\N	block	18
+50	1	\N	\N	block	19
+51	1	\N	\N	block	20
+52	1	\N	\N	block	21
+\N	1	1	\N	attacker	22
+\N	1	2	\N	attacker	23
+\N	1	3	\N	attacker	24
+\N	1	\N	1	emp	25
+\N	1	\N	2	emp	26
+\N	1	\N	3	emp	27
 \.
 
 COPY public.map_spaces FROM stdin;
@@ -470,3 +470,10 @@ COPY public.level_constraints FROM stdin;
 1	1	57
 1	1	58
 \.
+
+SELECT pg_catalog.setval('public.user_id_seq', 2, false);
+SELECT pg_catalog.setval('public.map_layout_id_seq', 2, false);
+SELECT pg_catalog.setval('public.game_id_seq', 1, false);
+SELECT pg_catalog.setval('public.block_type_id_seq', 59, false);
+SELECT pg_catalog.setval('public.map_spaces_id_seq', 178, false);
+SELECT pg_catalog.setval('public.available_blocks_id_seq', 28, false);
