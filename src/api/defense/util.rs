@@ -175,8 +175,8 @@ pub fn transfer_artifacts_building(
 ) -> Result<()> {
     use crate::schema::artifact;
 
-    diesel::update(artifact::table.filter(artifact::map_space_id.eq(building_map_space_id)))
-        .set(artifact::count.eq(new_building_artifact_count))
+    diesel::update(artifact::table.filter(artifact::map_space_id.eq(bank_map_space_id)))
+        .set(artifact::count.eq(new_bank_artifact_count))
         .execute(conn)
         .map_err(|err| DieselError {
             table: "map_spaces",
@@ -197,8 +197,8 @@ pub fn transfer_artifacts_building(
         })?;
         Ok(())
     } else {
-        diesel::update(artifact::table.filter(artifact::map_space_id.eq(bank_map_space_id)))
-            .set(artifact::count.eq(new_bank_artifact_count))
+        diesel::update(artifact::table.filter(artifact::map_space_id.eq(building_map_space_id)))
+            .set(artifact::count.eq(new_building_artifact_count))
             .execute(conn)
             .map_err(|err| DieselError {
                 table: "map_spaces",
