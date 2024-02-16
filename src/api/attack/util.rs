@@ -19,6 +19,7 @@ use crate::models::{
     LevelsFixture, MapLayout, MapSpaces, MineType, NewAttackerPath, NewGame, NewSimulationLog,
     User,
 };
+use crate::schema::game::attack_id;
 use crate::schema::user;
 use crate::simulation::blocks::Coords;
 use crate::simulation::{RenderAttacker, RenderMine};
@@ -742,7 +743,11 @@ pub struct AttackResponse {
     pub attack_token: String,
 }
 
-pub fn get_random_opponent_id(attacker_id: i32, conn: &mut PgConnection) -> Result<Option<i32>> {
+pub fn get_random_opponent_id(
+    attacker_id: i32,
+    conn: &mut PgConnection,
+    mut redis_conn: RedisConn,
+) -> Result<Option<i32>> {
     let sorted_users: Vec<(i32, i32)> = user::table
         .order_by(user::trophies.asc())
         .select((user::id, user::trophies))
@@ -767,11 +772,41 @@ pub fn get_random_opponent_id(attacker_id: i32, conn: &mut PgConnection) -> Resu
         .take(5)
         .cloned()
         .collect::<Vec<_>>();
+
+    //While the opponent id is not present in redis, keep finding a new opponent
+    let mut attempts: i32 = 1;
+    let mut random_opponent =
+        get_random_opponent(&less_or_equal_trophies, &more_or_equal_trophies)?;
+    println!("Random opponent: {}", random_opponent);
+    while let Ok(Some(_)) = get_game_id_from_redis(random_opponent, &mut redis_conn) {
+        random_opponent = get_random_opponent(&less_or_equal_trophies, &more_or_equal_trophies)?;
+        println!("Random opponent: {}", random_opponent);
+        attempts += 1;
+        if attempts > 10 {
+            return Err(anyhow::anyhow!("Failed to find an opponent"));
+        }
+    }
+
     let random_opponent = less_or_equal_trophies
         .iter()
         .chain(&more_or_equal_trophies)
         .choose(&mut rand::thread_rng())
         .map(|&(id, _)| id);
+
+    Ok(random_opponent)
+}
+
+pub fn get_random_opponent(
+    less_or_equal_trophies: &Vec<(i32, i32)>,
+    more_or_equal_trophies: &Vec<(i32, i32)>,
+) -> Result<i32> {
+    let random_opponent = less_or_equal_trophies
+        .iter()
+        .chain(more_or_equal_trophies.iter())
+        .map(|&(id, _)| id)
+        .choose(&mut rand::thread_rng())
+        .map(|id| id)
+        .ok_or(anyhow::anyhow!("No opponent found"))?;
 
     Ok(random_opponent)
 }
@@ -809,12 +844,13 @@ pub fn get_shortest_paths_for_attack(
 pub fn get_opponent_base_details_for_attack(
     defender_id: i32,
     conn: &mut PgConnection,
-) -> Result<DefenseResponse> {
+) -> Result<(i32, DefenseResponse)> {
     let map = fetch_map_layout(conn, &defender_id)?;
+    let map_id = map.id;
 
     let response = get_map_details_for_attack(conn, map)?;
 
-    Ok(response)
+    Ok((map_id, response))
 }
 
 pub fn get_opponent_base_details_for_simulation(
@@ -838,9 +874,7 @@ pub fn add_game_id_to_redis(
         .set_ex(
             format!("Game:{}", attacker_id),
             game_id,
-            (GAME_ID_EXPIRATION_TIME_IN_MINUTES * 60)
-                .try_into()
-                .unwrap(),
+            (GAME_ID_AGE_IN_MINUTES * 60).try_into().unwrap(),
         )
         .map_err(|err| anyhow::anyhow!("Failed to set key: {}", err))?;
 
@@ -848,15 +882,13 @@ pub fn add_game_id_to_redis(
         .set_ex(
             format!("Game:{}", defender_id),
             game_id,
-            (GAME_ID_EXPIRATION_TIME_IN_MINUTES * 60)
-                .try_into()
-                .unwrap(),
+            (GAME_ID_AGE_IN_MINUTES * 60).try_into().unwrap(),
         )
         .map_err(|err| anyhow::anyhow!("Failed to set key: {}", err))?;
     Ok(())
 }
 
-pub fn get_game_id_from_redis(user_id: i32, mut redis_conn: RedisConn) -> Result<Option<i32>> {
+pub fn get_game_id_from_redis(user_id: i32, redis_conn: &mut RedisConn) -> Result<Option<i32>> {
     let game_id: Option<i32> = redis_conn
         .get(format!("Game:{}", user_id))
         .map_err(|err| anyhow::anyhow!("Failed to get key: {}", err))?;
@@ -866,7 +898,7 @@ pub fn get_game_id_from_redis(user_id: i32, mut redis_conn: RedisConn) -> Result
 pub fn delete_game_id_from_redis(
     attacker_id: i32,
     defender_id: i32,
-    mut redis_conn: RedisConn,
+    redis_conn: &mut RedisConn,
 ) -> Result<()> {
     redis_conn
         .del(format!("Game:{}", attacker_id))
@@ -881,10 +913,7 @@ pub fn encode_attack_token(attacker_id: i32, defender_id: i32) -> Result<String>
     let jwt_secret = env::var("COOKIE_KEY").expect("COOKIE_KEY must be set!");
     let now = chrono::Utc::now();
     let iat = now.timestamp() as usize;
-    let jwt_max_age: i64 = env::var("ATTACK_TOKEN_AGE_IN_MINUTES")
-        .expect("JWT max age must be set!")
-        .parse()
-        .expect("JWT max age must be an integer!");
+    let jwt_max_age: i64 = ATTACK_TOKEN_AGE_IN_MINUTES;
     let token_expiring_time = now + chrono::Duration::minutes(jwt_max_age);
     let exp = (token_expiring_time).timestamp() as usize;
     let token: AttackToken = AttackToken {
@@ -915,6 +944,12 @@ pub fn decode_user_token(token: &str) -> Result<i32> {
         &Validation::new(Algorithm::HS256),
     )
     .map_err(|err| anyhow::anyhow!("Failed to decode token: {}", err))?;
+
+    let now = chrono::Utc::now();
+    let iat = now.timestamp() as usize;
+    if iat > token_data.claims.exp {
+        return Err(anyhow::anyhow!("Attack token expired"));
+    }
 
     Ok(token_data.claims.id)
 }
@@ -1080,27 +1115,39 @@ pub fn update_buidling_artifacts(
 pub async fn timeout_task(
     session: actix_ws::Session,
     last_activity: time::Instant,
-    redis_conn: RedisConn,
+    mut redis_conn: RedisConn,
     attacker_id: i32,
     defender_id: i32,
-) {
+) -> Result<()> {
     // Set the timeout duration
-    let timeout_duration = time::Duration::from_secs(180);
+    let timeout_duration = time::Duration::from_secs(SOCKET_TIMEOUT_IN_SECONDS);
 
     loop {
         // Sleep for a short duration to check the timeout periodically
         actix_rt::time::sleep(time::Duration::from_secs(1)).await;
         // Check if the connection has been idle for more than the timeout duration
         if time::Instant::now() - last_activity > timeout_duration {
-            let _ = session.close(None).await;
-            let _ = delete_game_id_from_redis(attacker_id, defender_id, redis_conn);
+            if let Err(_) = session.close(None).await {
+                return Err(anyhow::anyhow!("Can't close socket connection"));
+            }
+
+            if let Err(_) = delete_game_id_from_redis(attacker_id, defender_id, &mut redis_conn) {
+                return Err(anyhow::anyhow!("Can't remove game from redis"));
+            }
+
             println!("Connection timed out");
             break;
         }
     }
+
+    Ok(())
 }
 
-pub fn terminate_game(game_log: &mut GameLog, conn: &mut PgConnection) -> Result<()> {
+pub fn terminate_game(
+    game_log: &mut GameLog,
+    conn: &mut PgConnection,
+    mut redis_conn: &mut RedisConn,
+) -> Result<()> {
     use crate::schema::{game, simulation_log};
     let damage_done = game_log.result.damage_done;
 
@@ -1117,13 +1164,15 @@ pub fn terminate_game(game_log: &mut GameLog, conn: &mut PgConnection) -> Result
         defense_score as f32,
     );
 
+    //Add bonus trophies (just call the function)
+
     game_log.result.new_attacker_trophies = new_trophies.0;
     game_log.result.new_defender_trophies = new_trophies.1;
 
     let new_game = NewGame {
         attack_id: &game_log.attacker.id,
         defend_id: &game_log.defender.id,
-        map_layout_id: &-1,
+        map_layout_id: &game_log.base.map_id,
         attack_score: &attack_score,
         defend_score: &defense_score,
         artifacts_collected: &game_log.result.artifacts_collected,
@@ -1141,6 +1190,14 @@ pub fn terminate_game(game_log: &mut GameLog, conn: &mut PgConnection) -> Result
             error: err,
         })?;
 
+    diesel::update(user::table.filter(user::id.eq(&game_log.attacker.id)))
+        .set(user::artifacts.eq(&game_log.attacker.artifacts + game_log.result.artifacts_collected))
+        .execute(conn)?;
+
+    diesel::update(user::table.filter(user::id.eq(&game_log.defender.id)))
+        .set(user::artifacts.eq(&game_log.defender.artifacts - game_log.result.artifacts_collected))
+        .execute(conn)?;
+
     if let Ok(sim_log) = serde_json::to_string(&game_log) {
         let new_simulation_log = NewSimulationLog {
             game_id: &game_entry.id,
@@ -1156,5 +1213,12 @@ pub fn terminate_game(game_log: &mut GameLog, conn: &mut PgConnection) -> Result
                 error: err,
             })?;
     }
+
+    if let Err(_) =
+        delete_game_id_from_redis(game_log.attacker.id, game_log.defender.id, redis_conn)
+    {
+        return Err(anyhow::anyhow!("Can't remove game from redis"));
+    }
+
     Ok(())
 }

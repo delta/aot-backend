@@ -1,6 +1,6 @@
 // use crate::{constants::ROAD_ID, validator::state::State};
-use crate::{api::attack::socket::DefenderResponse, simulation::blocks::Coords};
 use crate::validator::state::State;
+use crate::{api::attack::socket::DefenderResponse, simulation::blocks::Coords};
 use serde::{Deserialize, Serialize};
 
 // Structs present in the state
@@ -80,7 +80,6 @@ pub struct DefenderReturnType {
     pub attacker_health: i32,
     pub defender_response: Vec<DefenderResponse>,
     pub state: State,
-
 }
 
 #[derive(Serialize)]

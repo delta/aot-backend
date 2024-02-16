@@ -3,7 +3,8 @@ use std::collections::{HashMap, HashSet};
 use crate::{
     api::attack::{
         socket::{
-            self, ActionType, BuildingResponse, DefenderResponse, GameStateResponse, ResultType, SocketRequest, SocketResponse
+            self, ActionType, BuildingResponse, DefenderResponse, GameStateResponse, ResultType,
+            SocketRequest, SocketResponse,
         },
         util::GameLog,
     },
@@ -21,8 +22,6 @@ pub mod error;
 pub mod state;
 pub mod util;
 
-
-
 pub fn game_handler(
     attacker_type: &HashMap<i32, AttackerType>,
     socket_request: SocketRequest,
@@ -32,7 +31,6 @@ pub fn game_handler(
     _bomb_types: &Vec<BombType>,
     _game_log: &mut GameLog,
 ) -> Option<Result<SocketResponse>> {
-
     let mut defender_trigger_result: DefenderReturnType;
     let mut exploded_mines_result: Option<Vec<MineDetails>> = None;
     let mut buildings_damaged_result: Option<Vec<BuildingResponse>> = None;
@@ -91,21 +89,22 @@ pub fn game_handler(
                     },
                 );
 
-                defender_trigger_result = _game_state.defender_movement(attacker_delta, _shortest_path);
-                   
-                    // .map(|(a, b, c)| (a.clone(), b.clone(), c.clone())).clone();
+                defender_trigger_result =
+                    _game_state.defender_movement(attacker_delta, _shortest_path);
+
+                // .map(|(a, b, c)| (a.clone(), b.clone(), c.clone())).clone();
                 // Some(Err(error::FrameError { frame_no: 0 }.into()))
                 return Some(Ok(SocketResponse {
                     frame_number: socket_request.frame_number,
                     result_type: ResultType::DefendersTriggered,
                     is_alive: Some(true),
-            
+
                     attacker_health: Some(defender_trigger_result.clone().attacker_health),
                     exploded_mines: None,
                     triggered_defenders: Some(defender_trigger_result.clone().defender_response),
                     // defender_damaged: return_state.unwrap().frame_no,
                     damaged_buildings: None,
-                    artifacts_gained_total:  Some(defender_trigger_result.clone().state.artifacts),
+                    artifacts_gained_total: Some(defender_trigger_result.clone().state.artifacts),
                     is_sync: false,
                     // state: Some(GameStateResponse {
                     //     frame_no: defender_trigger_result.clone().unwrap().0,
@@ -154,13 +153,13 @@ pub fn game_handler(
                 frame_number: socket_request.frame_number,
                 result_type: ResultType::DefendersTriggered,
                 is_alive: Some(true),
-        
+
                 attacker_health: None,
                 exploded_mines: exploded_mines_result,
                 triggered_defenders: None,
                 // defender_damaged: return_state.unwrap().frame_no,
                 damaged_buildings: None,
-                artifacts_gained_total:  None,
+                artifacts_gained_total: None,
                 is_sync: false,
                 // state: Some(GameStateResponse {
                 //     frame_no: defender_trigger_result.clone().unwrap().0,
@@ -206,18 +205,17 @@ pub fn game_handler(
             buildings_damaged_result =
                 _game_state.place_bombs(attacker_delta, socket_request.bomb_position);
 
-
-              return Some(Ok(SocketResponse {
+            return Some(Ok(SocketResponse {
                 frame_number: socket_request.frame_number,
                 result_type: ResultType::DefendersTriggered,
                 is_alive: Some(true),
-        
+
                 attacker_health: None,
                 exploded_mines: None,
                 triggered_defenders: None,
                 // defender_damaged: return_state.unwrap().frame_no,
-                damaged_buildings:  buildings_damaged_result,
-                artifacts_gained_total:  None,
+                damaged_buildings: buildings_damaged_result,
+                artifacts_gained_total: None,
                 is_sync: false,
                 // state: Some(GameStateResponse {
                 //     frame_no: defender_trigger_result.clone().unwrap().0,
@@ -255,7 +253,7 @@ pub fn game_handler(
                 // }),
                 is_game_over: false,
                 message: Some(String::from("return test")),
-            }));    
+            }));
         }
         ActionType::Idle => {
             // idle (waiting for user to choose next attacker)
@@ -263,13 +261,13 @@ pub fn game_handler(
                 frame_number: socket_request.frame_number,
                 result_type: ResultType::DefendersTriggered,
                 is_alive: Some(true),
-        
+
                 attacker_health: None,
                 exploded_mines: None,
                 triggered_defenders: None,
                 // defender_damaged: return_state.unwrap().frame_no,
                 damaged_buildings: None,
-                artifacts_gained_total:None,
+                artifacts_gained_total: None,
                 is_sync: false,
                 // state: Some(GameStateResponse {
                 //     frame_no: socket_request.frame_number,
@@ -302,7 +300,7 @@ pub fn game_handler(
                 //         radius: 0,
                 //         damage: 0,
                 //     }].to_vec(),
-                    
+
                 //     buildings: [BuildingDetails{
                 //         id: 0,
                 //         current_hp: 0,
@@ -315,17 +313,14 @@ pub fn game_handler(
                 // }),
                 is_game_over: false,
                 message: Some(String::from("return test")),
-            })) ;
-            
+            }));
         }
         ActionType::Terminate => {
-
-         
             let socket_response = SocketResponse {
                 frame_number: socket_request.frame_number,
                 result_type: ResultType::GameOver,
                 is_alive: None,
-                attacker_health:None,
+                attacker_health: None,
                 exploded_mines: None,
                 triggered_defenders: None,
                 // defender_damaged: None,
@@ -374,5 +369,4 @@ pub fn game_handler(
         }
     }
     None
-   
 }

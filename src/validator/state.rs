@@ -20,7 +20,9 @@ use crate::{
     },
     schema::shortest_path,
     simulation::defense::defender,
-    validator::util::{Attacker, Bomb,DefenderReturnType, BuildingDetails, DefenderDetails, MineDetails},
+    validator::util::{
+        Attacker, Bomb, BuildingDetails, DefenderDetails, DefenderReturnType, MineDetails,
+    },
 };
 
 use rayon::iter;
@@ -442,15 +444,15 @@ impl State {
 
         DefenderReturnType {
             attacker_health: attacker.attacker_health,
-            defender_response:defenders_triggered ,
+            defender_response: defenders_triggered,
             state: self.clone(),
         }
-        
+
         // Some((23, vec![DefenderResponse {
         //     id: 1,
         //     position: Coords { x: 1, y: 1 },
         //     damage: 1,
-        
+
         // }], self))
     }
 

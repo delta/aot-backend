@@ -54,20 +54,28 @@ async fn init_attack(
     user: AuthUser,
 ) -> Result<impl Responder> {
     let attacker_id = user.0;
-    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
 
+    let mut redis_conn = redis_pool
+        .get()
+        .map_err(|err| error::handle_error(err.into()))?;
+
+    //Check if attacker is already in a game
+    if let Ok(Some(_)) = util::get_game_id_from_redis(attacker_id, &mut redis_conn) {
+        return Err(ErrorBadRequest("Attacker has an ongoing game"));
+    }
+
+    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let redis_conn = redis_pool
         .get()
         .map_err(|err| error::handle_error(err.into()))?;
 
-    // Check if attacker is already in a game
-    // if let Ok(Some(_)) = util::get_game_id_from_redis(attacker_id, redis_conn) {
-    //     return Err(ErrorBadRequest("Only one attack is allowed at a time"));
-    // }
-
     //Generate random opponent id
     let random_opponent_id = web::block(move || {
-        Ok(util::get_random_opponent_id(attacker_id, &mut conn)?) as anyhow::Result<Option<i32>>
+        Ok(util::get_random_opponent_id(
+            attacker_id,
+            &mut conn,
+            redis_conn,
+        )?) as anyhow::Result<Option<i32>>
     })
     .await?
     .map_err(|err| error::handle_error(err.into()))?;
@@ -99,29 +107,14 @@ async fn init_attack(
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
 
     //Fetch base details and shortest paths data
-    let opponent_base = web::block(move || {
+    let (map_id, opponent_base) = web::block(move || {
         Ok(util::get_opponent_base_details_for_attack(
             opponent_id,
             &mut conn,
-        )?) as anyhow::Result<DefenseResponse>
+        )?) as anyhow::Result<(i32, DefenseResponse)>
     })
     .await?
     .map_err(|err| error::handle_error(err.into()))?;
-
-    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-
-    let map = web::block(move || {
-        let map = util::get_map_id(&opponent_id, &mut conn)?;
-        Ok(map) as anyhow::Result<Option<i32>>
-    })
-    .await?
-    .map_err(|err| error::handle_error(err.into()))?;
-
-    let map_id = if let Some(map) = map {
-        map
-    } else {
-        return Err(ErrorBadRequest("Invalid base"));
-    };
 
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
 
@@ -193,13 +186,17 @@ async fn socket_handler(
         return Err(ErrorBadRequest("Can't attack yourself"));
     }
 
-    let redis_conn = redis_pool
+    let mut redis_conn = redis_pool
         .get()
         .map_err(|err| error::handle_error(err.into()))?;
 
-    // if let Ok(Some(_)) = util::get_game_id_from_redis(attacker_id, redis_conn) {
-    //     return Err(ErrorBadRequest("Only one attack is allowed at a time"));
-    // }
+    if let Ok(Some(_)) = util::get_game_id_from_redis(attacker_id, &mut redis_conn) {
+        return Err(ErrorBadRequest("Attacker has an ongoing game"));
+    }
+
+    if let Ok(Some(_)) = util::get_game_id_from_redis(defender_id, &mut redis_conn) {
+        return Err(ErrorBadRequest("Defender has an ongoing game"));
+    }
 
     //Fetch map_id of the defender
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
@@ -240,6 +237,7 @@ async fn socket_handler(
     let redis_conn = redis_pool
         .get()
         .map_err(|err| error::handle_error(err.into()))?;
+
     if util::add_game_id_to_redis(attacker_id, defender_id, game_id, redis_conn).is_err() {
         return Err(ErrorBadRequest("Internal Server Error"));
     }
@@ -280,7 +278,7 @@ async fn socket_handler(
 
     let (response, session, mut msg_stream) = actix_ws::handle(&req, body)?;
 
-    let mut session_clone =  session.clone();
+    let mut session_clone = session.clone();
 
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let attacker_type = web::block(move || {
@@ -336,6 +334,8 @@ async fn socket_handler(
         },
     };
 
+    let inner_redis_pool = redis_pool.clone();
+
     actix_rt::spawn(async move {
         let mut game_state = State::new(attacker_id, defender_id, defenders, mines, buildings);
 
@@ -345,6 +345,13 @@ async fn socket_handler(
             .get()
             .map_err(|err| error::handle_error(err.into()))
             .unwrap();
+
+        let mut redis_conn = inner_redis_pool
+            .clone()
+            .get()
+            .map_err(|err| error::handle_error(err.into()))
+            .unwrap();
+
         let shortest_path = &shortest_paths.clone();
         let roads = &roads.clone();
         let bomb_types = &bomb_types.clone();
@@ -380,8 +387,16 @@ async fn socket_handler(
                                         if session_clone.text(response_json).await.is_err() {
                                             return;
                                         }
-                                        let _ = session_clone.clone().close(None).await;
-                                        let _ = util::terminate_game(&mut game_logs, &mut conn);
+                                        if let Err(_) = session_clone.clone().close(None).await {
+                                            println!("Error closing the socket connection");
+                                        }
+                                        if let Err(_) = util::terminate_game(
+                                            &mut game_logs,
+                                            &mut conn,
+                                            &mut redis_conn,
+                                        ) {
+                                            println!("Error terminating the game");
+                                        }
                                     }
                                 } else {
                                     println!("Error serializing JSON");
@@ -408,19 +423,26 @@ async fn socket_handler(
                 }
                 Message::Close(s) => {
                     println!("Received close: {:?}", s);
-                    let _ = util::terminate_game(&mut game_logs, &mut conn);
+                    if let Err(_) = util::terminate_game(&mut game_logs, &mut conn, &mut redis_conn)
+                    {
+                        println!("Error terminating the game");
+                    }
                     break;
                 }
                 _ => (),
             }
         }
 
-        let _ = session_clone.close(None).await;
+        if let Err(_) = session_clone.clone().close(None).await {
+            println!("Error closing the socket connection");
+        }
     });
 
     let redis_conn = redis_pool
+        .clone()
         .get()
         .map_err(|err| error::handle_error(err.into()))?;
+
     actix_rt::spawn(util::timeout_task(
         session,
         Instant::now(),
@@ -428,6 +450,7 @@ async fn socket_handler(
         attacker_id,
         defender_id,
     ));
+
     Ok(response)
 }
 

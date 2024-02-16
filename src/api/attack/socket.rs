@@ -18,7 +18,7 @@ pub struct SocketRequest {
     pub is_game_over: Option<bool>,
 }
 
-pub struct Test{
+pub struct Test {
     pub x: i32,
     pub y: i32,
 }
@@ -73,7 +73,6 @@ pub struct DefenderResponse {
     pub position: Coords,
     pub damage: i32,
 }
-
 
 #[derive(Serialize, Deserialize)]
 pub struct BuildingResponse {
