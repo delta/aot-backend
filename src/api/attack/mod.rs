@@ -64,6 +64,9 @@ async fn init_attack(
     // if let Ok(Some(_)) = util::get_game_id_from_redis(attacker_id, &mut redis_conn) {
     //     return Err(ErrorBadRequest("Attacker has an ongoing game"));
     // }
+    // if let Ok(Some(_)) = util::get_game_id_from_redis(attacker_id, &mut redis_conn) {
+    //     return Err(ErrorBadRequest("Attacker has an ongoing game"));
+    // }
 
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let redis_conn = redis_pool
@@ -132,9 +135,26 @@ async fn init_attack(
         web::block(move || Ok(fetch_user(&mut conn, opponent_id)?) as anyhow::Result<Option<User>>)
             .await?
             .map_err(|err| error::handle_error(err.into()))?;
-    //
+
+    //Create game
+    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+    let game_id = web::block(move || {
+        Ok(util::add_game(attacker_id, opponent_id, map_id, &mut conn)?) as anyhow::Result<i32>
+    })
+    .await?
+    .map_err(|err| error::handle_error(err.into()))?;
+
+    //Store the game id in redis
+    let redis_conn = redis_pool
+        .get()
+        .map_err(|err| error::handle_error(err.into()))?;
+
+    if util::add_game_id_to_redis(attacker_id, opponent_id, game_id, redis_conn).is_err() {
+        return Err(ErrorBadRequest("Internal Server Error"));
+    }
+    
     //Generate attack token to validate the /attack/start
-    let attack_token = util::encode_attack_token(attacker_id, opponent_id).unwrap();
+    let attack_token = util::encode_attack_token(attacker_id, opponent_id, game_id).unwrap();
     let response: AttackResponse = AttackResponse {
         user: user_details,
         max_bombs: MAX_BOMBS_PER_ATTACK,
@@ -159,6 +179,7 @@ async fn init_attack(
         attack_token,
         attacker_types: opponent_base.attacker_types,
         bomb_types: opponent_base.bomb_types,
+        game_id,
     };
 
     Ok(Json(response))
@@ -187,17 +208,17 @@ async fn socket_handler(
         return Err(ErrorBadRequest("Can't attack yourself"));
     }
 
-    let mut redis_conn = redis_pool
-        .get()
-        .map_err(|err| error::handle_error(err.into()))?;
+    // let mut redis_conn = redis_pool
+    //     .get()
+    //     .map_err(|err| error::handle_error(err.into()))?;
 
     // if let Ok(Some(_)) = util::get_game_id_from_redis(attacker_id, &mut redis_conn) {
     //     return Err(ErrorBadRequest("Attacker has an ongoing game"));
     // }
 
-    if let Ok(Some(_)) = util::get_game_id_from_redis(defender_id, &mut redis_conn) {
-        return Err(ErrorBadRequest("Defender has an ongoing game"));
-    }
+    // if let Ok(Some(_)) = util::get_game_id_from_redis(defender_id, &mut redis_conn) {
+    //     return Err(ErrorBadRequest("Defender has an ongoing game"));
+    // }
 
     //Fetch map_id of the defender
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
@@ -219,14 +240,6 @@ async fn socket_handler(
 
     let shortest_paths = web::block(move || {
         Ok(run_shortest_paths(&mut conn, map_id)?) as anyhow::Result<HashMap<SourceDest, Coords>>
-    })
-    .await?
-    .map_err(|err| error::handle_error(err.into()))?;
-
-    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-    //Create game
-    let game_id = web::block(move || {
-        Ok(util::add_game(attacker_id, defender_id, map_id, &mut conn)?) as anyhow::Result<i32>
     })
     .await?
     .map_err(|err| error::handle_error(err.into()))?;
@@ -392,6 +405,7 @@ async fn socket_handler(
                                             println!("Error closing the socket connection");
                                         }
                                         if let Err(_) = util::terminate_game(
+                                            attack_token_data.game_id,
                                             &mut game_logs,
                                             &mut conn,
                                             &mut redis_conn,
@@ -458,7 +472,7 @@ async fn socket_handler(
                 }
                 Message::Close(s) => {
                     println!("Received close: {:?}", s);
-                    if let Err(_) = util::terminate_game(&mut game_logs, &mut conn, &mut redis_conn)
+                    if let Err(_) = util::terminate_game(attack_token_data.game_id, &mut game_logs, &mut conn, &mut redis_conn)
                     {
                         println!("Error terminating the game");
                     }

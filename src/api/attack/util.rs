@@ -61,6 +61,7 @@ pub struct NewAttacker {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AttackToken {
+    pub game_id: i32,
     pub attacker_id: i32,
     pub defender_id: i32,
     pub iat: usize,
@@ -492,26 +493,26 @@ pub fn fetch_top_attacks(user_id: i32, conn: &mut PgConnection) -> Result<GameHi
 //     let (attack_score, defend_score) = simulator.get_scores();
 //     let attack_defence_metrics = simulator.get_attack_defence_metrics();
 //     let (attacker_rating, defender_rating, attacker_rating_change, defender_rating_change) =
-//         diesel::update(game::table.find(game_id))
-//             .set((
-//                 game::damage_done.eq(simulator.get_damage_done()),
-//                 game::is_attacker_alive.eq(true),
-//                 game::emps_used.eq(1),
-//                 game::attack_score.eq(attack_score),
-//                 game::defend_score.eq(defend_score),
-//             ))
-//             .get_result::<Game>(conn)
-//             .map_err(|err| DieselError {
-//                 table: "game",
-//                 function: function!(),
-//                 error: err,
-//             })?
-//             .update_rating(attack_defence_metrics, conn)
-//             .map_err(|err| DieselError {
-//                 table: "user",
-//                 function: function!(),
-//                 error: err,
-//             })?;
+        // diesel::update(game::table.find(game_id))
+        //     .set((
+        //         game::damage_done.eq(simulator.get_damage_done()),
+        //         game::is_attacker_alive.eq(true),
+        //         game::emps_used.eq(1),
+        //         game::attack_score.eq(attack_score),
+        //         game::defend_score.eq(defend_score),
+        //     ))
+        //     .get_result::<Game>(conn)
+        //     .map_err(|err| DieselError {
+        //         table: "game",
+        //         function: function!(),
+        //         error: err,
+        //     })?
+        //     .update_rating(attack_defence_metrics, conn)
+        //     .map_err(|err| DieselError {
+        //         table: "user",
+        //         function: function!(),
+        //         error: err,
+        //     })?;
 //     let damage = simulator.get_damage_done();
 //     writeln!(content, "Result")?;
 //     writeln!(content, "Damage: {damage}")?;
@@ -739,6 +740,7 @@ pub struct AttackResponse {
     pub bomb_types: Vec<EmpType>,
     pub shortest_paths: Vec<ShortestPathResponse>,
     pub attack_token: String,
+    pub game_id: i32,
 }
 
 pub fn get_random_opponent_id(
@@ -907,7 +909,7 @@ pub fn delete_game_id_from_redis(
     Ok(())
 }
 
-pub fn encode_attack_token(attacker_id: i32, defender_id: i32) -> Result<String> {
+pub fn encode_attack_token(attacker_id: i32, defender_id: i32, game_id: i32) -> Result<String> {
     let jwt_secret = env::var("COOKIE_KEY").expect("COOKIE_KEY must be set!");
     let now = chrono::Utc::now();
     let iat = now.timestamp() as usize;
@@ -915,6 +917,7 @@ pub fn encode_attack_token(attacker_id: i32, defender_id: i32) -> Result<String>
     let token_expiring_time = now + chrono::Duration::minutes(jwt_max_age);
     let exp = (token_expiring_time).timestamp() as usize;
     let token: AttackToken = AttackToken {
+        game_id,
         attacker_id,
         defender_id,
         exp,
@@ -1143,6 +1146,7 @@ pub async fn timeout_task(
 }
 
 pub fn terminate_game(
+    game_id: i32,
     game_log: &mut GameLog,
     conn: &mut PgConnection,
     mut redis_conn: &mut RedisConn,
@@ -1189,12 +1193,36 @@ pub fn terminate_game(
             error: err,
         })?;
 
+    let game_entry: Game = diesel::update(game::table.find(game_id))
+        .set((
+            game::damage_done.eq(&damage_done),
+            game::is_attacker_alive.eq(&game_log.result.is_attacker_alive),
+            game::emps_used.eq(1),
+            game::attack_score.eq(&attack_score),
+            game::defend_score.eq(&defense_score),
+            game::artifacts_collected.eq(&game_log.result.artifacts_collected),
+        ))
+        .get_result::<Game>(conn)
+        .map_err(|err| DieselError {
+            table: "game",
+            function: function!(),
+            error: err,
+        })?;
+
     diesel::update(user::table.filter(user::id.eq(&game_log.attacker.id)))
         .set(user::artifacts.eq(&game_log.attacker.artifacts + game_log.result.artifacts_collected))
         .execute(conn)?;
 
     diesel::update(user::table.filter(user::id.eq(&game_log.defender.id)))
         .set(user::artifacts.eq(&game_log.defender.artifacts - game_log.result.artifacts_collected))
+        .execute(conn)?;
+
+    diesel::update(user::table.filter(user::id.eq(&game_log.attacker.id)))
+        .set(user::trophies.eq(&game_log.result.new_attacker_trophies))
+        .execute(conn)?;
+
+    diesel::update(user::table.filter(user::id.eq(&game_log.defender.id)))
+        .set(user::trophies.eq(&game_log.result.new_defender_trophies))
         .execute(conn)?;
 
     if let Ok(sim_log) = serde_json::to_string(&game_log) {

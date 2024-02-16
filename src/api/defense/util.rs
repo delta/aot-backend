@@ -821,7 +821,7 @@ pub fn add_user_default_base(
             .map(char::from)
             .collect();
 
-        let username = &format!("{user_email}_{random_string}");
+            let username = &format!("{}_{}", user_email.split('@').next().unwrap(), random_string);
         let new_user = NewUser {
             name: user_name,
             email: user_email,
