@@ -228,7 +228,7 @@ pub fn game_handler(
             
             return Some(Ok(SocketResponse {
                 frame_number: socket_request.frame_number,
-                result_type: result_type,
+                result_type,
                 is_alive: Some(true),
 
                 attacker_health: None,

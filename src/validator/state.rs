@@ -151,16 +151,21 @@ impl State {
 
     pub fn mine_blast_update(&mut self, _id: i32, damage_to_attacker: i32) {
         let attacker = self.attacker.as_mut().unwrap();
+       
         if attacker.attacker_health > 0 {
             attacker.attacker_health -= self.defenders[0].damage;
+            attacker.attacker_health = std::cmp::max(0, attacker.attacker_health - damage_to_attacker);
+            if attacker.attacker_health <= 0 {
+                self.attacker_death_count += 1;
+                for defender in self.defenders.iter_mut() {
+                    defender.is_alive = false;
+                }
+                attacker.attacker_pos = Coords { x: -1, y: -1 };
+            }
+    
+            // Remove the mine with _id from mines vector
         }
-        attacker.attacker_health = std::cmp::max(0, attacker.attacker_health - damage_to_attacker);
-        if attacker.attacker_health == 0 {
-            self.attacker_death_count += 1;
-            attacker.attacker_pos = Coords { x: -1, y: -1 };
-        }
-
-        // Remove the mine with _id from mines vector
+      
         self.mines.retain(|mine| mine.id != _id);
     }
 
@@ -242,9 +247,9 @@ impl State {
 
 
                 for defender in self.defenders.iter_mut() {
-                    println!("defender x:{}, y:{}, isAlive: {}, id: {}", defender.defender_pos.x, defender.defender_pos.y,defender.is_alive,defender.id);
-                    println!("attacker x:{}, y:{}", new_pos.x, new_pos.y);
-                    println!("radius: {}",defender.radius);
+                    // println!("defender x:{}, y:{}, isAlive: {}, id: {}", defender.defender_pos.x, defender.defender_pos.y,defender.is_alive,defender.id);
+                    // println!("attacker x:{}, y:{}", new_pos.x, new_pos.y);
+                    // println!("radius: {}",defender.radius);
                     
                     // println!("x:{}, y:{}, isAlive: {}, id: {}", defender.defender_pos.x, defender.defender_pos.y,defender.is_alive,defender.id);
                     if !defender.is_alive
@@ -399,6 +404,7 @@ impl State {
         shortest_path: &HashMap<SourceDest, Coords>,
     ) -> DefenderReturnType {
         // self.frame_no += 1;
+        println!("shortest path in validator : {} -----------------------",shortest_path.len());
 
         // if !defenders.is_empty() {
         //     for defender in defenders {
@@ -427,6 +433,7 @@ impl State {
         let mut attacker_prev = attacker_delta[0];
         let mut defenders_triggered: Vec<DefenderResponse> = Vec::new();
         for defender in self.defenders.clone().iter_mut() {
+
             if defender.target_id != None && defender.is_alive {
 
                 if defender.path_in_current_frame.len() > 0 {
@@ -444,14 +451,33 @@ impl State {
                     } else {
                         defender_prev = defender.path_in_current_frame[iterator as usize - 1];
                     }
+
+                    println!("defender coordinates: x: {}, y: {}",defender.defender_pos.x,defender.defender_pos.y);
+                    println!("attacker coordinates: x: {}, y: {}",attacker_delta[(attacker_pointer_coord + 1 )as usize].x,attacker_delta[(attacker_pointer_coord+1) as usize].y);
+                    let mega = SourceDest {
+                           source_x: defender.defender_pos.x,
+                            source_y: defender.defender_pos.y,
+
+                            /* ADD WITH OVERFLOW ERROR */
+                            dest_x: attacker_delta[(attacker_pointer_coord + 1) as usize].x,
+                            dest_y: attacker_delta[(attacker_pointer_coord + 1) as usize].y,
+                    };
+                
+                    // Check if the key exists in the HashMap
+                    if !shortest_path.contains_key(&mega) {
+                        println!("next hop not found in shortest path");
+                    }
+                    else{
+                        println!("next hop found in shortest path");
+                    }
                     let next_hop = shortest_path
                         .get(&SourceDest {
                             source_x: defender.defender_pos.x,
                             source_y: defender.defender_pos.y,
 
                             /* ADD WITH OVERFLOW ERROR */
-                            dest_x: attacker_delta[attacker_pointer_coord as usize + 1].x.wrapping_add(0),
-                            dest_y: attacker_delta[attacker_pointer_coord as usize + 1].y.wrapping_add(0),
+                            dest_x: attacker_delta[(attacker_pointer_coord + 1) as usize].x,
+                            dest_y: attacker_delta[(attacker_pointer_coord + 1) as usize].y,
                         })
                         .unwrap();
 
@@ -474,6 +500,8 @@ impl State {
                                 attacker.attacker_pos,
                             )
                         {
+                            println!("defender caught attacker when defender was at ---- x:{}, y:{}", defender.defender_pos.x, defender.defender_pos.y);
+                            println!("defender caught attacker when attacker was at ---- x:{}, y:{}", attacker.attacker_pos.x, attacker.attacker_pos.y);
                             // defender sucided
                             attacker.attacker_health -= defender.damage;
                             defender.is_alive = false;
@@ -500,11 +528,7 @@ impl State {
             }
         }
 
-        // for defender in defenders {
-        //     // if !util::is_road(&defender.defender_pos) {
-        //     //     // tile not road error
-        //     // }
-        // }
+   
 
         DefenderReturnType {
             attacker_health: attacker.attacker_health,

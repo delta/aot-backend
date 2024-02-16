@@ -748,68 +748,68 @@ pub fn get_random_opponent_id(
     conn: &mut PgConnection,
     mut redis_conn: RedisConn,
 ) -> Result<Option<i32>> {
-    let sorted_users: Vec<(i32, i32)> = user::table
-        .order_by(user::trophies.asc())
-        .select((user::id, user::trophies))
-        .load::<(i32, i32)>(conn)?;
+    // let sorted_users: Vec<(i32, i32)> = user::table
+    //     .order_by(user::trophies.asc())
+    //     .select((user::id, user::trophies))
+    //     .load::<(i32, i32)>(conn)?;
 
-    let attacker_index = sorted_users
-        .iter()
-        .position(|(id, _)| *id == attacker_id)
-        .unwrap_or_default();
-    let less_or_equal_trophies = sorted_users
-        .iter()
-        .take(attacker_index)
-        .filter(|(id, _)| *id != attacker_id)
-        .rev()
-        .take(5)
-        .cloned()
-        .collect::<Vec<_>>();
-    let more_or_equal_trophies = sorted_users
-        .iter()
-        .skip(attacker_index + 1)
-        .filter(|(id, _)| *id != attacker_id)
-        .take(5)
-        .cloned()
-        .collect::<Vec<_>>();
+    // let attacker_index = sorted_users
+    //     .iter()
+    //     .position(|(id, _)| *id == attacker_id)
+    //     .unwrap_or_default();
+    // let less_or_equal_trophies = sorted_users
+    //     .iter()
+    //     .take(attacker_index)
+    //     .filter(|(id, _)| *id != attacker_id)
+    //     .rev()
+    //     .take(5)
+    //     .cloned()
+    //     .collect::<Vec<_>>();
+    // let more_or_equal_trophies = sorted_users
+    //     .iter()
+    //     .skip(attacker_index + 1)
+    //     .filter(|(id, _)| *id != attacker_id)
+    //     .take(5)
+    //     .cloned()
+    //     .collect::<Vec<_>>();
 
-    //While the opponent id is not present in redis, keep finding a new opponent
-    let mut attempts: i32 = 1;
-    let mut random_opponent =
-        get_random_opponent(&less_or_equal_trophies, &more_or_equal_trophies)?;
-    println!("Random opponent: {}", random_opponent);
-    while let Ok(Some(_)) = get_game_id_from_redis(random_opponent, &mut redis_conn) {
-        random_opponent = get_random_opponent(&less_or_equal_trophies, &more_or_equal_trophies)?;
-        println!("Random opponent: {}", random_opponent);
-        attempts += 1;
-        if attempts > 10 {
-            return Err(anyhow::anyhow!("Failed to find an opponent"));
-        }
-    }
+    // //While the opponent id is not present in redis, keep finding a new opponent
+    // let mut attempts: i32 = 1;
+    // let mut random_opponent =
+    //     get_random_opponent(&less_or_equal_trophies, &more_or_equal_trophies)?;
+    // println!("Random opponent: {}", random_opponent);
+    // while let Ok(Some(_)) = get_game_id_from_redis(random_opponent, &mut redis_conn) {
+    //     random_opponent = get_random_opponent(&less_or_equal_trophies, &more_or_equal_trophies)?;
+    //     println!("Random opponent: {}", random_opponent);
+    //     attempts += 1;
+    //     if attempts > 10 {
+    //         return Err(anyhow::anyhow!("Failed to find an opponent"));
+    //     }
+    // }
 
-    let random_opponent = less_or_equal_trophies
-        .iter()
-        .chain(&more_or_equal_trophies)
-        .choose(&mut rand::thread_rng())
-        .map(|&(id, _)| id);
+    // let random_opponent = less_or_equal_trophies
+    //     .iter()
+    //     .chain(&more_or_equal_trophies)
+    //     .choose(&mut rand::thread_rng())
+    //     .map(|&(id, _)| id);
 
-    Ok(random_opponent)
+    Ok(Some(1))
 }
 
-pub fn get_random_opponent(
-    less_or_equal_trophies: &Vec<(i32, i32)>,
-    more_or_equal_trophies: &Vec<(i32, i32)>,
-) -> Result<i32> {
-    let random_opponent = less_or_equal_trophies
-        .iter()
-        .chain(more_or_equal_trophies.iter())
-        .map(|&(id, _)| id)
-        .choose(&mut rand::thread_rng())
-        .map(|id| id)
-        .ok_or(anyhow::anyhow!("No opponent found"))?;
+// pub fn get_random_opponent(
+//     less_or_equal_trophies: &Vec<(i32, i32)>,
+//     more_or_equal_trophies: &Vec<(i32, i32)>,
+// ) -> Result<i32> {
+//     let random_opponent = less_or_equal_trophies
+//         .iter()
+//         .chain(more_or_equal_trophies.iter())
+//         .map(|&(id, _)| id)
+//         .choose(&mut rand::thread_rng())
+//         .map(|id| id)
+//         .ok_or(anyhow::anyhow!("No opponent found"))?;
 
-    Ok(random_opponent)
-}
+//     Ok(random_opponent)
+// }
 
 pub fn get_shortest_paths_for_attack(
     conn: &mut PgConnection,
@@ -1122,7 +1122,7 @@ pub async fn timeout_task(
     defender_id: i32,
 ) -> Result<()> {
     // Set the timeout duration
-    let timeout_duration = time::Duration::from_secs(SOCKET_TIMEOUT_IN_SECONDS);
+    let timeout_duration = time::Duration::from_secs(300);
 
     loop {
         // Sleep for a short duration to check the timeout periodically

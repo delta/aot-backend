@@ -20,7 +20,7 @@ pub fn run_shortest_paths(
     let roads_list: Vec<(i32, i32)> = map_spaces::table
         .inner_join(block_type::table)
         .filter(map_spaces::map_id.eq(input_map_layout_id))
-        .filter(block_type::id.eq(ROAD_ID))
+        .filter(block_type::building_type.eq(ROAD_ID))
         .select((map_spaces::x_coordinate, map_spaces::y_coordinate))
         .load::<(i32, i32)>(conn)
         .map_err(|err| DieselError {
@@ -110,6 +110,8 @@ pub fn run_shortest_paths(
     //             error: err,
     //         })?;
     // }
+
+    println!("shortest path ------------------------------------------------------------------- {:?}", shortest_paths.len());
 
     Ok(shortest_paths)
 }

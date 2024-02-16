@@ -244,6 +244,8 @@ async fn socket_handler(
     .await?
     .map_err(|err| error::handle_error(err.into()))?;
 
+    println!("Shortest Paths: {:?}", shortest_paths.len());
+
     //Fetch base details and shortest paths data
     //Fetch defender details, fetch defender details
 
@@ -372,7 +374,7 @@ async fn socket_handler(
         let attacker_type = &attacker_type.clone();
 
         while let Some(Ok(msg)) = msg_stream.next().await {
-            println!("Received message: {:?}", msg);
+            // println!("Received message: {:?}", msg);
             match msg {
                 Message::Ping(bytes) => {
                     if session_clone.pong(&bytes).await.is_err() {
@@ -380,9 +382,9 @@ async fn socket_handler(
                     }
                 }
                 Message::Text(s) => {
-                    println!("Received JSON message: {}", s);
+                    // println!("Received JSON message: {}", s);
                     if let Ok(socket_request) = serde_json::from_str::<SocketRequest>(&s) {
-                        println!("Parsed JSON message: {:?}", socket_request);
+                        // println!("Parsed JSON message: {:?}", socket_request);
                         let response_result = game_handler(
                             attacker_type,
                             socket_request,
@@ -395,7 +397,7 @@ async fn socket_handler(
                         match response_result {
                             Some(Ok(response)) => {
                                 if let Ok(response_json) = serde_json::to_string(&response) {
-                                    println!("Response Json ---- {}", response_json);
+                                    // println!("Response Json ---- {}", response_json);
                                     if response.result_type == ResultType::GameOver {
                                         println!("Game over. Terminating the socket...");
                                         if session_clone.text(response_json).await.is_err() {
@@ -442,7 +444,7 @@ async fn socket_handler(
                                         }
                                     }
                                     else if response.result_type == ResultType::Nothing {
-                                        println!("Nothing response sent");
+                                        // println!("Nothing response sent");
                                         if session_clone.text(response_json).await.is_err() {
                                             return;
                                         }
