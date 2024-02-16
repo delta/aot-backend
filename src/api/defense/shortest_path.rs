@@ -111,7 +111,10 @@ pub fn run_shortest_paths(
     //         })?;
     // }
 
-    println!("shortest path ------------------------------------------------------------------- {:?}", shortest_paths.len());
+    println!(
+        "shortest path ------------------------------------------------------------------- {:?}",
+        shortest_paths.len()
+    );
 
     Ok(shortest_paths)
 }

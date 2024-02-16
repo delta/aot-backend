@@ -68,21 +68,19 @@ pub fn game_handler(
                 });
             }
 
-
-
             _game_state.update_frame_number(socket_request.frame_number.clone());
 
-                  return Some(Ok(SocketResponse {
+            return Some(Ok(SocketResponse {
                 frame_number: socket_request.frame_number,
                 result_type: ResultType::PlacedAttacker,
                 is_alive: Some(true),
-        
+
                 attacker_health: None,
                 exploded_mines: None,
                 triggered_defenders: None,
                 // defender_damaged: return_state.unwrap().frame_no,
-                damaged_buildings:  None,
-                artifacts_gained_total:  None,
+                damaged_buildings: None,
+                artifacts_gained_total: None,
                 is_sync: false,
                 // state: Some(GameStateResponse {
                 //     frame_no: defender_trigger_result.clone().unwrap().0,
@@ -120,7 +118,7 @@ pub fn game_handler(
                 // }),
                 is_game_over: false,
                 message: Some(String::from("return test")),
-            }));   
+            }));
         }
         ActionType::MoveAttacker => {
             // move_attacker
@@ -131,8 +129,7 @@ pub fn game_handler(
 
                 let attacker_result = _game_state.attacker_movement(
                     socket_request.frame_number.clone(),
-                    _roads
-                    ,
+                    _roads,
                     Attacker {
                         id: attacker.id,
                         path_in_current_frame: attacker_delta.clone(),
@@ -146,9 +143,10 @@ pub fn game_handler(
 
                 let attacker_result_clone = attacker_result.clone();
 
-                defender_trigger_result = _game_state.defender_movement(attacker_delta.clone(), _shortest_path);
-                   
-                    // .map(|(a, b, c)| (a.clone(), b.clone(), c.clone())).clone();
+                defender_trigger_result =
+                    _game_state.defender_movement(attacker_delta.clone(), _shortest_path);
+
+                // .map(|(a, b, c)| (a.clone(), b.clone(), c.clone())).clone();
                 // Some(Err(error::FrameError { frame_no: 0 }.into()))
 
                 let mut bool_temp = false;
@@ -160,7 +158,7 @@ pub fn game_handler(
                 } else {
                     ResultType::Nothing
                 };
-                
+
                 return Some(Ok(SocketResponse {
                     frame_number: socket_request.frame_number,
                     result_type,
@@ -225,7 +223,7 @@ pub fn game_handler(
             } else {
                 ResultType::Nothing
             };
-            
+
             return Some(Ok(SocketResponse {
                 frame_number: socket_request.frame_number,
                 result_type,
@@ -282,18 +280,17 @@ pub fn game_handler(
             buildings_damaged_result =
                 _game_state.place_bombs(attacker_delta, socket_request.bomb_position);
 
-                let mut bool_temp = false;
-                if(buildings_damaged_result.clone().len() >0){
-                    bool_temp = true;
-                }
-                let result_type = if bool_temp {
-                    ResultType::BuildingsDamaged
-                } else {
-                    ResultType::Nothing
-                };
+            let mut bool_temp = false;
+            if (buildings_damaged_result.clone().len() > 0) {
+                bool_temp = true;
+            }
+            let result_type = if bool_temp {
+                ResultType::BuildingsDamaged
+            } else {
+                ResultType::Nothing
+            };
 
-
-              return Some(Ok(SocketResponse {
+            return Some(Ok(SocketResponse {
                 frame_number: socket_request.frame_number,
                 result_type,
                 is_alive: Some(true),
@@ -302,8 +299,8 @@ pub fn game_handler(
                 exploded_mines: None,
                 triggered_defenders: None,
                 // defender_damaged: return_state.unwrap().frame_no,
-                damaged_buildings:  Some(buildings_damaged_result),
-                artifacts_gained_total:  None,
+                damaged_buildings: Some(buildings_damaged_result),
+                artifacts_gained_total: None,
                 is_sync: false,
                 // state: Some(GameStateResponse {
                 //     frame_no: defender_trigger_result.clone().unwrap().0,

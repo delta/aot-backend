@@ -15,7 +15,9 @@ use crate::api::{self, RedisConn};
 use crate::constants::*;
 use crate::error::DieselError;
 use crate::models::{
-    Artifact, AttackerType, AvailableBlocks, BlockCategory, BlockType, BuildingType, DefenderType, EmpType, Game, LevelsFixture, MapLayout, MapSpaces, MineType, NewAttackerPath, NewGame, NewSimulationLog, User
+    Artifact, AttackerType, AvailableBlocks, BlockCategory, BlockType, BuildingType, DefenderType,
+    EmpType, Game, LevelsFixture, MapLayout, MapSpaces, MineType, NewAttackerPath, NewGame,
+    NewSimulationLog, User,
 };
 use crate::schema::game::attack_id;
 use crate::schema::user;
@@ -493,26 +495,26 @@ pub fn fetch_top_attacks(user_id: i32, conn: &mut PgConnection) -> Result<GameHi
 //     let (attack_score, defend_score) = simulator.get_scores();
 //     let attack_defence_metrics = simulator.get_attack_defence_metrics();
 //     let (attacker_rating, defender_rating, attacker_rating_change, defender_rating_change) =
-        // diesel::update(game::table.find(game_id))
-        //     .set((
-        //         game::damage_done.eq(simulator.get_damage_done()),
-        //         game::is_attacker_alive.eq(true),
-        //         game::emps_used.eq(1),
-        //         game::attack_score.eq(attack_score),
-        //         game::defend_score.eq(defend_score),
-        //     ))
-        //     .get_result::<Game>(conn)
-        //     .map_err(|err| DieselError {
-        //         table: "game",
-        //         function: function!(),
-        //         error: err,
-        //     })?
-        //     .update_rating(attack_defence_metrics, conn)
-        //     .map_err(|err| DieselError {
-        //         table: "user",
-        //         function: function!(),
-        //         error: err,
-        //     })?;
+// diesel::update(game::table.find(game_id))
+//     .set((
+//         game::damage_done.eq(simulator.get_damage_done()),
+//         game::is_attacker_alive.eq(true),
+//         game::emps_used.eq(1),
+//         game::attack_score.eq(attack_score),
+//         game::defend_score.eq(defend_score),
+//     ))
+//     .get_result::<Game>(conn)
+//     .map_err(|err| DieselError {
+//         table: "game",
+//         function: function!(),
+//         error: err,
+//     })?
+//     .update_rating(attack_defence_metrics, conn)
+//     .map_err(|err| DieselError {
+//         table: "user",
+//         function: function!(),
+//         error: err,
+//     })?;
 //     let damage = simulator.get_damage_done();
 //     writeln!(content, "Result")?;
 //     writeln!(content, "Damage: {damage}")?;
@@ -992,17 +994,28 @@ pub fn get_mines(conn: &mut PgConnection, map_id: i32) -> Result<Vec<MineDetails
     Ok(mines)
 }
 
-pub fn get_defenders(conn: &mut PgConnection, map_id: i32, user_id: i32) -> Result<Vec<DefenderDetails>> {
-    use crate::schema::{block_type, building_type, defender_type, map_spaces, available_blocks};
-    let result: Vec<(MapSpaces, (BlockType, AvailableBlocks, BuildingType, DefenderType))> = map_spaces::table
+pub fn get_defenders(
+    conn: &mut PgConnection,
+    map_id: i32,
+    user_id: i32,
+) -> Result<Vec<DefenderDetails>> {
+    use crate::schema::{available_blocks, block_type, building_type, defender_type, map_spaces};
+    let result: Vec<(
+        MapSpaces,
+        (BlockType, AvailableBlocks, BuildingType, DefenderType),
+    )> = map_spaces::table
         .inner_join(
-            block_type::table.inner_join(available_blocks::table)
+            block_type::table
+                .inner_join(available_blocks::table)
                 .inner_join(building_type::table)
                 .inner_join(defender_type::table),
         )
         .filter(map_spaces::map_id.eq(map_id))
         .filter(available_blocks::user_id.eq(user_id))
-        .load::<(MapSpaces, (BlockType, AvailableBlocks, BuildingType, DefenderType))>(conn)
+        .load::<(
+            MapSpaces,
+            (BlockType, AvailableBlocks, BuildingType, DefenderType),
+        )>(conn)
         .map_err(|err| DieselError {
             table: "map_spaces",
             function: function!(),

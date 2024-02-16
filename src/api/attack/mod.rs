@@ -152,7 +152,7 @@ async fn init_attack(
     if util::add_game_id_to_redis(attacker_id, opponent_id, game_id, redis_conn).is_err() {
         return Err(ErrorBadRequest("Internal Server Error"));
     }
-    
+
     //Generate attack token to validate the /attack/start
     let attack_token = util::encode_attack_token(attacker_id, opponent_id, game_id).unwrap();
     let response: AttackResponse = AttackResponse {
@@ -260,7 +260,8 @@ async fn socket_handler(
 
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let defenders = web::block(move || {
-        Ok(util::get_defenders(&mut conn, map_id, defender_id)?) as anyhow::Result<Vec<DefenderDetails>>
+        Ok(util::get_defenders(&mut conn, map_id, defender_id)?)
+            as anyhow::Result<Vec<DefenderDetails>>
     })
     .await?
     .map_err(|err| error::handle_error(err.into()))?;
@@ -414,36 +415,33 @@ async fn socket_handler(
                                         ) {
                                             println!("Error terminating the game");
                                         }
-                                    }
-                                    else if response.result_type == ResultType::MinesExploded {
+                                    } else if response.result_type == ResultType::MinesExploded {
                                         println!("MinesExploded response sent");
                                         if session_clone.text(response_json).await.is_err() {
                                             return;
                                         }
-                                    }
-                                    else if response.result_type == ResultType::DefendersDamaged {
+                                    } else if response.result_type == ResultType::DefendersDamaged {
                                         println!("DefendersDamaged response sent");
                                         if session_clone.text(response_json).await.is_err() {
                                             return;
                                         }
-                                    }else if response.result_type == ResultType::DefendersTriggered {
+                                    } else if response.result_type == ResultType::DefendersTriggered
+                                    {
                                         println!("DefendersTriggered response sent");
                                         if session_clone.text(response_json).await.is_err() {
                                             return;
                                         }
-                                    }else if response.result_type == ResultType::BuildingsDamaged {
+                                    } else if response.result_type == ResultType::BuildingsDamaged {
                                         println!("BuildingsDamaged response sent");
                                         if session_clone.text(response_json).await.is_err() {
                                             return;
                                         }
-                                    }
-                                    else if response.result_type == ResultType::PlacedAttacker {
+                                    } else if response.result_type == ResultType::PlacedAttacker {
                                         println!("PlacedAttacker response sent");
                                         if session_clone.text(response_json).await.is_err() {
                                             return;
                                         }
-                                    }
-                                    else if response.result_type == ResultType::Nothing {
+                                    } else if response.result_type == ResultType::Nothing {
                                         // println!("Nothing response sent");
                                         if session_clone.text(response_json).await.is_err() {
                                             return;
@@ -474,8 +472,12 @@ async fn socket_handler(
                 }
                 Message::Close(s) => {
                     println!("Received close: {:?}", s);
-                    if let Err(_) = util::terminate_game(attack_token_data.game_id, &mut game_logs, &mut conn, &mut redis_conn)
-                    {
+                    if let Err(_) = util::terminate_game(
+                        attack_token_data.game_id,
+                        &mut game_logs,
+                        &mut conn,
+                        &mut redis_conn,
+                    ) {
                         println!("Error terminating the game");
                     }
                     break;
@@ -497,14 +499,14 @@ async fn socket_handler(
         //     is_game_over: true,
         //     message: None,
         // };
-     
+
         // if let Ok(responsejson )  = serde_json::to_string(&GameOverResponse)
         // {
         //     if session_clone.text(responsejson).await.is_err() {
         //         return;
         //     }
         // }
-        
+
         if let Err(_) = session_clone.clone().close(None).await {
             println!("Error closing the socket connection");
         }

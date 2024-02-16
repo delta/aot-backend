@@ -18,8 +18,6 @@ pub struct SocketRequest {
     pub is_game_over: Option<bool>,
 }
 
-
-
 #[derive(Serialize, Deserialize)]
 pub struct SocketResponse {
     pub frame_number: i32,
@@ -73,8 +71,7 @@ pub struct DefenderResponse {
     pub damage: i32,
 }
 
-
-#[derive(Serialize, Deserialize,Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct BuildingResponse {
     pub id: i32,
     pub position: Coords,
