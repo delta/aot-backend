@@ -44,7 +44,7 @@ pub struct DefenderDetails {
     pub defender_pos: Coords,
     pub is_alive: bool,
     pub damage_dealt: bool,
-    pub target_id: Option<i32>,
+    pub target_id: Option<f32>,
     pub path_in_current_frame: Vec<Coords>,
 }
 

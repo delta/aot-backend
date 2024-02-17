@@ -1028,12 +1028,12 @@ pub fn get_defenders(
         let (hut_x, hut_y) = (map_space.x_coordinate, map_space.y_coordinate);
         // let path: Vec<(i32, i32)> = vec![(hut_x, hut_y)];
         defenders.push(DefenderDetails {
-            id: defender_id as i32 + 1,
+            id: defender_type.id,
             radius: defender_type.radius,
             speed: defender_type.speed,
             damage: defender_type.damage,
             defender_pos: Coords { x: hut_x, y: hut_y },
-            is_alive: false,
+            is_alive: true,
             damage_dealt: false,
             target_id: None,
             path_in_current_frame: Vec::new(),
@@ -1135,7 +1135,7 @@ pub async fn timeout_task(
     defender_id: i32,
 ) -> Result<()> {
     // Set the timeout duration
-    let timeout_duration = time::Duration::from_secs(300);
+    let timeout_duration = time::Duration::from_secs(SOCKET_TIMEOUT_IN_SECONDS);
 
     loop {
         // Sleep for a short duration to check the timeout periodically

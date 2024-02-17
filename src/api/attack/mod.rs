@@ -191,6 +191,8 @@ async fn socket_handler(
     req: HttpRequest,
     body: web::Payload,
 ) -> Result<HttpResponse, Error> {
+    println!("error bug fs");
+
     let query_params = req.query_string().split('&').collect::<Vec<&str>>();
     let user_token = query_params[0].split('=').collect::<Vec<&str>>()[1];
     let attack_token = query_params[1].split('=').collect::<Vec<&str>>()[1];
@@ -244,7 +246,7 @@ async fn socket_handler(
     .await?
     .map_err(|err| error::handle_error(err.into()))?;
 
-    println!("Shortest Paths: {:?}", shortest_paths.len());
+    println!("Shortest Pathssss: {:?}", shortest_paths.len());
 
     //Fetch base details and shortest paths data
     //Fetch defender details, fetch defender details
@@ -352,6 +354,8 @@ async fn socket_handler(
     };
 
     let inner_redis_pool = redis_pool.clone();
+
+    println!("error bug fs");
 
     actix_rt::spawn(async move {
         let mut game_state = State::new(attacker_id, defender_id, defenders, mines, buildings);
