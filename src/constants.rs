@@ -18,3 +18,4 @@ pub const MAX_BOMBS_PER_ATTACK: i32 = 30;
 pub const ATTACK_TOKEN_AGE_IN_MINUTES: i64 = 10;
 pub const GAME_ID_AGE_IN_MINUTES: i32 = 10;
 pub const SOCKET_TIMEOUT_IN_SECONDS: u64 = 180;
+//pub const BLOCK_TYPE_ID_OF_BANK: i32 = 5;

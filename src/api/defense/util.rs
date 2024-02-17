@@ -18,6 +18,8 @@ use rand::distributions::Alphanumeric;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+// use redis::Commands;  //Uncomment to check for user under attack//
+// use crate::api::RedisPool;
 
 #[derive(Serialize, Clone)]
 pub struct MapSpacesResponseWithArifacts {
@@ -127,6 +129,43 @@ pub struct DefenceHistoryResponse {
     pub games: Vec<Game>,
 }
 
+//Uncomment to check for user under attack//
+
+// pub fn check_user_under_attack(redis_pool: &RedisPool, user_id: &i32) -> Result<bool> {
+//     // Get a connection from the pool
+//     let mut conn = redis_pool.get()?;
+
+//     // Use the GET command to check if the user_id exists and is 'defender'
+//     let result: Option<String> = conn.get(format!("Game:{}", user_id))?;
+
+//     match result {
+//         Some(_value) => Ok(true),
+//         //Some(value) if value == "defender_id" => Ok(true),
+//         _ => Ok(false),
+//     }
+// }
+
+pub fn check_valid_map_id(
+    conn: &mut PgConnection,
+    player: &i32,
+    map_space_id: &i32,
+) -> Result<i32> {
+    use crate::schema::{map_layout, map_spaces};
+
+    let map_layout_id = map_layout::table
+        .filter(map_layout::player.eq(player))
+        .inner_join(map_spaces::table.on(map_layout::id.eq(map_spaces::map_id))) //.on(map_layout::id.eq(map_spaces::map_id)))
+        .filter(map_spaces::id.eq(map_space_id))
+        .select(map_layout::id)
+        .first::<i32>(conn)
+        .map_err(|err| DieselError {
+            table: "map_layout",
+            function: function!(),
+            error: err,
+        })?;
+    Ok(map_layout_id)
+}
+
 pub fn defender_exists(defender: i32, conn: &mut PgConnection) -> Result<bool> {
     use crate::schema::user;
 
@@ -137,6 +176,182 @@ pub fn defender_exists(defender: i32, conn: &mut PgConnection) -> Result<bool> {
             function: function!(),
             error: err,
         })?)
+}
+
+pub fn transfer_artifacts_building(
+    conn: &mut PgConnection,
+    building_map_space_id: &i32,
+    bank_map_space_id: &i32,
+    new_building_artifact_count: &i32,
+    new_bank_artifact_count: &i32,
+) -> Result<()> {
+    use crate::schema::artifact;
+
+    diesel::update(artifact::table.filter(artifact::map_space_id.eq(bank_map_space_id)))
+        .set(artifact::count.eq(new_bank_artifact_count))
+        .execute(conn)
+        .map_err(|err| DieselError {
+            table: "map_spaces",
+            function: function!(),
+            error: err,
+        })
+        .unwrap();
+
+    if *new_building_artifact_count == 0 {
+        diesel::delete(
+            artifact::dsl::artifact.filter(artifact::dsl::map_space_id.eq(building_map_space_id)),
+        )
+        .execute(conn)
+        .map_err(|err| DieselError {
+            table: "shortest_path",
+            function: function!(),
+            error: err,
+        })?;
+        Ok(())
+    } else {
+        diesel::update(artifact::table.filter(artifact::map_space_id.eq(building_map_space_id)))
+            .set(artifact::count.eq(new_building_artifact_count))
+            .execute(conn)
+            .map_err(|err| DieselError {
+                table: "map_spaces",
+                function: function!(),
+                error: err,
+            })
+            .unwrap();
+        Ok(())
+    }
+}
+
+pub fn create_artifact_record(
+    conn: &mut PgConnection,
+    map_space_id: &i32,
+    artifact_count: &i32,
+) -> Result<()> {
+    use crate::schema::artifact;
+
+    let new_artifact = NewArtifact {
+        map_space_id: *map_space_id,
+        count: *artifact_count,
+    };
+
+    diesel::insert_into(artifact::table)
+        .values(&new_artifact)
+        .execute(conn)
+        .map_err(|err| DieselError {
+            table: "artifact",
+            function: function!(),
+            error: err,
+        })?;
+
+    Ok(())
+}
+
+pub fn get_block_id_of_bank(conn: &mut PgConnection, player: &i32) -> Result<i32> {
+    use crate::schema::{available_blocks, block_type, building_type};
+    let bank_block_type_id = available_blocks::table
+        .filter(available_blocks::user_id.eq(player))
+        .inner_join(block_type::table)
+        .filter(block_type::category.eq(BlockCategory::Building))
+        .inner_join(building_type::table.on(building_type::id.eq(block_type::building_type)))
+        .filter(building_type::name.ilike("%bank%"))
+        .select(block_type::id)
+        .first::<i32>(conn)
+        .map_err(|err| DieselError {
+            table: "block_type",
+            function: function!(),
+            error: err,
+        })?;
+    Ok(bank_block_type_id)
+}
+
+pub fn get_bank_map_space_id(
+    conn: &mut PgConnection,
+    filtered_layout_id: &i32,
+    bank_block_type_id: &i32,
+) -> Result<i32> {
+    use crate::schema::map_spaces;
+    let fetched_bank_map_space_id = map_spaces::table
+        .filter(map_spaces::map_id.eq(filtered_layout_id))
+        .filter(map_spaces::block_type_id.eq(bank_block_type_id))
+        .select(map_spaces::id)
+        .first::<i32>(conn)
+        .map_err(|err| DieselError {
+            table: "map_spaces",
+            function: function!(),
+            error: err,
+        })?;
+    Ok(fetched_bank_map_space_id)
+}
+
+pub fn check_valid_map_space_building(
+    conn: &mut PgConnection,
+    given_map_space_id: &i32,
+) -> Result<bool> {
+    use crate::schema::{block_type, building_type, map_spaces};
+
+    let category_type = map_spaces::table
+        .filter(map_spaces::id.eq(given_map_space_id))
+        .inner_join(block_type::table.on(map_spaces::block_type_id.eq(block_type::id)))
+        .select(block_type::category)
+        .first::<BlockCategory>(conn)
+        .map_err(|err| DieselError {
+            table: "map_spaces",
+            function: function!(),
+            error: err,
+        })?;
+
+    if category_type != BlockCategory::Building {
+        return Ok(false);
+    }
+
+    let builiding_type_id = map_spaces::table
+        .filter(map_spaces::id.eq(given_map_space_id))
+        .inner_join(block_type::table.on(map_spaces::block_type_id.eq(block_type::id)))
+        .inner_join(building_type::table.on(block_type::building_type.eq(building_type::id)))
+        .select(building_type::id)
+        .first::<i32>(conn)
+        .map_err(|err| DieselError {
+            table: "map_spaces",
+            function: function!(),
+            error: err,
+        })?;
+
+    if builiding_type_id == ROAD_ID {
+        return Ok(false);
+    }
+    Ok(true)
+}
+
+pub fn get_building_artifact_count(
+    conn: &mut PgConnection,
+    filtered_layout_id: &i32,
+    given_map_space_id: &i32,
+) -> Result<i32> {
+    use crate::schema::{artifact, map_spaces};
+    let building_artifact_count = map_spaces::table
+        .inner_join(artifact::table)
+        .filter(map_spaces::map_id.eq(filtered_layout_id)) //Eg:1
+        .filter(map_spaces::id.eq(given_map_space_id))
+        .select(artifact::count)
+        .first::<i32>(conn)
+        .unwrap_or(-1);
+    Ok(building_artifact_count)
+}
+
+pub fn get_building_capacity(conn: &mut PgConnection, given_map_space_id: &i32) -> Result<i32> {
+    use crate::schema::{block_type, building_type, map_spaces};
+    let building_capacity = map_spaces::table
+        .filter(map_spaces::id.eq(given_map_space_id))
+        .inner_join(block_type::table.on(map_spaces::block_type_id.eq(block_type::id)))
+        .inner_join(building_type::table.on(block_type::building_type.eq(building_type::id)))
+        .select(building_type::capacity)
+        .first::<i32>(conn)
+        .map_err(|err| DieselError {
+            table: "map_spaces",
+            function: function!(),
+            error: err,
+        })?;
+    Ok(building_capacity)
 }
 
 pub fn fetch_map_layout(conn: &mut PgConnection, player: &i32) -> Result<MapLayout> {
