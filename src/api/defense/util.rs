@@ -7,7 +7,7 @@ use crate::api::user::util::fetch_user;
 use crate::api::util::GameHistoryEntry;
 use crate::api::util::{HistoryboardEntry, HistoryboardResponse};
 use crate::api::{self};
-use crate::constants::{INITIAL_ARTIFACTS, INITIAL_RATING, ROAD_ID};
+use crate::constants::{BANK_BUILDING_NAME, INITIAL_ARTIFACTS, INITIAL_RATING, ROAD_ID};
 use crate::models::*;
 use crate::util::function;
 use crate::{api::util::GameHistoryResponse, error::DieselError};
@@ -253,7 +253,7 @@ pub fn get_block_id_of_bank(conn: &mut PgConnection, player: &i32) -> Result<i32
         .inner_join(block_type::table)
         .filter(block_type::category.eq(BlockCategory::Building))
         .inner_join(building_type::table.on(building_type::id.eq(block_type::building_type)))
-        .filter(building_type::name.ilike("%bank%"))
+        .filter(building_type::name.like(BANK_BUILDING_NAME))
         .select(block_type::id)
         .first::<i32>(conn)
         .map_err(|err| DieselError {
@@ -1077,7 +1077,9 @@ pub fn add_user_default_base(
         let new_map_layout = NewMapLayout {
             player: &user.id,
             level_id,
+            is_valid: &true,
         };
+
         let map_layout: MapLayout = diesel::insert_into(map_layout::table)
             .values(&new_map_layout)
             .get_result(conn)

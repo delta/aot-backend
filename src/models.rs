@@ -196,6 +196,7 @@ pub struct MapLayout {
 pub struct NewMapLayout<'a> {
     pub player: &'a i32,
     pub level_id: &'a i32,
+    pub is_valid: &'a bool,
 }
 
 #[derive(Queryable, Debug, Serialize, Deserialize, Clone)]

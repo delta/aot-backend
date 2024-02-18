@@ -93,7 +93,6 @@ pub struct ResultResponse {
     pub artifacts_collected: i32,
     pub bombs_used: i32,
     pub attackers_used: i32,
-    pub is_attacker_alive: bool,
     pub new_attacker_trophies: i32,
     pub new_defender_trophies: i32,
     pub old_attacker_trophies: i32,
@@ -102,6 +101,7 @@ pub struct ResultResponse {
 
 #[derive(Serialize, Clone)]
 pub struct GameLog {
+    pub game_id: i32,
     pub attacker: User,
     pub defender: User,
     pub base: SimulationBaseResponse,
@@ -750,68 +750,82 @@ pub fn get_random_opponent_id(
     conn: &mut PgConnection,
     mut redis_conn: RedisConn,
 ) -> Result<Option<i32>> {
-    // let sorted_users: Vec<(i32, i32)> = user::table
-    //     .order_by(user::trophies.asc())
-    //     .select((user::id, user::trophies))
-    //     .load::<(i32, i32)>(conn)?;
+    let sorted_users: Vec<(i32, i32)> = user::table
+        .order_by(user::trophies.asc())
+        .select((user::id, user::trophies))
+        .load::<(i32, i32)>(conn)?;
 
-    // let attacker_index = sorted_users
-    //     .iter()
-    //     .position(|(id, _)| *id == attacker_id)
-    //     .unwrap_or_default();
-    // let less_or_equal_trophies = sorted_users
-    //     .iter()
-    //     .take(attacker_index)
-    //     .filter(|(id, _)| *id != attacker_id)
-    //     .rev()
-    //     .take(5)
-    //     .cloned()
-    //     .collect::<Vec<_>>();
-    // let more_or_equal_trophies = sorted_users
-    //     .iter()
-    //     .skip(attacker_index + 1)
-    //     .filter(|(id, _)| *id != attacker_id)
-    //     .take(5)
-    //     .cloned()
-    //     .collect::<Vec<_>>();
+    if let Some(attacker_index) = sorted_users.iter().position(|(id, _)| *id == attacker_id) {
+        let less_or_equal_trophies = sorted_users
+            .iter()
+            .take(attacker_index)
+            .filter(|(id, _)| *id != attacker_id)
+            .rev()
+            .take(5)
+            .cloned()
+            .collect::<Vec<_>>();
+        let more_or_equal_trophies = sorted_users
+            .iter()
+            .skip(attacker_index + 1)
+            .filter(|(id, _)| *id != attacker_id)
+            .take(5)
+            .cloned()
+            .collect::<Vec<_>>();
 
-    // //While the opponent id is not present in redis, keep finding a new opponent
-    // let mut attempts: i32 = 1;
-    // let mut random_opponent =
-    //     get_random_opponent(&less_or_equal_trophies, &more_or_equal_trophies)?;
-    // println!("Random opponent: {}", random_opponent);
-    // while let Ok(Some(_)) = get_game_id_from_redis(random_opponent, &mut redis_conn) {
-    //     random_opponent = get_random_opponent(&less_or_equal_trophies, &more_or_equal_trophies)?;
-    //     println!("Random opponent: {}", random_opponent);
-    //     attempts += 1;
-    //     if attempts > 10 {
-    //         return Err(anyhow::anyhow!("Failed to find an opponent"));
-    //     }
-    // }
+        // While the opponent id is not present in redis, keep finding a new opponent
+        let mut attempts: i32 = MATCH_MAKING_ATTEMPTS;
+        let mut random_opponent = if let Ok(opponent) =
+            get_random_opponent(&less_or_equal_trophies, &more_or_equal_trophies)
+        {
+            opponent
+        } else {
+            return Err(anyhow::anyhow!("Failed to find an opponent"));
+        };
 
-    // let random_opponent = less_or_equal_trophies
-    //     .iter()
-    //     .chain(&more_or_equal_trophies)
-    //     .choose(&mut rand::thread_rng())
-    //     .map(|&(id, _)| id);
+        println!("Random opponent: {}", random_opponent);
 
-    Ok(Some(1))
+        while let Ok(Some(_)) = get_game_id_from_redis(random_opponent, &mut redis_conn, false) {
+            random_opponent = if let Ok(opponent) =
+                get_random_opponent(&less_or_equal_trophies, &more_or_equal_trophies)
+            {
+                opponent
+            } else {
+                return Err(anyhow::anyhow!("Failed to find an opponent"));
+            };
+
+            println!("Random opponent: {}", random_opponent);
+
+            attempts += 1;
+            if attempts > 10 {
+                return Err(anyhow::anyhow!(
+                    "Failed to find an opponent despite many attempts"
+                ));
+            }
+        }
+
+        println!("Final random opponent: {}", random_opponent);
+        Ok(Some(random_opponent))
+    } else {
+        Err(anyhow::anyhow!("Attacker id not found"))
+    }
 }
 
-// pub fn get_random_opponent(
-//     less_or_equal_trophies: &Vec<(i32, i32)>,
-//     more_or_equal_trophies: &Vec<(i32, i32)>,
-// ) -> Result<i32> {
-//     let random_opponent = less_or_equal_trophies
-//         .iter()
-//         .chain(more_or_equal_trophies.iter())
-//         .map(|&(id, _)| id)
-//         .choose(&mut rand::thread_rng())
-//         .map(|id| id)
-//         .ok_or(anyhow::anyhow!("No opponent found"))?;
-
-//     Ok(random_opponent)
-// }
+pub fn get_random_opponent(
+    less_or_equal_trophies: &Vec<(i32, i32)>,
+    more_or_equal_trophies: &Vec<(i32, i32)>,
+) -> Result<i32> {
+    if let Some(random_opponent) = less_or_equal_trophies
+        .iter()
+        .chain(more_or_equal_trophies.iter())
+        .map(|&(id, _)| id)
+        .choose(&mut rand::thread_rng())
+        .map(|id| id)
+    {
+        Ok(random_opponent)
+    } else {
+        Err(anyhow::anyhow!("Failed to find an opponent"))
+    }
+}
 
 pub fn get_shortest_paths_for_attack(
     conn: &mut PgConnection,
@@ -874,27 +888,41 @@ pub fn add_game_id_to_redis(
 ) -> Result<()> {
     redis_conn
         .set_ex(
-            format!("Game:{}", attacker_id),
+            format!("Attacker:{}", attacker_id),
             game_id,
-            (GAME_ID_AGE_IN_MINUTES * 60).try_into().unwrap(),
+            GAME_AGE_IN_MINUTES * 60,
         )
-        .map_err(|err| anyhow::anyhow!("Failed to set key: {}", err))?;
+        .map_err(|err| anyhow::anyhow!("Failed to set attacker key: {}", err))?;
 
+    println!("Attacker:{} redis creation done", attacker_id);
     redis_conn
         .set_ex(
-            format!("Game:{}", defender_id),
+            format!("Defender:{}", defender_id),
             game_id,
-            (GAME_ID_AGE_IN_MINUTES * 60).try_into().unwrap(),
+            GAME_AGE_IN_MINUTES * 60,
         )
-        .map_err(|err| anyhow::anyhow!("Failed to set key: {}", err))?;
+        .map_err(|err| anyhow::anyhow!("Failed to set defender key: {}", err))?;
+    println!("Defender:{} redis creation done", defender_id);
+
     Ok(())
 }
 
-pub fn get_game_id_from_redis(user_id: i32, redis_conn: &mut RedisConn) -> Result<Option<i32>> {
-    let game_id: Option<i32> = redis_conn
-        .get(format!("Game:{}", user_id))
-        .map_err(|err| anyhow::anyhow!("Failed to get key: {}", err))?;
-    Ok(game_id)
+pub fn get_game_id_from_redis(
+    user_id: i32,
+    redis_conn: &mut RedisConn,
+    is_attacker: bool,
+) -> Result<Option<i32>> {
+    if is_attacker {
+        let game_id: Option<i32> = redis_conn
+            .get(format!("Attacker:{}", user_id))
+            .map_err(|err| anyhow::anyhow!("Failed to get key: {}", err))?;
+        Ok(game_id)
+    } else {
+        let game_id: Option<i32> = redis_conn
+            .get(format!("Defender:{}", user_id))
+            .map_err(|err| anyhow::anyhow!("Failed to get key: {}", err))?;
+        Ok(game_id)
+    }
 }
 
 pub fn delete_game_id_from_redis(
@@ -902,12 +930,16 @@ pub fn delete_game_id_from_redis(
     defender_id: i32,
     redis_conn: &mut RedisConn,
 ) -> Result<()> {
+    println!("Deletion of game ids from redis in progress...");
     redis_conn
-        .del(format!("Game:{}", attacker_id))
-        .map_err(|err| anyhow::anyhow!("Failed to delete key: {}", err))?;
+        .del(format!("Attacker:{}", attacker_id))
+        .map_err(|err| anyhow::anyhow!("Failed to delete attacker key: {}", err))?;
+    println!("Attacker redis deletion done");
     redis_conn
-        .del(format!("Game:{}", defender_id))
-        .map_err(|err| anyhow::anyhow!("Failed to delete key: {}", err))?;
+        .del(format!("Defender:{}", defender_id))
+        .map_err(|err| anyhow::anyhow!("Failed to delete defender key: {}", err))?;
+    println!("Defender redis deletion done");
+
     Ok(())
 }
 
@@ -1127,45 +1159,21 @@ pub fn update_buidling_artifacts(
     Ok(buildings)
 }
 
-pub async fn timeout_task(
-    session: actix_ws::Session,
-    last_activity: time::Instant,
-    mut redis_conn: RedisConn,
-    attacker_id: i32,
-    defender_id: i32,
-) -> Result<()> {
-    // Set the timeout duration
-    let timeout_duration = time::Duration::from_secs(SOCKET_TIMEOUT_IN_SECONDS);
-
-    loop {
-        // Sleep for a short duration to check the timeout periodically
-        actix_rt::time::sleep(time::Duration::from_secs(1)).await;
-        // Check if the connection has been idle for more than the timeout duration
-        if time::Instant::now() - last_activity > timeout_duration {
-            if let Err(_) = session.close(None).await {
-                return Err(anyhow::anyhow!("Can't close socket connection"));
-            }
-
-            if let Err(_) = delete_game_id_from_redis(attacker_id, defender_id, &mut redis_conn) {
-                return Err(anyhow::anyhow!("Can't remove game from redis"));
-            }
-
-            println!("Connection timed out");
-            break;
-        }
-    }
-
-    Ok(())
-}
-
 pub fn terminate_game(
-    game_id: i32,
     game_log: &mut GameLog,
     conn: &mut PgConnection,
-    mut redis_conn: &mut RedisConn,
+    redis_conn: &mut RedisConn,
 ) -> Result<()> {
     use crate::schema::{game, simulation_log};
+    let attacker_id = game_log.attacker.id;
+    let defender_id = game_log.defender.id;
     let damage_done = game_log.result.damage_done;
+    let bombs_used = game_log.result.bombs_used;
+    let artifacts_collected = game_log.result.artifacts_collected;
+    let game_id = game_log.game_id;
+
+    println!("Damage done: {}", damage_done);
+    println!("Artifacts Collected: {}", artifacts_collected);
 
     let (attack_score, defense_score) = if damage_done < WIN_THRESHOLD {
         (damage_done - 100, 100 - damage_done)
@@ -1173,74 +1181,81 @@ pub fn terminate_game(
         (damage_done, -damage_done)
     };
 
-    let new_trophies = new_rating(
-        game_log.attacker.trophies,
-        game_log.defender.trophies,
-        attack_score as f32,
-        defense_score as f32,
-    );
-
-    //Add bonus trophies (just call the function)
-
-    game_log.result.new_attacker_trophies = new_trophies.0;
-    game_log.result.new_defender_trophies = new_trophies.1;
-
-    let new_game = NewGame {
-        attack_id: &game_log.attacker.id,
-        defend_id: &game_log.defender.id,
-        map_layout_id: &game_log.base.map_id,
-        attack_score: &attack_score,
-        defend_score: &defense_score,
-        artifacts_collected: &game_log.result.artifacts_collected,
-        damage_done: &damage_done,
-        emps_used: &game_log.result.bombs_used,
-        is_attacker_alive: &game_log.result.is_attacker_alive,
-    };
-
-    let game_entry: Game = diesel::insert_into(game::table)
-        .values(&new_game)
-        .get_result(conn)
-        .map_err(|err| DieselError {
-            table: "game_log",
-            function: function!(),
-            error: err,
-        })?;
-
-    let game_entry: Game = diesel::update(game::table.find(game_id))
-        .set((
-            game::damage_done.eq(&damage_done),
-            game::is_attacker_alive.eq(&game_log.result.is_attacker_alive),
-            game::emps_used.eq(1),
-            game::attack_score.eq(&attack_score),
-            game::defend_score.eq(&defense_score),
-            game::artifacts_collected.eq(&game_log.result.artifacts_collected),
-        ))
-        .get_result::<Game>(conn)
+    let attacker_details = user::table
+        .filter(user::id.eq(attacker_id))
+        .first::<User>(conn)
         .map_err(|err| DieselError {
             table: "game",
             function: function!(),
             error: err,
         })?;
 
-    diesel::update(user::table.filter(user::id.eq(&game_log.attacker.id)))
-        .set(user::artifacts.eq(&game_log.attacker.artifacts + game_log.result.artifacts_collected))
-        .execute(conn)?;
+    let defender_details = user::table
+        .filter(user::id.eq(defender_id))
+        .first::<User>(conn)
+        .map_err(|err| DieselError {
+            table: "game",
+            function: function!(),
+            error: err,
+        })?;
 
-    diesel::update(user::table.filter(user::id.eq(&game_log.defender.id)))
-        .set(user::artifacts.eq(&game_log.defender.artifacts - game_log.result.artifacts_collected))
-        .execute(conn)?;
+    let new_trophies = new_rating(
+        attacker_details.trophies,
+        defender_details.trophies,
+        attack_score as f32,
+        defense_score as f32,
+    );
 
-    diesel::update(user::table.filter(user::id.eq(&game_log.attacker.id)))
-        .set(user::trophies.eq(&game_log.result.new_attacker_trophies))
-        .execute(conn)?;
+    //Add bonus trophies (just call the function)
 
-    diesel::update(user::table.filter(user::id.eq(&game_log.defender.id)))
-        .set(user::trophies.eq(&game_log.result.new_defender_trophies))
-        .execute(conn)?;
+    game_log.result.old_attacker_trophies = attacker_details.trophies;
+    game_log.result.old_defender_trophies = defender_details.trophies;
+    game_log.result.new_attacker_trophies = new_trophies.0;
+    game_log.result.new_defender_trophies = new_trophies.1;
+
+    diesel::update(game::table.find(game_id))
+        .set((
+            game::damage_done.eq(&damage_done),
+            game::is_attacker_alive.eq(true),
+            game::emps_used.eq(bombs_used),
+            game::attack_score.eq(&attack_score),
+            game::defend_score.eq(&defense_score),
+            game::artifacts_collected.eq(&artifacts_collected),
+        ))
+        .execute(conn)
+        .map_err(|err| DieselError {
+            table: "game",
+            function: function!(),
+            error: err,
+        })?;
+
+    diesel::update(user::table.find(&game_log.attacker.id))
+        .set((
+            user::artifacts.eq(user::artifacts + artifacts_collected),
+            user::trophies.eq(user::trophies + new_trophies.0 - attacker_details.trophies),
+        ))
+        .execute(conn)
+        .map_err(|err| DieselError {
+            table: "game",
+            function: function!(),
+            error: err,
+        })?;
+
+    diesel::update(user::table.find(&game_log.defender.id))
+        .set((
+            user::artifacts.eq(user::artifacts - artifacts_collected),
+            user::trophies.eq(user::trophies + new_trophies.1 - defender_details.trophies),
+        ))
+        .execute(conn)
+        .map_err(|err| DieselError {
+            table: "game",
+            function: function!(),
+            error: err,
+        })?;
 
     if let Ok(sim_log) = serde_json::to_string(&game_log) {
         let new_simulation_log = NewSimulationLog {
-            game_id: &game_entry.id,
+            game_id: &game_id,
             log_text: &sim_log,
         };
 
@@ -1259,6 +1274,47 @@ pub fn terminate_game(
     {
         return Err(anyhow::anyhow!("Can't remove game from redis"));
     }
+
+    println!("Game termination is done");
+    Ok(())
+}
+
+pub fn check_and_remove_incomplete_game(
+    attacker_id: &i32,
+    defender_id: &i32,
+    game_id: &i32,
+    conn: &mut PgConnection,
+) -> Result<()> {
+    use crate::schema::game::dsl::*;
+
+    let pending_games = game
+        .filter(
+            attack_id
+                .eq(attacker_id)
+                .and(defend_id.eq(defender_id))
+                .and(id.ne(game_id))
+                .and(is_attacker_alive.eq(false)),
+        )
+        .load::<Game>(conn)
+        .map_err(|err| DieselError {
+            table: "game",
+            function: function!(),
+            error: err,
+        })?;
+
+    let len = pending_games.len();
+
+    for pending_game in pending_games {
+        diesel::delete(game.filter(id.eq(pending_game.id)))
+            .execute(conn)
+            .map_err(|err| DieselError {
+                table: "game",
+                function: function!(),
+                error: err,
+            })?;
+    }
+
+    println!("Removed {} incomplete games", len);
 
     Ok(())
 }

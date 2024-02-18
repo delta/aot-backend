@@ -1,3 +1,4 @@
+use crate::constants::BANK_BUILDING_NAME;
 use crate::error::DieselError;
 use crate::models::{
     AttackerType, BlockCategory, BuildingType, DefenderType, EmpType, ItemCategory, MineType,
@@ -1147,7 +1148,7 @@ pub fn get_block_id_of_bank(conn: &mut PgConnection, player: &i32) -> Result<i32
         .inner_join(block_type::table)
         .filter(block_type::category.eq(BlockCategory::Building))
         .inner_join(building_type::table.on(building_type::id.eq(block_type::building_type)))
-        .filter(building_type::name.ilike("%bank%"))
+        .filter(building_type::name.like(BANK_BUILDING_NAME))
         .select(block_type::id)
         .first::<i32>(conn)
         .map_err(|err| DieselError {

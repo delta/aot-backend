@@ -140,7 +140,7 @@ impl State {
         for i in 0..self.defenders.len() {
             if self.defenders[i].id == defender_id {
                 attacker.attacker_health -= self.defenders[i].damage;
-                if (attacker.attacker_health <= 0) {
+                if attacker.attacker_health <= 0 {
                     attacker.attacker_pos = Coords { x: -1, y: -1 };
                     self.attacker_death_count += 1;
                 }
@@ -327,7 +327,7 @@ impl State {
 
     pub fn place_bombs(
         &mut self,
-        attacker_delta: Vec<Coords>,
+        _attacker_delta: Vec<Coords>,
         bomb_position: Coords,
     ) -> Vec<BuildingResponse> {
         // if attacker_current.bombs.len() - attacker.bombs.len() > 1 {
@@ -766,7 +766,7 @@ impl State {
                 let coinciding_coords_damage = building_matrix.intersection(&bomb_matrix).count();
 
                 let damage_buildings: f32 =
-                    (coinciding_coords_damage as f32 / building_matrix.len() as f32);
+                    coinciding_coords_damage as f32 / building_matrix.len() as f32;
 
                 if damage_buildings != 0.0 {
                     let old_hp = building.current_hp;

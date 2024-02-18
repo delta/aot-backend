@@ -29,11 +29,13 @@ pub fn game_handler(
     _shortest_path: &HashMap<SourceDest, Coords>,
     _roads: &HashSet<(i32, i32)>,
     _bomb_types: &Vec<BombType>,
-    _game_log: &mut GameLog,
+    mut _game_log: &mut GameLog,
 ) -> Option<Result<SocketResponse>> {
     let defender_trigger_result: DefenderReturnType;
     let exploded_mines_result: Vec<MineDetails>;
     let buildings_damaged_result: Vec<BuildingResponse>;
+
+    _game_log.result.artifacts_collected += 1; //To check if modif is working as mutex
 
     match socket_request.action_type {
         ActionType::PlaceAttacker => {
@@ -281,7 +283,7 @@ pub fn game_handler(
                 _game_state.place_bombs(attacker_delta, socket_request.bomb_position);
 
             let mut bool_temp = false;
-            if (buildings_damaged_result.clone().len() > 0) {
+            if buildings_damaged_result.clone().len() > 0 {
                 bool_temp = true;
             }
             let result_type = if bool_temp {
