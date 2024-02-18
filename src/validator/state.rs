@@ -254,7 +254,8 @@ impl State {
                 // println!("radius: {}",defender.radius);
 
                 // println!("x:{}, y:{}, isAlive: {}, id: {}", defender.defender_pos.x, defender.defender_pos.y,defender.is_alive,defender.id);
-                if defender.target_id.is_none() && defender.is_alive
+                if defender.target_id.is_none()
+                    && defender.is_alive
                     && (((defender.defender_pos.x - new_pos.x).abs()
                         + (defender.defender_pos.y - new_pos.y).abs())
                         <= defender.radius)
@@ -467,11 +468,18 @@ impl State {
                     print!("attacker_tiles_fract_left: {}; ", attacker_tiles_fract_left);
 
                     attacker_mov_x += attacker_tiles_fract_left
-                        * ((attacker_delta[attacker_delta_index].x - attacker_delta[attacker_delta_index - 1].x) as f32);
+                        * ((attacker_delta[attacker_delta_index].x
+                            - attacker_delta[attacker_delta_index - 1].x)
+                            as f32);
                     attacker_mov_y += attacker_tiles_fract_left
-                        * ((attacker_delta[attacker_delta_index].y - attacker_delta[attacker_delta_index - 1].y) as f32);
-                    
-                    print!("attacker_mov_x: {}; attacker_mov_y: {}; ", attacker_mov_x, attacker_mov_y);
+                        * ((attacker_delta[attacker_delta_index].y
+                            - attacker_delta[attacker_delta_index - 1].y)
+                            as f32);
+
+                    print!(
+                        "attacker_mov_x: {}; attacker_mov_y: {}; ",
+                        attacker_mov_x, attacker_mov_y
+                    );
 
                     attacker_tiles_left -= attacker_tiles_fract_left;
                     attacker_tiles_covered_fract =
@@ -481,7 +489,10 @@ impl State {
                     }
                     println!("attacker_tiles_left: {}; attacker_tiles_covered_fract: {}; attacker_delta_index: {}", attacker_tiles_left, attacker_tiles_covered_fract, attacker_delta_index);
                 }
-                println!("attacker_mov_x: {}; attacker_mov_y: {}", attacker_mov_x, attacker_mov_y);
+                println!(
+                    "attacker_mov_x: {}; attacker_mov_y: {}",
+                    attacker_mov_x, attacker_mov_y
+                );
                 // // current tile
                 // let attacker_mov_x = attacker_fractional_mov.min(attacker_ratio)
                 //     * (attacker_delta[attacker_delta_index-1].x - attacker.attacker_pos.x) as f32;
@@ -508,13 +519,13 @@ impl State {
 
                 // defender.defender_pos = *shortest_path
                 let next_hop = shortest_path
-                .get(&SourceDest {
-                    source_x: defender.defender_pos.x,
-                    source_y: defender.defender_pos.y,
-                    dest_x: attacker.attacker_pos.x,
-                    dest_y: attacker.attacker_pos.y,
-                })
-                .unwrap_or(&defender.defender_pos);
+                    .get(&SourceDest {
+                        source_x: defender.defender_pos.x,
+                        source_y: defender.defender_pos.y,
+                        dest_x: attacker.attacker_pos.x,
+                        dest_y: attacker.attacker_pos.y,
+                    })
+                    .unwrap_or(&defender.defender_pos);
 
                 if defender.target_id.unwrap() >= ((i as f32) / (defender.speed as f32)) {
                     defender.path_in_current_frame.push(defender.defender_pos);
@@ -523,7 +534,10 @@ impl State {
                 defender.defender_pos = *next_hop;
                 defender.path_in_current_frame.push(defender.defender_pos);
 
-                println!("attacker pos: {:?}; defender_position: {:?}", attacker.attacker_pos, defender.defender_pos);
+                println!(
+                    "attacker pos: {:?}; defender_position: {:?}",
+                    attacker.attacker_pos, defender.defender_pos
+                );
 
                 // if defender and attacker are on the same tile, add the defender to the collision_array
                 if (defender.defender_pos == attacker.attacker_pos)
@@ -756,7 +770,6 @@ impl State {
         let mut triggered_mines: Vec<MineDetails> = Vec::new();
 
         for (_i, mine) in self.mines.clone().iter_mut().enumerate() {
-       
             if attack_current_pos.x == mine.position.x && attack_current_pos.y == mine.position.y {
                 damage_to_attacker = mine.damage;
                 triggered_mines.push(MineDetails {
@@ -780,8 +793,6 @@ impl State {
         // if bomb.damage != self.attacker.as_ref().unwrap().bombs[0].damage {
         //     return Some(self);
         // }
-
-      
 
         let bomb = &mut self.bombs;
         // println!("bomb blast damage: {}", bomb.damage);
@@ -812,19 +823,15 @@ impl State {
                 let damage_buildings: f32 =
                     coinciding_coords_damage as f32 / building_matrix.len() as f32;
 
-                
-                
-
-
                 if damage_buildings != 0.0 {
                     // println!("damage building: {}, bomb damage: {}, total_hp:{}",damage_buildings,bomb.damage,building.total_hp);
 
                     let old_hp = building.current_hp;
-                    let mut current_damage = (damage_buildings * (bomb.damage as f32 * 5 as f32)).round() as i32;
+                    let mut current_damage =
+                        (damage_buildings * (bomb.damage as f32 * 5 as f32)).round() as i32;
                     // println!("current damage: {}, current_hp: {}",current_damage,building.current_hp - current_damage);
 
                     building.current_hp -= current_damage;
-
 
                     if building.current_hp <= 0 {
                         building.current_hp = 0;
@@ -845,7 +852,6 @@ impl State {
                         artifacts_if_damaged: artifacts_taken_by_destroying_building,
                     });
                 }
-
             } else {
                 continue;
             }
@@ -861,6 +867,4 @@ impl State {
         // }
         buildings_damaged
     }
-
- 
 }

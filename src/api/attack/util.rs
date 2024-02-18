@@ -1169,7 +1169,10 @@ pub fn update_buidling_artifacts(
     // Update the buildings with the artifact count
     for building in buildings.iter_mut() {
         building.artifacts_obtained = *artifact_count.get(&building.id).unwrap_or(&0) as i32;
-        println!("during import : == Building id: {},hp: {},  Artifacts: {}", building.id,building.total_hp, building.artifacts_obtained);
+        println!(
+            "during import : == Building id: {},hp: {},  Artifacts: {}",
+            building.id, building.total_hp, building.artifacts_obtained
+        );
     }
 
     Ok(buildings)
