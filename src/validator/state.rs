@@ -254,8 +254,7 @@ impl State {
                 // println!("radius: {}",defender.radius);
 
                 // println!("x:{}, y:{}, isAlive: {}, id: {}", defender.defender_pos.x, defender.defender_pos.y,defender.is_alive,defender.id);
-                if defender.target_id.is_none()
-                    && defender.is_alive
+                if defender.target_id.is_none() && defender.is_alive
                     && (((defender.defender_pos.x - new_pos.x).abs()
                         + (defender.defender_pos.y - new_pos.y).abs())
                         <= defender.radius)
@@ -264,7 +263,7 @@ impl State {
                         "defender triggered when attacker was at ---- x:{}, y:{} and defender id: {}",
                         new_pos.x, new_pos.y, defender.id
                     );
-                    defender.target_id = Some((i + 1) as f32 / attacker.attacker_speed as f32);
+                    defender.target_id = Some((i) as f32 / attacker.attacker_speed as f32);
                     attacker.trigger_defender = true;
                 }
             }
@@ -439,7 +438,7 @@ impl State {
                 attacker.attacker_pos.y as f32,
             );
             // let mut attacker_prev = attacker.attacker_pos;
-            let mut attacker_delta_index = 0;
+            let mut attacker_delta_index = 1;
 
             defender.path_in_current_frame.clear();
             defender.path_in_current_frame.push(defender.defender_pos);
@@ -460,17 +459,19 @@ impl State {
                 let mut attacker_mov_y = 0.0;
 
                 let mut attacker_tiles_left = attacker_ratio;
-                while attacker_tiles_left > 0.0 {
+                print!("i: {i}; attacker_tiles_left: {}; ", attacker_tiles_left);
+                while attacker_tiles_left > 1e-6 {
                     let attacker_tiles_fract_left = attacker_tiles_left
                         .min(1.0)
                         .min(1.0 - attacker_tiles_covered_fract);
+                    print!("attacker_tiles_fract_left: {}; ", attacker_tiles_fract_left);
 
                     attacker_mov_x += attacker_tiles_fract_left
-                        * ((attacker_delta[attacker_delta_index].x as f32)
-                            - attacker_float_coords.0.floor());
+                        * ((attacker_delta[attacker_delta_index].x - attacker_delta[attacker_delta_index - 1].x) as f32);
                     attacker_mov_y += attacker_tiles_fract_left
-                        * ((attacker_delta[attacker_delta_index].y as f32)
-                            - attacker_float_coords.1.floor());
+                        * ((attacker_delta[attacker_delta_index].y - attacker_delta[attacker_delta_index - 1].y) as f32);
+                    
+                    print!("attacker_mov_x: {}; attacker_mov_y: {}; ", attacker_mov_x, attacker_mov_y);
 
                     attacker_tiles_left -= attacker_tiles_fract_left;
                     attacker_tiles_covered_fract =
@@ -478,7 +479,9 @@ impl State {
                     if attacker_tiles_covered_fract == 0.0 {
                         attacker_delta_index += 1;
                     }
+                    println!("attacker_tiles_left: {}; attacker_tiles_covered_fract: {}; attacker_delta_index: {}", attacker_tiles_left, attacker_tiles_covered_fract, attacker_delta_index);
                 }
+                println!("attacker_mov_x: {}; attacker_mov_y: {}", attacker_mov_x, attacker_mov_y);
                 // // current tile
                 // let attacker_mov_x = attacker_fractional_mov.min(attacker_ratio)
                 //     * (attacker_delta[attacker_delta_index-1].x - attacker.attacker_pos.x) as f32;
@@ -505,25 +508,22 @@ impl State {
 
                 // defender.defender_pos = *shortest_path
                 let next_hop = shortest_path
-                    .get(&SourceDest {
-                        source_x: defender.defender_pos.x,
-                        source_y: defender.defender_pos.y,
-                        dest_x: attacker.attacker_pos.x,
-                        dest_y: attacker.attacker_pos.y,
-                    })
-                    .unwrap_or(&defender.defender_pos);
+                .get(&SourceDest {
+                    source_x: defender.defender_pos.x,
+                    source_y: defender.defender_pos.y,
+                    dest_x: attacker.attacker_pos.x,
+                    dest_y: attacker.attacker_pos.y,
+                })
+                .unwrap_or(&defender.defender_pos);
 
-                if defender.target_id.unwrap() > ((i as f32) / (defender.speed as f32)) {
+                if defender.target_id.unwrap() >= ((i as f32) / (defender.speed as f32)) {
                     defender.path_in_current_frame.push(defender.defender_pos);
                     continue;
                 }
                 defender.defender_pos = *next_hop;
                 defender.path_in_current_frame.push(defender.defender_pos);
 
-                println!(
-                    "attacker pos: {:?}; defender_position: {:?}",
-                    attacker.attacker_pos, defender.defender_pos
-                );
+                println!("attacker pos: {:?}; defender_position: {:?}", attacker.attacker_pos, defender.defender_pos);
 
                 // if defender and attacker are on the same tile, add the defender to the collision_array
                 if (defender.defender_pos == attacker.attacker_pos)
@@ -756,18 +756,7 @@ impl State {
         let mut triggered_mines: Vec<MineDetails> = Vec::new();
 
         for (_i, mine) in self.mines.clone().iter_mut().enumerate() {
-            // for attacker_pos in attacker_delta.iter() {
-            //     if attacker_pos.x == mine.position.x && attacker_pos.y == mine.position.y {
-            //         damage_to_attacker = mine.damage;
-            //         triggered_mines.push(MineDetails {
-            //             id: mine.id,
-            //             position: mine.position,
-            //             radius: mine.radius,
-            //             damage: mine.damage,
-            //         });
-            //         self.mine_blast_update(mine.id, damage_to_attacker);
-            //     }
-            // }
+       
             if attack_current_pos.x == mine.position.x && attack_current_pos.y == mine.position.y {
                 damage_to_attacker = mine.damage;
                 triggered_mines.push(MineDetails {
@@ -792,9 +781,10 @@ impl State {
         //     return Some(self);
         // }
 
-        // for (_i, building) in self.buildings.iter_mut().enumerate() {
+      
 
         let bomb = &mut self.bombs;
+        // println!("bomb blast damage: {}", bomb.damage);
         let mut buildings_damaged: Vec<BuildingResponse> = Vec::new();
         for building in self.buildings.iter_mut() {
             if building.current_hp != 0 {
@@ -822,10 +812,20 @@ impl State {
                 let damage_buildings: f32 =
                     coinciding_coords_damage as f32 / building_matrix.len() as f32;
 
+                
+                
+
+
                 if damage_buildings != 0.0 {
+                    // println!("damage building: {}, bomb damage: {}, total_hp:{}",damage_buildings,bomb.damage,building.total_hp);
+
                     let old_hp = building.current_hp;
-                    let mut current_damage = (damage_buildings * building.total_hp as f32) as i32;
-                    building.current_hp -= (damage_buildings * building.total_hp as f32) as i32;
+                    let mut current_damage = (damage_buildings * (bomb.damage as f32 * 5 as f32)).round() as i32;
+                    // println!("current damage: {}, current_hp: {}",current_damage,building.current_hp - current_damage);
+
+                    building.current_hp -= current_damage;
+
+
                     if building.current_hp <= 0 {
                         building.current_hp = 0;
                         current_damage = old_hp;
@@ -845,6 +845,7 @@ impl State {
                         artifacts_if_damaged: artifacts_taken_by_destroying_building,
                     });
                 }
+
             } else {
                 continue;
             }
@@ -852,64 +853,14 @@ impl State {
 
         self.bombs.total_count -= 1;
 
-        // if util::is_road(&bomb.pos) {
-        //     // tile not road error
+        // for b in buildings_damaged.iter() {
+        //     println!(
+        //         "building id: {}, position: {:?}, hp: {}, artifacts: {}",
+        //         b.id, b.position, b.hp, b.artifacts_if_damaged
+        //     );
         // }
         buildings_damaged
     }
 
-    // pub fn calculate_damage_area(&mut self, building: &mut BuildingDetails, bomb: Bomb) -> i32 {
-    //     // let mut building_matrix: Vec<Coords> = Vec::new();
-    //     // let mut bomb_matrix: Vec<Coords> = Vec::new();
-
-    //     // building will have top left coordinate and the x and y dimensions
-    //     // for y in building.tile.y..building.tile.y+building.dimensions.y {
-    //     //     for x in building.tile.x..building.tile.x+building.dimensions.x {
-    //     //         building_matrix.push(Coords{x, y});
-    //     //     }
-    //     // }
-
-    //     // for y in bomb.pos.y-bomb.blast_radius..bomb.pos.y+bomb.blast_radius {
-    //     //     for x in bomb.pos.x-bomb.blast_radius..bomb.pos.x+bomb.blast_radius {
-    //     //         bomb_matrix.push(Coords{x, y});
-    //     //     }
-    //     // }
-    //     // let mut same_Coords: Vec<Coords> = Vec::new();
-
-    //     // for building_coord in building_matrix.iter() {
-    //     //     for bomb_coord in bomb_matrix.iter() {
-    //     //         if building_coord == bomb_coord {
-    //     //             same_Coords.push(*building_coord);
-    //     //         }
-    //     //     }
-    //     // }
-
-    //     // the below code is a more efficient way to do the same thing as above
-
-    //     let building_matrix: HashSet<Coords> = (building.tile.y
-    //         ..building.tile.y + building.width)
-    //         .flat_map(|y| {
-    //             (building.tile.x..building.tile.x + building.width)
-    //                 .map(move |x| Coords { x, y })
-    //         })
-    //         .collect();
-
-    //     let bomb_matrix: HashSet<Coords> = (bomb.pos.y - bomb.blast_radius
-    //         ..bomb.pos.y + bomb.blast_radius + 1)
-    //         .flat_map(|y| {
-    //             (bomb.pos.x - bomb.blast_radius..bomb.pos.x + bomb.blast_radius + 1)
-    //                 .map(move |x| Coords { x, y })
-    //         })
-    //         .collect();
-
-    //     let coinciding_coords_damage = building_matrix.intersection(&bomb_matrix).count();
-
-    //     let blast_damage_percent =
-    //         (coinciding_coords_damage as f32 / building_matrix.len() as f32) * 100.0;
-
-    //     blast_damage_percent as i32
-    // }
-
-    // bomb placement
-    // mines
+ 
 }

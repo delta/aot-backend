@@ -1087,7 +1087,7 @@ pub fn get_defenders(
         })
     }
     // Sorted to handle multiple defenders attack same attacker at same frame
-    defenders.sort_by(|defender_1, defender_2| (defender_2.damage).cmp(&defender_1.damage));
+    // defenders.sort_by(|defender_1, defender_2| (defender_2.damage).cmp(&defender_1.damage));
     Ok(defenders)
 }
 
@@ -1169,6 +1169,7 @@ pub fn update_buidling_artifacts(
     // Update the buildings with the artifact count
     for building in buildings.iter_mut() {
         building.artifacts_obtained = *artifact_count.get(&building.id).unwrap_or(&0) as i32;
+        println!("during import : == Building id: {},hp: {},  Artifacts: {}", building.id,building.total_hp, building.artifacts_obtained);
     }
 
     Ok(buildings)
