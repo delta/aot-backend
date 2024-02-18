@@ -1,9 +1,11 @@
 use self::util::{DefenderTypeResponse, MineTypeResponse};
 
+use super::attack::util::get_game_id_from_redis;
 use super::auth::session::AuthUser;
 use super::inventory::util::get_user_artifacts;
 use super::user::util::fetch_user;
 use super::PgPool;
+use super::RedisPool;
 use crate::api::error;
 use crate::api::util::HistoryboardQuery;
 use crate::models::*;
@@ -12,7 +14,6 @@ use actix_web::web::{self, Data, Json};
 use actix_web::{Responder, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-// use super::RedisPool;   //Uncomment to check for user under attack//
 
 pub mod shortest_path;
 pub mod util;
@@ -58,10 +59,21 @@ pub struct TransferArtifactResponse {
 async fn post_transfer_artifacts(
     transfer: Json<TransferArtifactEntry>,
     pg_pool: Data<PgPool>,
-    // redis_pool: Data<RedisPool>,   //Uncomment to check for user under attack//
+    redis_pool: Data<RedisPool>,
     user: AuthUser,
 ) -> Result<impl Responder> {
     let user_id = user.0;
+
+    let mut redis_conn = redis_pool
+        .get()
+        .map_err(|err| error::handle_error(err.into()))?;
+
+    if let Ok(Some(_)) = get_game_id_from_redis(user_id, &mut redis_conn, false) {
+        return Err(ErrorBadRequest(
+            "You are under attack. Cannot transfer artifacts",
+        ));
+    }
+
     let transfer = transfer.into_inner();
 
     let mut conn = pg_pool
@@ -70,16 +82,6 @@ async fn post_transfer_artifacts(
     let bank_block_type_id = web::block(move || util::get_block_id_of_bank(&mut conn, &user_id))
         .await?
         .map_err(|err| error::handle_error(err.into()))?;
-
-    // let is_defender = match util::check_user_under_attack(&redis_pool, &user_id) {       //Uncomment to check for user under attack//
-    //     Ok(result) => result,
-    //     Err(e) => {
-    //         eprintln!("Error checking if user is under attack: {}", e);
-    //         false // or handle the error in another way
-    //     }
-    // };
-
-    // if !is_defender {   //Uncomment to check for user under attack//
 
     let mut conn = pg_pool
         .get()
@@ -189,12 +191,6 @@ async fn post_transfer_artifacts(
         bank_map_space_id,
         artifacts_in_bank: new_bank_artifact_count,
     }))
-    // }         //Uncomment to check for user under attack//
-    // else{
-    //     return Err(ErrorBadRequest(
-    //         "Cannot transfer while under attack",
-    //     ));
-    // }
 }
 
 async fn get_user_base_details(pool: Data<PgPool>, user: AuthUser) -> Result<impl Responder> {
@@ -301,10 +297,19 @@ async fn set_base_details(
 
 async fn confirm_base_details(
     map_spaces: Json<Vec<MapSpacesEntry>>,
+    redis_pool: Data<RedisPool>,
     pool: Data<PgPool>,
     user: AuthUser,
 ) -> Result<impl Responder> {
     let defender_id = user.0;
+
+    let mut redis_conn = redis_pool
+        .get()
+        .map_err(|err| error::handle_error(err.into()))?;
+
+    if let Ok(Some(_)) = get_game_id_from_redis(defender_id, &mut redis_conn, false) {
+        return Err(ErrorBadRequest("You are under attack. Cannot save base"));
+    }
 
     let map_spaces = map_spaces.into_inner();
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;

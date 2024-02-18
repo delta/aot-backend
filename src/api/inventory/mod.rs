@@ -1,5 +1,7 @@
 use self::util::{upgrade_attacker, upgrade_building, upgrade_defender, upgrade_emp, upgrade_mine};
-use super::{auth::session::AuthUser, error, PgPool};
+use super::{
+    attack::util::get_game_id_from_redis, auth::session::AuthUser, error, PgPool, RedisPool,
+};
 use actix_web::{
     error::ErrorBadRequest,
     web::{self, Json},
@@ -33,6 +35,7 @@ struct UpgradeStruct {
 
 async fn upgrade(
     pool: web::Data<PgPool>,
+    redis_pool: web::Data<RedisPool>,
     user: AuthUser,
     req: Json<UpgradeStruct>,
 ) -> Result<impl Responder> {
@@ -40,6 +43,14 @@ async fn upgrade(
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let item_type = &req.item_type;
     let item_id = req.item_id;
+
+    let mut redis_conn = redis_pool
+        .get()
+        .map_err(|err| error::handle_error(err.into()))?;
+
+    if let Ok(Some(_)) = get_game_id_from_redis(user_id, &mut redis_conn, false) {
+        return Err(ErrorBadRequest("You are under attack. Cannot upgrade now"));
+    }
 
     match item_type.as_str() {
         "attacker" => upgrade_attacker(user_id, &mut conn, item_id),

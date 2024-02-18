@@ -195,15 +195,6 @@ async fn socket_handler(
         return Err(ErrorBadRequest("Can't attack yourself"));
     }
 
-    if let Err(_) =
-        util::check_and_remove_incomplete_game(&attacker_id, &defender_id, &game_id, &mut conn)
-    {
-        println!(
-            "Failed to remove incomplete games for Attacker:{} and Defender:{}",
-            attacker_id, defender_id
-        );
-    }
-
     let mut redis_conn = redis_pool
         .get()
         .map_err(|err| error::handle_error(err.into()))?;
@@ -216,6 +207,15 @@ async fn socket_handler(
     if let Ok(Some(_)) = util::get_game_id_from_redis(defender_id, &mut redis_conn, false) {
         println!("Defender:{} has an ongoing game", defender_id);
         return Err(ErrorBadRequest("Defender has an ongoing game"));
+    }
+
+    if let Err(_) =
+        util::check_and_remove_incomplete_game(&attacker_id, &defender_id, &game_id, &mut conn)
+    {
+        println!(
+            "Failed to remove incomplete games for Attacker:{} and Defender:{}",
+            attacker_id, defender_id
+        );
     }
 
     //Fetch map_id of the defender
