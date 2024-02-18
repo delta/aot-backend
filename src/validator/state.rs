@@ -434,6 +434,7 @@ impl State {
             );
 
             let attacker_ratio = attacker.attacker_speed as f32 / defender.speed as f32;
+            println!("attacker_ratio: {}; attack speed: {}; defender speed: {}", attacker_ratio, attacker.attacker_speed, defender.speed);
             let mut attacker_float_coords = (
                 attacker.attacker_pos.x as f32,
                 attacker.attacker_pos.y as f32,
@@ -460,6 +461,7 @@ impl State {
                 let mut attacker_mov_y = 0.0;
 
                 let mut attacker_tiles_left = attacker_ratio;
+                // println!("tiles_left: {attack_tiles_left}");
                 print!("i: {i}; attacker_tiles_left: {}; ", attacker_tiles_left);
                 while attacker_tiles_left > 1e-6 {
                     let attacker_tiles_fract_left = attacker_tiles_left
@@ -552,6 +554,7 @@ impl State {
             if !defender.damage_dealt {
                 collision_array.push((defender.id, 2.0));
             }
+            attacker.attacker_pos = *attacker_delta.first().unwrap();
             println!("done checking defender id: {}", defender.id);
         }
 
