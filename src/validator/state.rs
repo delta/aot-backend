@@ -313,7 +313,7 @@ impl State {
         // }
 
         self.frame_no += 1;
-        // self.attacker_movement_update(&new_pos);
+        // self.attacker_movement_update(attacker.path_in_current_frame.last().unwrap());
         // attacker.attacker_pos.x = new_pos.x;
         // attacker.attacker_pos.y = new_pos.y;
 
@@ -419,9 +419,9 @@ impl State {
         }
 
         let mut collision_array: Vec<(i32, f32)> = Vec::new();
+        println!("attacker delta: {:?}", attacker_delta);
 
         // println!("checking every defender");
-        println!("attacker delta: {:?}", attacker_delta);
         for defender in self.defenders.iter_mut() {
             println!("checking defender id: {}", defender.id);
             if !defender.is_alive || defender.target_id.is_none() {
@@ -445,25 +445,59 @@ impl State {
             defender.path_in_current_frame.push(defender.defender_pos);
 
             // for every tile of defender's movement
-            let mut check_prev: bool;
+            // let mut check_prev: bool;
             for i in 1..=defender.speed {
-                // calculate fractional movement of attacker wrt to defender's one tile
-                let attacker_mov_x = attacker_ratio
-                    * (attacker_delta[attacker_delta_index].x - attacker.attacker_pos.x) as f32;
-                let attacker_mov_y = attacker_ratio
-                    * (attacker_delta[attacker_delta_index].y - attacker.attacker_pos.y) as f32;
+                let mut attacker_tiles_covered_fract = (((i - 1) as f32) * attacker_ratio).fract();
 
-                // println!("prev {:?}; attackermov: {attacker_mov_x}, {attacker_mov_y}, check {}", attacker_prev, (attacker_mov_x.round().abs() + attacker_mov_y.round().abs()));
-                // if attacker has moved to a new tile, update the attacker_prev and increment the attacker_delta_index
-                check_prev = false;
-                if (attacker_mov_x.round().abs() + attacker_mov_y.round().abs()) as i32 > 0 {
-                    // attacker_prev = attacker.attacker_pos;
-                    attacker_delta_index += 1;
-                    // println!("attacker delta index={}", attacker_delta_index);
-                    check_prev = true;
+                // if ((1.0 - attacker_tiles) < attacker_ratio) && ((1.0 - attacker_tiles) < attacker_ratio) {
+                //     attacker_delta_index += 1;
+                // }
+
+                // calculate fractional movement of attacker wrt to defender's one tile
+                // let attacker_fractional_mov = attacker_tiles.ceil() - attacker_tiles;
+
+                let mut attacker_mov_x = 0.0;
+                let mut attacker_mov_y = 0.0;
+
+                let mut attacker_tiles_left = attacker_ratio;
+                while attacker_tiles_left > 0.0 {
+                    let attacker_tiles_fract_left = attacker_tiles_left
+                        .min(1.0)
+                        .min(1.0 - attacker_tiles_covered_fract);
+
+                    attacker_mov_x += attacker_tiles_fract_left
+                        * ((attacker_delta[attacker_delta_index].x as f32)
+                            - attacker_float_coords.0.floor());
+                    attacker_mov_y += attacker_tiles_fract_left
+                        * ((attacker_delta[attacker_delta_index].y as f32)
+                            - attacker_float_coords.1.floor());
+
+                    attacker_tiles_left -= attacker_tiles_fract_left;
+                    attacker_tiles_covered_fract =
+                        (attacker_tiles_covered_fract + attacker_tiles_fract_left).fract();
+                    if attacker_tiles_covered_fract == 0.0 {
+                        attacker_delta_index += 1;
+                    }
                 }
+                // // current tile
+                // let attacker_mov_x = attacker_fractional_mov.min(attacker_ratio)
+                //     * (attacker_delta[attacker_delta_index-1].x - attacker.attacker_pos.x) as f32;
+                // let attacker_mov_y = attacker_fractional_mov.min(attacker_ratio)
+                //     * (attacker_delta[attacker_delta_index-1].y - attacker.attacker_pos.y) as f32;
+                // // next tile
+                // let attacker_mov_x = attacker_mov_x + ((attacker_ratio - attacker_fractional_mov).max(0.0)
+                //     * (attacker_delta[attacker_delta_index].x - attacker.attacker_pos.x) as f32);
+                // let attacker_mov_y = attacker_mov_y + ((attacker_ratio - attacker_fractional_mov).max(0.0)
+                //     * (attacker_delta[attacker_delta_index].y - attacker.attacker_pos.y) as f32);
+
                 attacker_float_coords.0 += attacker_mov_x;
                 attacker_float_coords.1 += attacker_mov_y;
+                println!("attacker_fract_pos: {:?}", attacker_float_coords);
+
+                // check_prev = false;
+                // if (attacker.attacker_pos.x != attacker_float_coords.0.round() as i32) || (attacker.attacker_pos.y != attacker_float_coords.1.round() as i32) {
+                //     check_prev = true;
+                // }
                 attacker.attacker_pos = Coords {
                     x: attacker_float_coords.0.round() as i32,
                     y: attacker_float_coords.1.round() as i32,
@@ -493,9 +527,7 @@ impl State {
 
                 // if defender and attacker are on the same tile, add the defender to the collision_array
                 if (defender.defender_pos == attacker.attacker_pos)
-                    || (check_prev
-                        && defender.path_in_current_frame[(i - 1) as usize]
-                            == attacker.attacker_pos)
+                    || (defender.path_in_current_frame[(i - 1) as usize] == attacker.attacker_pos)
                 {
                     collision_array.push((defender.id, (i as f32) / (defender.speed as f32)));
                     defender.damage_dealt = true;
