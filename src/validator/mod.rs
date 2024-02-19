@@ -6,12 +6,13 @@ use crate::{
             self, ActionType, BuildingResponse, DefenderResponse, GameStateResponse, ResultType,
             SocketRequest, SocketResponse,
         },
-        util::GameLog,
+        util::{Direction, EventResponse, GameLog},
     },
     models::AttackerType,
     simulation::blocks::{Coords, SourceDest},
 };
 use anyhow::{Ok, Result};
+use r2d2::event;
 
 use self::{
     state::State,
@@ -35,10 +36,18 @@ pub fn game_handler(
     let exploded_mines_result: Vec<MineDetails>;
     let buildings_damaged_result: Vec<BuildingResponse>;
 
-    _game_log.result.artifacts_collected += 1; //To check if modif is working as mutex
+    // _game_log.result.artifacts_collected += 1; //To check if modif is working as mutex
 
     match socket_request.action_type {
         ActionType::PlaceAttacker => {
+            let mut event_response = EventResponse {
+                attacker_id: None,
+                bomb_id: None,
+                coords: Coords { x: 0, y: 0 },
+                direction: Direction::Up,
+                is_bomb: false,
+            };
+
             dotenv::dotenv().ok();
 
             if socket_request.frame_number == 1 {
@@ -55,6 +64,7 @@ pub fn game_handler(
                 }
 
                 // _game_state.set_mines(mine_positions);
+                event_response.bomb_id = socket_request.bomb_id;
             }
 
             if let Some(attacker_id) = socket_request.attacker_id {
@@ -68,9 +78,15 @@ pub fn game_handler(
                     bombs: Vec::new(),
                     trigger_defender: false,
                 });
+
+                event_response.attacker_id = Some(attacker_id);
+                event_response.coords = socket_request.start_position.unwrap();
             }
 
             _game_state.update_frame_number(socket_request.frame_number.clone());
+
+            _game_log.events.push(event_response);
+            _game_log.result.attackers_used += 1;
 
             return Some(Ok(SocketResponse {
                 frame_number: socket_request.frame_number,
@@ -125,6 +141,7 @@ pub fn game_handler(
         ActionType::MoveAttacker => {
             // move_attacker
             // State::new()
+
             if let Some(attacker_id) = socket_request.attacker_id {
                 let attacker: AttackerType = attacker_type.get(&attacker_id).unwrap().clone();
                 let attacker_delta: Vec<Coords> = socket_request.attacker_path;
@@ -150,6 +167,31 @@ pub fn game_handler(
 
                 // .map(|(a, b, c)| (a.clone(), b.clone(), c.clone())).clone();
                 // Some(Err(error::FrameError { frame_no: 0 }.into()))
+
+                for coord in attacker_delta {
+                    let mut direction = Direction::Up;
+
+                    let prev_pos = _game_log.events.last().unwrap().coords.clone();
+                    if prev_pos.x < coord.x {
+                        direction = Direction::Down;
+                    } else if prev_pos.x > coord.x {
+                        direction = Direction::Up;
+                    } else if prev_pos.y < coord.y {
+                        direction = Direction::Left;
+                    } else if prev_pos.y > coord.y {
+                        direction = Direction::Right;
+                    }
+
+                    let event_response = EventResponse {
+                        attacker_id: None,
+                        bomb_id: None,
+                        coords: coord,
+                        direction,
+                        is_bomb: false,
+                    };
+
+                    _game_log.events.push(event_response.clone());
+                }
 
                 let mut bool_temp = false;
                 if attacker_result_clone.unwrap().trigger_defender {
@@ -279,8 +321,39 @@ pub fn game_handler(
         ActionType::PlaceBombs => {
             // place_bombs
             let attacker_delta: Vec<Coords> = socket_request.attacker_path;
+            let bomb_coords = socket_request.bomb_position;
+
+            for coord in attacker_delta.clone() {
+                let mut direction = Direction::Up;
+
+                let prev_pos = _game_log.events.last().unwrap().coords.clone();
+                if prev_pos.x < coord.x {
+                    direction = Direction::Down;
+                } else if prev_pos.x > coord.x {
+                    direction = Direction::Up;
+                } else if prev_pos.y < coord.y {
+                    direction = Direction::Left;
+                } else if prev_pos.y > coord.y {
+                    direction = Direction::Right;
+                }
+
+                let event_response = EventResponse {
+                    attacker_id: None,
+                    bomb_id: None,
+                    coords: coord,
+                    direction,
+                    is_bomb: coord == bomb_coords,
+                };
+
+                _game_log.events.push(event_response.clone());
+            }
+
+            _game_log.result.bombs_used += 1;
+            _game_log.result.damage_done = _game_state.damage_percentage as i32;
+            _game_log.result.artifacts_collected = _game_state.artifacts;
+
             buildings_damaged_result =
-                _game_state.place_bombs(attacker_delta, socket_request.bomb_position);
+                _game_state.place_bombs(attacker_delta, bomb_coords);
 
             let mut bool_temp = false;
             if buildings_damaged_result.clone().len() > 0 {

@@ -69,7 +69,7 @@ pub struct AttackToken {
     pub iat: usize,
     pub exp: usize,
 }
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Clone, Debug)]
 pub enum Direction {
     Up,
     Down,
@@ -77,9 +77,9 @@ pub enum Direction {
     Right,
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Clone, Debug)]
 pub struct EventResponse {
-    pub attacker_initial_position: Option<Coords>,
+    // pub attacker_initial_position: Option<Coords>,
     pub attacker_id: Option<i32>,
     pub bomb_id: Option<i32>,
     pub coords: Coords,
@@ -87,7 +87,7 @@ pub struct EventResponse {
     pub is_bomb: bool,
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Clone, Debug)]
 pub struct ResultResponse {
     pub damage_done: i32,
     pub artifacts_collected: i32,
@@ -1275,6 +1275,11 @@ pub fn terminate_game(
         return Err(anyhow::anyhow!("Can't remove game from redis"));
     }
 
+    // for event in game_log.events.iter() {
+    //     println!("Event: {:?}\n", event);
+    // }
+
+    println!("Result: {:?}", game_log.result);
     println!("Game termination is done");
     Ok(())
 }
