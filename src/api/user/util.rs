@@ -205,9 +205,9 @@ pub fn make_response(
         for attack in attack_game {
             stats.total_damage_attack += attack.damage_done;
             stats.no_of_emps_used += attack.emps_used;
-            if !attack.is_attacker_alive {
-                stats.no_of_attackers_suicided += 1;
-            }
+            // if !attack.is_attacker_alive {
+            //     stats.no_of_attackers_suicided += 1;
+            // }
         }
     }
     if !defense_game.is_empty() {

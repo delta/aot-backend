@@ -38,7 +38,7 @@ COPY public.map_layout FROM stdin;
 
 COPY public.building_type FROM stdin;
 0	Road	1	1	0	0	0	0
-1	Building_1	3	3	100	1	0	120
+1	Bank	3	3	100	1	0	120
 2	Building_2	4	4	120	1	0	140
 3	Building_3	5	5	140	1	0	160
 4	Building_4	3	3	90	1	0	110
@@ -53,7 +53,7 @@ COPY public.building_type FROM stdin;
 13	Building_13	3	3	60	1	0	80
 14	Building_14	4	4	80	1	0	100
 15	Building_15	5	5	100	1	0	120
-16	Building_1	3	3	110	2	50	140
+16	Bank	3	3	110	2	50	140
 17	Building_2	4	4	130	2	75	160
 18	Building_3	5	5	150	2	100	180
 19	Building_4	3	3	100	2	25	120
@@ -68,7 +68,7 @@ COPY public.building_type FROM stdin;
 28	Building_13	3	3	70	2	10	90
 29	Building_14	4	4	90	2	35	110
 30	Building_15	5	5	110	2	60	130
-31	Building_1	3	3	120	3	-1	160
+31	Bank	3	3	120	3	-1	160
 32	Building_2	4	4	140	3	-1	180
 33	Building_3	5	5	160	3	-1	200
 34	Building_4	3	3	110	3	-1	140

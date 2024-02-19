@@ -352,8 +352,7 @@ pub fn game_handler(
             _game_log.result.damage_done = _game_state.damage_percentage as i32;
             _game_log.result.artifacts_collected = _game_state.artifacts;
 
-            buildings_damaged_result =
-                _game_state.place_bombs(attacker_delta, bomb_coords);
+            buildings_damaged_result = _game_state.place_bombs(attacker_delta, bomb_coords);
 
             let mut bool_temp = false;
             if buildings_damaged_result.clone().len() > 0 {

@@ -150,72 +150,71 @@ pub fn get_valid_road_paths(map_id: i32, conn: &mut PgConnection) -> Result<Hash
     Ok(valid_road_paths)
 }
 
-#[allow(dead_code)]
 /// checks if the number of attacks per day is less than allowed for the given attacker
-pub fn is_attack_allowed(
-    attacker_id: i32,
-    defender_id: i32,
-    conn: &mut PgConnection,
-) -> Result<bool> {
-    let current_date = chrono::Local::now().naive_local();
-    use crate::schema::{game, levels_fixture, map_layout};
-    let joined_table = game::table.inner_join(map_layout::table.inner_join(levels_fixture::table));
-    let total_attacks_this_level: i64 = joined_table
-        .filter(game::attack_id.eq(attacker_id))
-        .filter(levels_fixture::start_date.le(current_date))
-        .filter(levels_fixture::end_date.gt(current_date))
-        .count()
-        .get_result(conn)
-        .map_err(|err| DieselError {
-            table: "joined_table",
-            function: function!(),
-            error: err,
-        })?;
-    let total_attacks_on_a_base: i64 = joined_table
-        .filter(game::attack_id.eq(defender_id))
-        .filter(levels_fixture::start_date.le(current_date))
-        .filter(levels_fixture::end_date.gt(current_date))
-        .count()
-        .get_result(conn)
-        .map_err(|err| DieselError {
-            table: "joined_table",
-            function: function!(),
-            error: err,
-        })?;
-    let is_duplicate_attack: bool = select(exists(
-        joined_table
-            .filter(game::attack_id.eq(attacker_id))
-            .filter(game::defend_id.eq(defender_id))
-            .filter(levels_fixture::start_date.le(current_date))
-            .filter(levels_fixture::end_date.gt(current_date)),
-    ))
-    .get_result(conn)
-    .map_err(|err| DieselError {
-        table: "joined_table",
-        function: function!(),
-        error: err,
-    })?;
-    let map_layout_join_levels_fixture = map_layout::table.inner_join(levels_fixture::table);
-    let attacker: Option<i32> = map_layout_join_levels_fixture
-        .filter(map_layout::player.eq(attacker_id))
-        .filter(levels_fixture::start_date.le(current_date))
-        .filter(levels_fixture::end_date.gt(current_date))
-        .filter(map_layout::is_valid.eq(true))
-        .select(map_layout::player)
-        .first(conn)
-        .optional()
-        .map_err(|err| DieselError {
-            table: "map_layout",
-            function: function!(),
-            error: err,
-        })?;
-    let is_self_attack = attacker_id == defender_id;
-    Ok(total_attacks_this_level < TOTAL_ATTACKS_PER_LEVEL
-        && total_attacks_on_a_base < TOTAL_ATTACKS_ON_A_BASE
-        && !is_duplicate_attack
-        && !is_self_attack
-        && attacker.is_some())
-}
+// pub fn is_attack_allowed(
+//     attacker_id: i32,
+//     defender_id: i32,
+//     conn: &mut PgConnection,
+// ) -> Result<bool> {
+//     let current_date = chrono::Local::now().naive_local();
+//     use crate::schema::{game, levels_fixture, map_layout};
+//     let joined_table = game::table.inner_join(map_layout::table.inner_join(levels_fixture::table));
+//     let total_attacks_this_level: i64 = joined_table
+//         .filter(game::attack_id.eq(attacker_id))
+//         .filter(levels_fixture::start_date.le(current_date))
+//         .filter(levels_fixture::end_date.gt(current_date))
+//         .count()
+//         .get_result(conn)
+//         .map_err(|err| DieselError {
+//             table: "joined_table",
+//             function: function!(),
+//             error: err,
+//         })?;
+//     let total_attacks_on_a_base: i64 = joined_table
+//         .filter(game::attack_id.eq(defender_id))
+//         .filter(levels_fixture::start_date.le(current_date))
+//         .filter(levels_fixture::end_date.gt(current_date))
+//         .count()
+//         .get_result(conn)
+//         .map_err(|err| DieselError {
+//             table: "joined_table",
+//             function: function!(),
+//             error: err,
+//         })?;
+//     let is_duplicate_attack: bool = select(exists(
+//         joined_table
+//             .filter(game::attack_id.eq(attacker_id))
+//             .filter(game::defend_id.eq(defender_id))
+//             .filter(levels_fixture::start_date.le(current_date))
+//             .filter(levels_fixture::end_date.gt(current_date)),
+//     ))
+//     .get_result(conn)
+//     .map_err(|err| DieselError {
+//         table: "joined_table",
+//         function: function!(),
+//         error: err,
+//     })?;
+//     let map_layout_join_levels_fixture = map_layout::table.inner_join(levels_fixture::table);
+//     let attacker: Option<i32> = map_layout_join_levels_fixture
+//         .filter(map_layout::player.eq(attacker_id))
+//         .filter(levels_fixture::start_date.le(current_date))
+//         .filter(levels_fixture::end_date.gt(current_date))
+//         .filter(map_layout::is_valid.eq(true))
+//         .select(map_layout::player)
+//         .first(conn)
+//         .optional()
+//         .map_err(|err| DieselError {
+//             table: "map_layout",
+//             function: function!(),
+//             error: err,
+//         })?;
+//     let is_self_attack = attacker_id == defender_id;
+//     Ok(total_attacks_this_level < TOTAL_ATTACKS_PER_LEVEL
+//         && total_attacks_on_a_base < TOTAL_ATTACKS_ON_A_BASE
+//         && !is_duplicate_attack
+//         && !is_self_attack
+//         && attacker.is_some())
+// }
 
 pub fn add_game(
     attacker_id: i32,
@@ -236,7 +235,8 @@ pub fn add_game(
         artifacts_collected: &0,
         damage_done: &0,
         emps_used: &0,
-        is_attacker_alive: &false,
+        is_game_over: &false,
+        date: &chrono::Local::now().date_naive(),
     };
 
     let inserted_game: Game = diesel::insert_into(game::table)
@@ -747,7 +747,7 @@ pub struct AttackResponse {
 
 pub fn get_random_opponent_id(
     attacker_id: i32,
-    conn: &mut PgConnection,
+    mut conn: &mut PgConnection,
     mut redis_conn: RedisConn,
 ) -> Result<Option<i32>> {
     let sorted_users: Vec<(i32, i32)> = user::table
@@ -784,15 +784,33 @@ pub fn get_random_opponent_id(
 
         println!("Random opponent: {}", random_opponent);
 
-        while let Ok(Some(_)) = get_game_id_from_redis(random_opponent, &mut redis_conn, false) {
-            random_opponent = if let Ok(opponent) =
-                get_random_opponent(&less_or_equal_trophies, &more_or_equal_trophies)
-            {
-                opponent
+        loop {
+            if let Ok(Some(_)) = get_game_id_from_redis(random_opponent, &mut redis_conn, false) {
+                random_opponent =
+                    match get_random_opponent(&less_or_equal_trophies, &more_or_equal_trophies) {
+                        Ok(opponent) => opponent,
+                        Err(_) => return Err(anyhow::anyhow!("Failed to find an opponent")),
+                    };
             } else {
-                return Err(anyhow::anyhow!("Failed to find an opponent"));
-            };
-
+                if let Ok(check) = can_attack_happen(&mut conn, random_opponent, false) {
+                    if !check {
+                        random_opponent = match get_random_opponent(
+                            &less_or_equal_trophies,
+                            &more_or_equal_trophies,
+                        ) {
+                            Ok(opponent) => opponent,
+                            Err(_) => {
+                                return Err(anyhow::anyhow!("Failed to find another opponent"))
+                            }
+                        };
+                        println!("Random opponent (retry): {}", random_opponent);
+                    } else {
+                        return Ok(Some(random_opponent));
+                    }
+                } else {
+                    return Err(anyhow::anyhow!("Cannot check if attack can happen now"));
+                }
+            }
             println!("Random opponent: {}", random_opponent);
 
             attempts += 1;
@@ -802,9 +820,6 @@ pub fn get_random_opponent_id(
                 ));
             }
         }
-
-        println!("Final random opponent: {}", random_opponent);
-        Ok(Some(random_opponent))
     } else {
         Err(anyhow::anyhow!("Attacker id not found"))
     }
@@ -945,7 +960,7 @@ pub fn delete_game_id_from_redis(
 
 pub fn encode_attack_token(attacker_id: i32, defender_id: i32, game_id: i32) -> Result<String> {
     let jwt_secret = env::var("COOKIE_KEY").expect("COOKIE_KEY must be set!");
-    let now = chrono::Utc::now();
+    let now = chrono::Local::now();
     let iat = now.timestamp() as usize;
     let jwt_max_age: i64 = ATTACK_TOKEN_AGE_IN_MINUTES;
     let token_expiring_time = now + chrono::Duration::minutes(jwt_max_age);
@@ -980,7 +995,7 @@ pub fn decode_user_token(token: &str) -> Result<i32> {
     )
     .map_err(|err| anyhow::anyhow!("Failed to decode token: {}", err))?;
 
-    let now = chrono::Utc::now();
+    let now = chrono::Local::now();
     let iat = now.timestamp() as usize;
     if iat > token_data.claims.exp {
         return Err(anyhow::anyhow!("Attack token expired"));
@@ -1216,7 +1231,7 @@ pub fn terminate_game(
     diesel::update(game::table.find(game_id))
         .set((
             game::damage_done.eq(&damage_done),
-            game::is_attacker_alive.eq(true),
+            game::is_game_over.eq(true),
             game::emps_used.eq(bombs_used),
             game::attack_score.eq(&attack_score),
             game::defend_score.eq(&defense_score),
@@ -1298,7 +1313,7 @@ pub fn check_and_remove_incomplete_game(
                 .eq(attacker_id)
                 .and(defend_id.eq(defender_id))
                 .and(id.ne(game_id))
-                .and(is_attacker_alive.eq(false)),
+                .and(is_game_over.eq(false)),
         )
         .load::<Game>(conn)
         .map_err(|err| DieselError {
@@ -1322,4 +1337,38 @@ pub fn check_and_remove_incomplete_game(
     println!("Removed {} incomplete games", len);
 
     Ok(())
+}
+
+pub fn can_attack_happen(conn: &mut PgConnection, user_id: i32, is_attacker: bool) -> Result<bool> {
+    use crate::schema::game::dsl::*;
+
+    let current_date = chrono::Local::now().date_naive();
+
+    if is_attacker {
+        let count: i64 = game
+            .filter(attack_id.eq(user_id))
+            .filter(is_game_over.eq(true))
+            .filter(date.eq(current_date))
+            .count()
+            .get_result::<i64>(conn)
+            .map_err(|err| DieselError {
+                table: "game",
+                function: function!(),
+                error: err,
+            })?;
+        Ok(count < TOTAL_ATTACKS_PER_DAY)
+    } else {
+        let count: i64 = game
+            .filter(defend_id.eq(user_id))
+            .filter(is_game_over.eq(true))
+            .filter(date.eq(current_date))
+            .count()
+            .get_result::<i64>(conn)
+            .map_err(|err| DieselError {
+                table: "game",
+                function: function!(),
+                error: err,
+            })?;
+        Ok(count < TOTAL_ATTACKS_PER_DAY)
+    }
 }

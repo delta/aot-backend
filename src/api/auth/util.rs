@@ -5,7 +5,7 @@ use crate::models::*;
 use crate::schema::user::{self};
 use crate::util::function;
 use anyhow::Result;
-use chrono::{Duration, Utc};
+use chrono::{Duration, Local};
 use diesel::prelude::*;
 use jsonwebtoken::{encode, EncodingKey, Header};
 use oauth2::basic::BasicClient;
@@ -44,7 +44,7 @@ pub fn client() -> BasicClient {
 
 pub fn generate_jwt_token(id: i32) -> Result<(String, String, String)> {
     let jwt_secret = env::var("COOKIE_KEY").expect("COOKIE_KEY must be set!");
-    let now = Utc::now();
+    let now = Local::now();
     let iat = now.timestamp() as usize;
     let jwt_max_age: i64 = env::var("MAX_AGE_IN_MINUTES")
         .expect("JWT max age must be set!")

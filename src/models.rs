@@ -1,5 +1,5 @@
 use super::schema::*;
-use chrono::NaiveDateTime;
+use chrono::{NaiveDate, NaiveDateTime};
 use serde::{Deserialize, Serialize};
 
 #[derive(diesel_derive_enum::DbEnum, Debug, Serialize, Clone, PartialEq, Copy)]
@@ -130,8 +130,9 @@ pub struct Game {
     pub defend_score: i32,
     pub artifacts_collected: i32,
     pub emps_used: i32,
-    pub is_attacker_alive: bool,
+    pub is_game_over: bool,
     pub damage_done: i32,
+    pub date: NaiveDate,
 }
 
 #[derive(Insertable)]
@@ -145,7 +146,8 @@ pub struct NewGame<'a> {
     pub artifacts_collected: &'a i32,
     pub emps_used: &'a i32,
     pub damage_done: &'a i32,
-    pub is_attacker_alive: &'a bool,
+    pub is_game_over: &'a bool,
+    pub date: &'a NaiveDate,
 }
 
 #[derive(Queryable, Serialize)]

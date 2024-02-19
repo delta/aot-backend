@@ -47,6 +47,13 @@ async fn init_attack(
 ) -> Result<impl Responder> {
     let attacker_id = user.0;
 
+    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+    if let Ok(check) = util::can_attack_happen(&mut conn, attacker_id, true) {
+        if !check {
+            return Err(ErrorBadRequest("You've reached the max limit of attacks"));
+        }
+    }
+
     let mut redis_conn = redis_pool
         .get()
         .map_err(|err| error::handle_error(err.into()))?;
@@ -135,7 +142,8 @@ async fn init_attack(
     println!("Added game: {}", game_id);
 
     //Generate attack token to validate the /attack/start
-    let attack_token = util::encode_attack_token(attacker_id, opponent_id, game_id).unwrap();
+    let attack_token = util::encode_attack_token(attacker_id, opponent_id, game_id)
+        .map_err(|err| error::handle_error(err.into()))?;
     let response: AttackResponse = AttackResponse {
         user: user_details,
         max_bombs: MAX_BOMBS_PER_ATTACK,
@@ -178,8 +186,10 @@ async fn socket_handler(
     let user_token = query_params[0].split('=').collect::<Vec<&str>>()[1];
     let attack_token = query_params[1].split('=').collect::<Vec<&str>>()[1];
 
-    let attacker_id = util::decode_user_token(user_token).unwrap();
-    let attack_token_data = util::decode_attack_token(attack_token).unwrap();
+    let attacker_id =
+        util::decode_user_token(user_token).map_err(|err| error::handle_error(err.into()))?;
+    let attack_token_data =
+        util::decode_attack_token(attack_token).map_err(|err| error::handle_error(err.into()))?;
     let game_id = attack_token_data.game_id;
 
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
