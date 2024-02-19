@@ -962,8 +962,8 @@ pub fn encode_attack_token(attacker_id: i32, defender_id: i32, game_id: i32) -> 
     let jwt_secret = env::var("COOKIE_KEY").expect("COOKIE_KEY must be set!");
     let now = chrono::Local::now();
     let iat = now.timestamp() as usize;
-    let jwt_max_age: i64 = ATTACK_TOKEN_AGE_IN_MINUTES;
-    let token_expiring_time = now + chrono::Duration::minutes(jwt_max_age);
+    let jwt_max_age: i64 = ATTACK_TOKEN_AGE_IN_MINUTES*60;
+    let token_expiring_time = now + chrono::Duration::seconds(jwt_max_age);
     let exp = (token_expiring_time).timestamp() as usize;
     let token: AttackToken = AttackToken {
         game_id,
@@ -1200,6 +1200,8 @@ pub fn terminate_game(
         (damage_done, -damage_done)
     };
 
+    println!("Attack score: 1");
+
     let attacker_details = user::table
         .filter(user::id.eq(attacker_id))
         .first::<User>(conn)
@@ -1208,6 +1210,8 @@ pub fn terminate_game(
             function: function!(),
             error: err,
         })?;
+    println!("Attack score: 2");
+
 
     let defender_details = user::table
         .filter(user::id.eq(defender_id))
@@ -1217,6 +1221,9 @@ pub fn terminate_game(
             function: function!(),
             error: err,
         })?;
+
+    println!("Attack score: 3");
+
 
     let attack_score = attack_score as f32 / 100_f32;
     let defence_score = defense_score as f32 / 100_f32;
@@ -1228,12 +1235,18 @@ pub fn terminate_game(
         defence_score as f32,
     );
 
+    println!("Attack score: 4");
+
+
     //Add bonus trophies (just call the function)
 
     game_log.result.old_attacker_trophies = attacker_details.trophies;
     game_log.result.old_defender_trophies = defender_details.trophies;
     game_log.result.new_attacker_trophies = new_trophies.0;
     game_log.result.new_defender_trophies = new_trophies.1;
+
+    println!("Attack score: 5");
+
 
     diesel::update(game::table.find(game_id))
         .set((
@@ -1250,6 +1263,7 @@ pub fn terminate_game(
             function: function!(),
             error: err,
         })?;
+        println!("Attack score: 6");
 
     diesel::update(user::table.find(&game_log.attacker.id))
         .set((

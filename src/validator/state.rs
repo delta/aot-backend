@@ -88,14 +88,25 @@ impl State {
             total_hp += building.total_hp;
         }
         self.total_hp_buildings = total_hp;
+        
     }
 
+
     pub fn set_bombs(&mut self, bomb_type: BombType, bombs: i32) {
+        let mut bomb_count = 0;
+        if(self.bombs.total_count !=0){
+          bomb_count = self.bombs.total_count;
+
+        }
+        else {
+            bomb_count = bombs;
+        }
+
         self.bombs = BombType {
             id: bomb_type.id,
             radius: bomb_type.radius,
             damage: bomb_type.damage,
-            total_count: bombs,
+            total_count: bomb_count,
         };
     }
 
@@ -447,14 +458,16 @@ impl State {
 
             // for every tile of defender's movement
             for i in 1..=defender.speed {
+                // move dwon if needed
+
                 let next_hop = shortest_path
-                    .get(&SourceDest {
-                        source_x: defender.defender_pos.x,
-                        source_y: defender.defender_pos.y,
-                        dest_x: attacker.attacker_pos.x,
-                        dest_y: attacker.attacker_pos.y,
-                    })
-                    .unwrap_or(&defender.defender_pos);
+                .get(&SourceDest {
+                    source_x: defender.defender_pos.x,
+                    source_y: defender.defender_pos.y,
+                    dest_x: attacker.attacker_pos.x,
+                    dest_y: attacker.attacker_pos.y,
+                })
+                .unwrap_or(&defender.defender_pos);
 
                 let mut attacker_tiles_covered_fract = (((i - 1) as f32) * attacker_ratio).fract();
 
@@ -505,6 +518,7 @@ impl State {
                     y: attacker_float_coords.1.round() as i32,
                 };
 
+                // if defender lags
                 if defender.target_id.unwrap() >= ((i as f32) / (defender.speed as f32)) {
                     defender.path_in_current_frame.push(defender.defender_pos);
                     continue;

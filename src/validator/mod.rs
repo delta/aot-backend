@@ -50,7 +50,7 @@ pub fn game_handler(
 
             dotenv::dotenv().ok();
 
-            if socket_request.frame_number == 1 {
+            // if socket_request.frame_number == 1 {
                 let bomb_max_count = std::env::var("BOMBS_MAX_COUNT")
                     .unwrap_or("0".to_string())
                     .parse::<i32>()
@@ -65,7 +65,7 @@ pub fn game_handler(
 
                 // _game_state.set_mines(mine_positions);
                 event_response.bomb_id = socket_request.bomb_id;
-            }
+            // }
 
             if let Some(attacker_id) = socket_request.attacker_id {
                 let attacker: AttackerType = attacker_type.get(&attacker_id).unwrap().clone();
