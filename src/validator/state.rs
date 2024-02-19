@@ -405,7 +405,6 @@ impl State {
     ) -> DefenderReturnType {
         // self.frame_no += 1;
 
-        // println!("function starts HERE!!!");
         let attacker = self.attacker.as_mut().unwrap();
         let mut defenders_triggered: Vec<DefenderResponse> = Vec::new();
 
@@ -421,7 +420,6 @@ impl State {
         let mut collision_array: Vec<(i32, f32)> = Vec::new();
         println!("attacker delta: {:?}", attacker_delta);
 
-        // println!("checking every defender");
         for defender in self.defenders.iter_mut() {
             println!("checking defender id: {}", defender.id);
             if !defender.is_alive || defender.target_id.is_none() {
@@ -434,34 +432,42 @@ impl State {
             );
 
             let attacker_ratio = attacker.attacker_speed as f32 / defender.speed as f32;
-            println!("attacker_ratio: {}; attack speed: {}; defender speed: {}", attacker_ratio, attacker.attacker_speed, defender.speed);
+            println!(
+                "attacker_ratio: {}; attack speed: {}; defender speed: {}",
+                attacker_ratio, attacker.attacker_speed, defender.speed
+            );
             let mut attacker_float_coords = (
                 attacker.attacker_pos.x as f32,
                 attacker.attacker_pos.y as f32,
             );
-            // let mut attacker_prev = attacker.attacker_pos;
             let mut attacker_delta_index = 1;
 
             defender.path_in_current_frame.clear();
             defender.path_in_current_frame.push(defender.defender_pos);
 
             // for every tile of defender's movement
-            // let mut check_prev: bool;
             for i in 1..=defender.speed {
+                let next_hop = shortest_path
+                    .get(&SourceDest {
+                        source_x: defender.defender_pos.x,
+                        source_y: defender.defender_pos.y,
+                        dest_x: attacker.attacker_pos.x,
+                        dest_y: attacker.attacker_pos.y,
+                    })
+                    .unwrap_or(&defender.defender_pos);
+                if defender.target_id.unwrap() >= ((i as f32) / (defender.speed as f32)) {
+                    defender.path_in_current_frame.push(defender.defender_pos);
+                    continue;
+                }
+                defender.defender_pos = *next_hop;
+                defender.path_in_current_frame.push(defender.defender_pos);
+
                 let mut attacker_tiles_covered_fract = (((i - 1) as f32) * attacker_ratio).fract();
-
-                // if ((1.0 - attacker_tiles) < attacker_ratio) && ((1.0 - attacker_tiles) < attacker_ratio) {
-                //     attacker_delta_index += 1;
-                // }
-
-                // calculate fractional movement of attacker wrt to defender's one tile
-                // let attacker_fractional_mov = attacker_tiles.ceil() - attacker_tiles;
 
                 let mut attacker_mov_x = 0.0;
                 let mut attacker_mov_y = 0.0;
 
                 let mut attacker_tiles_left = attacker_ratio;
-                // println!("tiles_left: {attack_tiles_left}");
                 print!("i: {i}; attacker_tiles_left: {}; ", attacker_tiles_left);
                 while attacker_tiles_left > 1e-6 {
                     let attacker_tiles_fract_left = attacker_tiles_left
@@ -495,46 +501,15 @@ impl State {
                     "attacker_mov_x: {}; attacker_mov_y: {}",
                     attacker_mov_x, attacker_mov_y
                 );
-                // // current tile
-                // let attacker_mov_x = attacker_fractional_mov.min(attacker_ratio)
-                //     * (attacker_delta[attacker_delta_index-1].x - attacker.attacker_pos.x) as f32;
-                // let attacker_mov_y = attacker_fractional_mov.min(attacker_ratio)
-                //     * (attacker_delta[attacker_delta_index-1].y - attacker.attacker_pos.y) as f32;
-                // // next tile
-                // let attacker_mov_x = attacker_mov_x + ((attacker_ratio - attacker_fractional_mov).max(0.0)
-                //     * (attacker_delta[attacker_delta_index].x - attacker.attacker_pos.x) as f32);
-                // let attacker_mov_y = attacker_mov_y + ((attacker_ratio - attacker_fractional_mov).max(0.0)
-                //     * (attacker_delta[attacker_delta_index].y - attacker.attacker_pos.y) as f32);
 
                 attacker_float_coords.0 += attacker_mov_x;
                 attacker_float_coords.1 += attacker_mov_y;
                 println!("attacker_fract_pos: {:?}", attacker_float_coords);
 
-                // check_prev = false;
-                // if (attacker.attacker_pos.x != attacker_float_coords.0.round() as i32) || (attacker.attacker_pos.y != attacker_float_coords.1.round() as i32) {
-                //     check_prev = true;
-                // }
                 attacker.attacker_pos = Coords {
                     x: attacker_float_coords.0.round() as i32,
                     y: attacker_float_coords.1.round() as i32,
                 };
-
-                // defender.defender_pos = *shortest_path
-                let next_hop = shortest_path
-                    .get(&SourceDest {
-                        source_x: defender.defender_pos.x,
-                        source_y: defender.defender_pos.y,
-                        dest_x: attacker.attacker_pos.x,
-                        dest_y: attacker.attacker_pos.y,
-                    })
-                    .unwrap_or(&defender.defender_pos);
-
-                if defender.target_id.unwrap() >= ((i as f32) / (defender.speed as f32)) {
-                    defender.path_in_current_frame.push(defender.defender_pos);
-                    continue;
-                }
-                defender.defender_pos = *next_hop;
-                defender.path_in_current_frame.push(defender.defender_pos);
 
                 println!(
                     "attacker pos: {:?}; defender_position: {:?}",
@@ -592,7 +567,7 @@ impl State {
                 damage: defender.damage,
             });
             defender.damage_dealt = true;
-            attacker.trigger_defender = true; // what is this for??
+            attacker.trigger_defender = true;
             attacker.attacker_health = max(0, attacker.attacker_health - defender.damage);
             if attacker.attacker_health == 0 {
                 attacker_death_time = time;
@@ -605,155 +580,6 @@ impl State {
             state: self.clone(),
         }
     }
-
-    // if !defenders.is_empty() {
-    //     for defender in defenders {
-    //         if defender.damage != self.defenders[0].damage || defender.speed != self.defenders[0].speed || defender.radius != self.defenders[0].radius{
-    //             // invalid speed error
-    //             return Some(self);
-    //         }
-    //        if defender.is_alive {
-    //         self.defender_movement_update(defender.id, defender.defender_pos);
-    //
-    //        }
-    //     }
-    // }
-    //
-    // for coord in attacker_current.path_in_current_frame.clone().into_iter() {
-    //     if !roads.contains(&(coord.x, coord.y)) {
-    //         // tile not road error
-    //         // GAME_OVER
-    //     }
-    // }
-    //
-    // let mut attacker = self.attacker.as_ref().unwrap().clone();
-    // let ratio: f32 = attacker.attacker_speed as f32 / self.defenders[0].speed as f32;
-    //
-    // attacker.attacker_pos = attacker_delta[0];
-    // let mut attacker_prev = attacker_delta[0];
-    // let mut defenders_triggered: Vec<DefenderResponse> = Vec::new();
-    // for defender in self.defenders.clone().iter_mut() {
-    //
-    //     if defender.target_id != None && defender.is_alive {
-    //         if defender.path_in_current_frame.len() > 0 {
-    //             defender.defender_pos =
-    //                 defender.path_in_current_frame[defender.path_in_current_frame.len() - 1];
-    //             // this is the current position of the defender
-    //         }
-    //         let mut defender_prev;
-    //         defender.path_in_current_frame.clear();
-    //         let mut attacker_pointer_coord: i32 = -1; // i kept this is as the reference to the attacker's position in the attacker_delta vector. initially it is -1;
-    //         let mut position_float = 0.5 as f32;
-    //         for iterator in 0..defender.speed {
-    //             if iterator == 0 {
-    //                 defender_prev = defender.defender_pos;
-    //             } else {
-    //                 defender_prev = defender.path_in_current_frame[iterator as usize - 1];
-    //             }
-    //
-    //             println!(
-    //                 "defender coordinates: x: {}, y: {}",
-    //                 defender.defender_pos.x, defender.defender_pos.y
-    //             );
-    //             println!(
-    //                 "attacker coordinates: x: {}, y: {}",
-    //                 attacker_delta[(attacker_pointer_coord + 1) as usize].x,
-    //                 attacker_delta[(attacker_pointer_coord + 1) as usize].y
-    //             );
-    //             // let mega = SourceDest {
-    //             //     source_x: defender.defender_pos.x,
-    //             //     source_y: defender.defender_pos.y,
-    //
-    //             //     /* ADD WITH OVERFLOW ERROR */
-    //             //     dest_x: attacker_delta[(attacker_pointer_coord + 1) as usize].x,
-    //             //     dest_y: attacker_delta[(attacker_pointer_coord + 1) as usize].y,
-    //             // };
-    //
-    //             // // Check if the key exists in the HashMap
-    //             // if !shortest_path.contains_key(&mega) {
-    //             //     println!("next hop not found in shortest path");
-    //             // } else {
-    //             //     println!("next hop found in shortest path");
-    //             // }
-    //
-    //             // if !attacker_delta[attacker_pointer_coord as usize] == defender.defender_pos {
-    //
-    //             // }
-    //
-    //             let next_hop = if defender.defender_pos == attacker_delta[(attacker_pointer_coord + 1) as usize] {
-    //                 defender.defender_pos
-    //             } else {
-    //                 shortest_path
-    //                     .get(&SourceDest {
-    //                         source_x: defender.defender_pos.x,
-    //                         source_y: defender.defender_pos.y,
-    //                         dest_x: attacker_delta[(attacker_pointer_coord + 1) as usize].x,
-    //                         dest_y: attacker_delta[(attacker_pointer_coord + 1) as usize].y,
-    //                     })
-    //                     .unwrap()
-    //                     .clone()
-    //             };
-    //
-    //             defender.defender_pos = next_hop;
-    //             position_float += ratio as f32;
-    //
-    //             if iterator < (attacker_delta.len() as usize).try_into().unwrap()
-    //                 && position_float > 1.0
-    //             {
-    //                 if attacker_pointer_coord != -1 {
-    //                     attacker_prev = attacker_delta[attacker_pointer_coord as usize];
-    //                 }
-    //                 attacker_pointer_coord += 1;
-    //                 attacker.attacker_pos = attacker_delta[attacker_pointer_coord as usize];
-    //                 if attacker_delta[attacker_pointer_coord as usize] == defender.defender_pos
-    //                     // || Self::is_coord_crosssed(
-    //                     //     defender_prev,
-    //                     //     defender.defender_pos,
-    //                     //     attacker_prev,
-    //                     //     attacker.attacker_pos,
-    //                     // )
-    //                 {
-    //                     println!(
-    //                         "defender caught attacker when defender was at ---- x:{}, y:{}",
-    //                         defender.defender_pos.x, defender.defender_pos.y
-    //                     );
-    //                     println!(
-    //                         "defender caught attacker when attacker was at ---- x:{}, y:{}",
-    //                         attacker.attacker_pos.x, attacker.attacker_pos.y
-    //                     );
-    //                     // defender sucided
-    //                     attacker.attacker_health -= defender.damage;
-    //                     defender.is_alive = false;
-    //                     if attacker.attacker_health <= 0 {
-    //                         attacker.attacker_pos = Coords { x: -1, y: -1 };
-    //                         self.attacker_death_count += 1;
-    //                     }
-    //                     attacker.attacker_pos = attacker_delta[0];
-    //                     attacker_prev = attacker_delta[0];
-    //                     defenders_triggered.push(DefenderResponse {
-    //                         id: defender.id,
-    //                         position: defender.defender_pos,
-    //                         damage: defender.damage,
-    //                     });
-    //                     self.defenders
-    //                         .retain(|temp_defender| temp_defender.id != defender.id);
-    //                     break;
-    //                 }
-    //                 position_float -= 1 as f32;
-    //             }
-    //
-    //             defender.path_in_current_frame.push(next_hop);
-    //         }
-    //     }
-    // }
-
-    // Some((23, vec![DefenderResponse {
-    //     id: 1,
-    //     position: Coords { x: 1, y: 1 },
-    //     damage: 1,
-
-    // }], self))
-    // }
 
     pub fn mine_blast(
         &mut self,
