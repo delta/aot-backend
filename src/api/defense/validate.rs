@@ -171,6 +171,8 @@ pub fn is_valid_save_layout(
         }
     }
 
+    println!("Total Artifacts: {}", total_artifacts);
+    println!("User Artifacts: {}", user_artifacts);
     if total_artifacts != *user_artifacts {
         return Err(BaseInvalidError::InvalidArtifactCount);
     }

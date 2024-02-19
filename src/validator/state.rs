@@ -7,6 +7,7 @@ use std::{
 
 use crate::{
     api::attack::socket::{ActionType, ResultType, SocketRequest, SocketResponse},
+    constants::{BOMB_DAMAGE_MULTIPLIER, PERCENTANGE_ARTIFACTS_OBTAINABLE},
     simulation::{
         attack::attacker,
         blocks::{Coords, SourceDest},
@@ -667,8 +668,9 @@ impl State {
                     // println!("damage building: {}, bomb damage: {}, total_hp:{}",damage_buildings,bomb.damage,building.total_hp);
 
                     let old_hp = building.current_hp;
-                    let mut current_damage =
-                        (damage_buildings * (bomb.damage as f32 * 5 as f32)).round() as i32;
+                    let mut current_damage = (damage_buildings
+                        * (bomb.damage as f32 * BOMB_DAMAGE_MULTIPLIER))
+                        .round() as i32;
                     // println!("current damage: {}, current_hp: {}",current_damage,building.current_hp - current_damage);
 
                     building.current_hp -= current_damage;
@@ -676,10 +678,12 @@ impl State {
                     if building.current_hp <= 0 {
                         building.current_hp = 0;
                         current_damage = old_hp;
-                        self.artifacts += building.artifacts_obtained;
+                        artifacts_taken_by_destroying_building =
+                            (building.artifacts_obtained as f32 * PERCENTANGE_ARTIFACTS_OBTAINABLE)
+                                .floor() as i32;
+                        self.artifacts += artifacts_taken_by_destroying_building;
                         self.damage_percentage +=
                             (current_damage as f32 / self.total_hp_buildings as f32) * 100.0_f32;
-                        artifacts_taken_by_destroying_building = building.artifacts_obtained;
                     } else {
                         self.damage_percentage +=
                             (current_damage as f32 / self.total_hp_buildings as f32) * 100.0_f32;

@@ -1100,7 +1100,7 @@ fn run_transaction(
     })
 }
 
-fn get_user_map_id(player_id: i32, conn: &mut PgConnection) -> Result<i32> {
+pub fn get_user_map_id(player_id: i32, conn: &mut PgConnection) -> Result<i32> {
     let id_of_map = map_layout::table
         .filter(map_layout::player.eq(player_id))
         .select(map_layout::id)

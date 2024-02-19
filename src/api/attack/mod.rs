@@ -415,7 +415,7 @@ async fn socket_handler(
                                             &mut conn,
                                             &mut redis_conn,
                                         ) {
-                                            println!("Error terminating the game");
+                                            println!("Error terminating the game 1");
                                         }
                                     } else if response.result_type == ResultType::MinesExploded {
                                         println!("MinesExploded response sent");
@@ -435,6 +435,12 @@ async fn socket_handler(
                                         }
                                     } else if response.result_type == ResultType::BuildingsDamaged {
                                         println!("BuildingsDamaged response sent");
+                                        if let Err(_) = util::deduct_artifacts_from_building(
+                                            response.damaged_buildings.unwrap(),
+                                            &mut conn,
+                                        ) {
+                                            println!("Failed to deduct artifacts from building");
+                                        }
                                         if session_clone.text(response_json).await.is_err() {
                                             return;
                                         }
@@ -476,7 +482,7 @@ async fn socket_handler(
                     println!("Received close: {:?}", s);
                     if let Err(_) = util::terminate_game(&mut game_logs, &mut conn, &mut redis_conn)
                     {
-                        println!("Error terminating the game");
+                        println!("Error terminating the game 2");
                     }
                     break;
                 }

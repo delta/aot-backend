@@ -7,6 +7,7 @@ use crate::api::defense::util::{
 };
 use crate::api::error::AuthError;
 use crate::api::game::util::UserDetail;
+use crate::api::inventory::util::{get_bank_map_space_id, get_block_id_of_bank, get_user_map_id};
 use crate::api::user::util::fetch_user;
 use crate::api::util::{
     GameHistoryEntry, GameHistoryResponse, HistoryboardEntry, HistoryboardResponse,
@@ -40,6 +41,8 @@ use std::collections::{HashMap, HashSet};
 use std::env;
 use std::io::Write;
 use std::time;
+
+use super::socket::BuildingResponse;
 
 #[derive(Debug, Serialize)]
 pub struct DefensePosition {
@@ -1183,7 +1186,7 @@ pub fn terminate_game(
     conn: &mut PgConnection,
     redis_conn: &mut RedisConn,
 ) -> Result<()> {
-    use crate::schema::{game, simulation_log};
+    use crate::schema::{artifact, game, simulation_log};
     let attacker_id = game_log.attacker.id;
     let defender_id = game_log.defender.id;
     let damage_done = game_log.result.damage_done;
@@ -1281,6 +1284,20 @@ pub fn terminate_game(
         .execute(conn)
         .map_err(|err| DieselError {
             table: "game",
+            function: function!(),
+            error: err,
+        })?;
+
+    let attacker_map_id = get_user_map_id(attacker_id, conn)?;
+    let attacker_bank_block_type_id = get_block_id_of_bank(conn, &attacker_id)?;
+    let attacker_bank_map_space_id =
+        get_bank_map_space_id(conn, &attacker_map_id, &attacker_bank_block_type_id)?;
+
+    diesel::update(artifact::table.find(attacker_bank_map_space_id))
+        .set(artifact::count.eq(artifact::count + artifacts_collected))
+        .execute(conn)
+        .map_err(|err| DieselError {
+            table: "artifact",
             function: function!(),
             error: err,
         })?;
@@ -1388,4 +1405,24 @@ pub fn can_attack_happen(conn: &mut PgConnection, user_id: i32, is_attacker: boo
             })?;
         Ok(count < TOTAL_ATTACKS_PER_DAY)
     }
+}
+
+pub fn deduct_artifacts_from_building(
+    damaged_buildings: Vec<BuildingResponse>,
+    conn: &mut PgConnection,
+) -> Result<()> {
+    use crate::schema::artifact;
+    for building in damaged_buildings.iter() {
+        if (building.artifacts_if_damaged) > 0 {
+            diesel::update(artifact::table.find(building.id))
+                .set(artifact::count.eq(artifact::count - building.artifacts_if_damaged))
+                .execute(conn)
+                .map_err(|err| DieselError {
+                    table: "artifact",
+                    function: function!(),
+                    error: err,
+                })?;
+        }
+    }
+    Ok(())
 }
