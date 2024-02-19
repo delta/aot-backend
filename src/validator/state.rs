@@ -88,17 +88,13 @@ impl State {
             total_hp += building.total_hp;
         }
         self.total_hp_buildings = total_hp;
-        
     }
-
 
     pub fn set_bombs(&mut self, bomb_type: BombType, bombs: i32) {
         let mut bomb_count = 0;
-        if(self.bombs.total_count !=0){
-          bomb_count = self.bombs.total_count;
-
-        }
-        else {
+        if (self.bombs.total_count != 0) {
+            bomb_count = self.bombs.total_count;
+        } else {
             bomb_count = bombs;
         }
 
@@ -461,13 +457,13 @@ impl State {
                 // move dwon if needed
 
                 let next_hop = shortest_path
-                .get(&SourceDest {
-                    source_x: defender.defender_pos.x,
-                    source_y: defender.defender_pos.y,
-                    dest_x: attacker.attacker_pos.x,
-                    dest_y: attacker.attacker_pos.y,
-                })
-                .unwrap_or(&defender.defender_pos);
+                    .get(&SourceDest {
+                        source_x: defender.defender_pos.x,
+                        source_y: defender.defender_pos.y,
+                        dest_x: attacker.attacker_pos.x,
+                        dest_y: attacker.attacker_pos.y,
+                    })
+                    .unwrap_or(&defender.defender_pos);
 
                 let mut attacker_tiles_covered_fract = (((i - 1) as f32) * attacker_ratio).fract();
 

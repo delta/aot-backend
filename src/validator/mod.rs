@@ -51,20 +51,20 @@ pub fn game_handler(
             dotenv::dotenv().ok();
 
             // if socket_request.frame_number == 1 {
-                let bomb_max_count = std::env::var("BOMBS_MAX_COUNT")
-                    .unwrap_or("0".to_string())
-                    .parse::<i32>()
-                    .unwrap_or(0);
-                for bomb_type in _bomb_types {
-                    if let Some(bomb_id) = socket_request.bomb_id {
-                        if bomb_type.id == bomb_id {
-                            _game_state.set_bombs(bomb_type.clone(), bomb_max_count);
-                        }
+            let bomb_max_count = std::env::var("BOMBS_MAX_COUNT")
+                .unwrap_or("0".to_string())
+                .parse::<i32>()
+                .unwrap_or(0);
+            for bomb_type in _bomb_types {
+                if let Some(bomb_id) = socket_request.bomb_id {
+                    if bomb_type.id == bomb_id {
+                        _game_state.set_bombs(bomb_type.clone(), bomb_max_count);
                     }
                 }
+            }
 
-                // _game_state.set_mines(mine_positions);
-                event_response.bomb_id = socket_request.bomb_id;
+            // _game_state.set_mines(mine_positions);
+            event_response.bomb_id = socket_request.bomb_id;
             // }
 
             if let Some(attacker_id) = socket_request.attacker_id {
