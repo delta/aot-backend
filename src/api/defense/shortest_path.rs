@@ -31,7 +31,7 @@ pub fn run_shortest_paths(
         .to_vec();
 
     let mut graph_2d = Array2D::filled_with(NO_BLOCK, MAP_SIZE, MAP_SIZE);
-
+    
     for road in &roads_list {
         let (road_x, road_y) = (road.0, road.1);
         graph_2d

@@ -14,8 +14,6 @@ use crate::{
     },
 };
 use crate::{
-    // schema::defender_type::damage,
-    // simulation::defense::defender,
     api::attack::{
         self,
         socket::{BuildingResponse, DefenderResponse},
@@ -78,11 +76,6 @@ impl State {
         }
     }
 
-    // Setters for the state
-
-    // pub fn set_mines(&mut self, mines: &Vec<MineDetails>) {
-    //     self.mines = mines;
-    // }
     pub fn set_total_hp_buildings(&mut self) {
         let mut total_hp = 0;
         for building in self.buildings.iter() {
@@ -137,54 +130,27 @@ impl State {
         }
     }
 
-    //  pub fn attacker_death_update(&mut self) {
-    //     self.attacker.as_mut().unwrap().attacker_pos = Coords { x: -1, y: -1 };
-    //     self.attacker_death_count += 1;
-    // }
-
-    pub fn defender_death_update(&mut self, defender_id: i32) {
-        let attacker = self.attacker.as_mut().unwrap();
-
-        for i in 0..self.defenders.len() {
-            if self.defenders[i].id == defender_id {
-                attacker.attacker_health -= self.defenders[i].damage;
-                if attacker.attacker_health <= 0 {
-                    attacker.attacker_pos = Coords { x: -1, y: -1 };
-                    self.attacker_death_count += 1;
-                }
-                self.defenders[i].is_alive = false;
-                // break;
-            }
-        }
-    }
 
     pub fn mine_blast_update(&mut self, _id: i32, damage_to_attacker: i32) {
         let attacker = self.attacker.as_mut().unwrap();
 
         if attacker.attacker_health > 0 {
-            attacker.attacker_health -= self.defenders[0].damage;
             attacker.attacker_health =
                 std::cmp::max(0, attacker.attacker_health - damage_to_attacker);
-            if attacker.attacker_health <= 0 {
+            if attacker.attacker_health == 0 {
+                println!("attacker died due to mine blast and mine damage : {}", damage_to_attacker);
                 self.attacker_death_count += 1;
                 for defender in self.defenders.iter_mut() {
-                    defender.is_alive = false;
+                    defender.target_id = None;
                 }
                 attacker.attacker_pos = Coords { x: -1, y: -1 };
             }
 
-            // Remove the mine with _id from mines vector
         }
 
         self.mines.retain(|mine| mine.id != _id);
     }
 
-    // fn bomb_blast_update(&mut self, final_damage_percentage: i32, increase_artifacts: i32) {
-    //     self.damage_percentage = final_damage_percentage;
-    //     self.artifacts += increase_artifacts;
-    // }
-
-    //logic
     pub fn update_frame_number(&mut self, frame_no: i32) {
         self.frame_no = frame_no;
     }
@@ -194,7 +160,6 @@ impl State {
         frame_no: i32,
         roads: &HashSet<(i32, i32)>,
         attacker_current: Attacker,
-        // defenders_current: Vec<DefenderDetails>,
     ) -> Option<Attacker> {
         // if (frame_no - self.frame_no) != 1 {
         //     // Some(self) // invalid frame error
@@ -203,7 +168,6 @@ impl State {
         // } else {
         // self.frame_no += 1;
 
-        // if(roads.contain())
 
         println!("state frame: {} current frame: {}", self.frame_no, frame_no);
 
@@ -217,14 +181,9 @@ impl State {
 
         let mut attacker = attacker_current.clone();
 
-        // if attacker.attacker_speed != attacker_current.attacker_speed || attacker.attacker_speed != 0 {
-        //     // invalid event error
-        //     // GAME_OVER
-        //     println!("attacker speed abuse at {} frame",frame_no);
 
-        // }
 
-        if attacker.attacker_speed != attacker.path_in_current_frame.len() as i32 {
+        if attacker.attacker_speed + 1  != attacker.path_in_current_frame.len() as i32 {
             println!(
                 "attacker speed abuse at {} frame --- speed  :{}, length: {}",
                 frame_no,
@@ -233,7 +192,6 @@ impl State {
             );
         }
 
-        // let new_pos = attacker.attacker_pos;
         let mut coord_temp: Coords = Coords {
             x: attacker_current.path_in_current_frame[0].x,
             y: attacker_current.path_in_current_frame[0].y,
@@ -249,7 +207,6 @@ impl State {
                 || ((coord_temp.x - coord.x).abs() == 1 && coord_temp.y != coord.y)
                 || ((coord_temp.y - coord.y).abs() == 1 && coord_temp.x != coord.x)
             {
-                // invalid movement error
                 // GAME_OVER
                 println!("attacker skipped a tile at {} frame", frame_no);
             }
@@ -257,13 +214,7 @@ impl State {
             let new_pos = coord;
 
             for defender in self.defenders.iter_mut() {
-                // println!("defender x:{}, y:{}, isAlive: {}, id: {}", defender.defender_pos.x, defender.defender_pos.y,defender.is_alive,defender.id);
-                // println!("attacker x:{}, y:{}", new_pos.x, new_pos.y);
-                // println!("radius: {}",defender.radius);
-
-                // println!("x:{}, y:{}, isAlive: {}, id: {}", defender.defender_pos.x, defender.defender_pos.y,defender.is_alive,defender.id);
-                if defender.target_id.is_none()
-                    && defender.is_alive
+                if defender.target_id.is_none() && defender.is_alive
                     && (((defender.defender_pos.x - new_pos.x).abs()
                         + (defender.defender_pos.y - new_pos.y).abs())
                         <= defender.radius)
@@ -279,51 +230,10 @@ impl State {
 
             coord_temp = coord;
 
-            // if !util::is_road(&coord) {
-            //     // tile not road error
-            // }
         }
 
-        // let attacker = self.attacker.as_mut().unwrap();
-        // for defender in defenders_current {
-        //     if defender.is_alive
-        //         && defender.id != -1
-        //         && ((defender.defender_pos.x - new_pos.x).pow(2) as f32
-        //             + (defender.defender_pos.y - new_pos.y).pow(2) as f32)
-        //             .sqrt()
-        //             <= defender.radius as f32
-        //     {
-        //         // defender triggered
-        //         // self.defender_death_update(defender.id);
-        //     }
-        // }
-
-        // if attacker_current.bombs.len() - attacker.bombs.len() > 1 {
-        //     return Some(self);
-        // }
-
-        // if attacker_current.bombs[attacker_current.bombs.len() - 1].is_dropped {
-        //     //dropped a bomb
-        //     //damage buildings
-
-        //     if attacker.bombs[attacker.bombs.len() - 1].damage
-        //         != attacker_current.bombs[attacker_current.bombs.len() - 1].damage
-        //     {
-        //         return Some(self);
-        //     }
-        //     if attacker.bombs[attacker.bombs.len() - 1].blast_radius
-        //         != attacker_current.bombs[attacker_current.bombs.len() - 1].blast_radius
-        //     {
-        //         return Some(self);
-        //     }
-        //     self.bomb_blast(attacker_current.bombs[attacker_current.bombs.len() - 1]);
-        //     attacker.bombs.pop();
-        // }
-
         self.frame_no += 1;
-        // self.attacker_movement_update(attacker.path_in_current_frame.last().unwrap());
-        // attacker.attacker_pos.x = new_pos.x;
-        // attacker.attacker_pos.y = new_pos.y;
+       
 
         let attacker_result = Attacker {
             id: attacker.id,
@@ -335,57 +245,29 @@ impl State {
             trigger_defender: attacker.trigger_defender,
         };
         Some(attacker_result)
-        // }
     }
 
     pub fn place_bombs(
         &mut self,
-        _attacker_delta: Vec<Coords>,
+        attacker_delta: Vec<Coords>,
         bomb_position: Coords,
     ) -> Vec<BuildingResponse> {
         // if attacker_current.bombs.len() - attacker.bombs.len() > 1 {
-        //
+        
 
         // }
 
         if self.bombs.total_count <= 0 {
             //Nothing
-            println!()
+            println!("Bomb over");
         }
 
-        // if !attacker_delta.contains(&bomb_position) {
-        //     //GAME_OVER
-        // }
+        if !attacker_delta.contains(&bomb_position) {
+            //GAME_OVER
+            println!("Bomb placed out of path");
+        }
 
         let buildings_damaged = self.bomb_blast(bomb_position);
-        // else if(self.bombs.get() > 0){
-        //     self.bombs = Some(BombType {
-        //         id: self.bombs.get().id,
-        //         radius: self.bombs.get().radius,
-        //         damage: self.bombs.get().damage,
-        //         total_count: self.bombs.get().total_count - 1,
-        //     });
-        // }
-
-        // if attacker_current.bombs[attacker_current.bombs.len() - 1].is_dropped {
-        //     //dropped a bomb
-        //     //damage buildings
-
-        //     if attacker.bombs[attacker.bombs.len() - 1].damage
-        //         != attacker_current.bombs[attacker_current.bombs.len() - 1].damage
-        //     {
-        //                     // GAME_OVER
-
-        //     }
-        //     if attacker.bombs[attacker.bombs.len() - 1].blast_radius
-        //         != attacker_current.bombs[attacker_current.bombs.len() - 1].blast_radius
-        //     {
-        //                    // GAME_OVER
-
-        //     }
-        //     self.bomb_blast(attacker_current.bombs[attacker_current.bombs.len() - 1]);
-        //     attacker.bombs.pop();
-        // }
 
         buildings_damaged
     }
@@ -404,7 +286,6 @@ impl State {
         return false;
     }
 
-    // #[warn(unused_assignments)]
 
     pub fn defender_movement(
         &mut self,
@@ -477,7 +358,7 @@ impl State {
                     let attacker_tiles_fract_left = attacker_tiles_left
                         .min(1.0)
                         .min(1.0 - attacker_tiles_covered_fract);
-                    print!("attacker_tiles_fract_left: {}; ", attacker_tiles_fract_left);
+                    // print!("attacker_tiles_fract_left: {}; ", attacker_tiles_fract_left);
 
                     attacker_mov_x += attacker_tiles_fract_left
                         * ((attacker_delta[attacker_delta_index].x
@@ -488,10 +369,10 @@ impl State {
                             - attacker_delta[attacker_delta_index - 1].y)
                             as f32);
 
-                    print!(
-                        "attacker_mov_x: {}; attacker_mov_y: {}; ",
-                        attacker_mov_x, attacker_mov_y
-                    );
+                    // print!(
+                    //     "attacker_mov_x: {}; attacker_mov_y: {}; ",
+                    //     attacker_mov_x, attacker_mov_y
+                    // );
 
                     attacker_tiles_left -= attacker_tiles_fract_left;
                     attacker_tiles_covered_fract =
@@ -499,7 +380,7 @@ impl State {
                     if attacker_tiles_covered_fract == 0.0 {
                         attacker_delta_index += 1;
                     }
-                    println!("attacker_tiles_left: {}; attacker_tiles_covered_fract: {}; attacker_delta_index: {}", attacker_tiles_left, attacker_tiles_covered_fract, attacker_delta_index);
+                    // println!("attacker_tiles_left: {}; attacker_tiles_covered_fract: {}; attacker_delta_index: {}", attacker_tiles_left, attacker_tiles_covered_fract, attacker_delta_index);
                 }
                 println!(
                     "attacker_mov_x: {}; attacker_mov_y: {}",
@@ -536,6 +417,7 @@ impl State {
                     defender.damage_dealt = true;
                     break;
                 }
+                println!("defender id: {}; path: {}", defender.id, defender.path_in_current_frame.len());
             }
             defender.target_id = Some(0.0);
             if !defender.damage_dealt {
@@ -553,22 +435,25 @@ impl State {
         }
         let mut attacker_death_time = 0.0; // frame fraction at which attacker dies
         for (id, time) in collision_array {
-            if time > 1.0 {
-                break;
-            }
             let defender = self
                 .defenders
                 .iter_mut()
                 .find(|defender| defender.id == id)
                 .unwrap();
+            defender.target_id = None;
+            if time > 1.0 {
+                break;
+            }
+
             println!("defender id: {}, time: {}", id, time);
+            println!("defender path length: {}", defender.path_in_current_frame.len());
             if attacker.attacker_health == 0 {
+                println!("attacker died");
+                self.attacker_death_count += 1;
                 defender.defender_pos = defender.path_in_current_frame
                     [1 + (attacker_death_time * (defender.speed as f32)) as usize];
-                defender.target_id = None;
                 continue;
             }
-            defender.is_alive = false;
             println!(
                 "defender {} hit attacker when defender was at ---- x:{}, y:{}",
                 defender.id, defender.defender_pos.x, defender.defender_pos.y
@@ -581,8 +466,14 @@ impl State {
             defender.damage_dealt = true;
             attacker.trigger_defender = true;
             attacker.attacker_health = max(0, attacker.attacker_health - defender.damage);
+            defender.is_alive = false;
+
             if attacker.attacker_health == 0 {
                 attacker_death_time = time;
+                self.attacker_death_count += 1;
+                println!("attacker died");
+
+
             }
         }
 
@@ -595,16 +486,12 @@ impl State {
 
     pub fn mine_blast(
         &mut self,
-        // frame_no: i32,
-        // mut mines: &Vec<MineDetails>,
-        // attacker_delta: Vec<Coords>,
         start_pos: Option<Coords>,
     ) -> Vec<MineDetails> {
         // if (frame_no - self.frame_no) != 1 {
         //     //GAME_OVER
         //     None
         // } else {
-        // self.frame_no += 1;
         let mut damage_to_attacker;
         let attack_current_pos = start_pos.unwrap();
 
@@ -703,12 +590,6 @@ impl State {
 
         self.bombs.total_count -= 1;
 
-        // for b in buildings_damaged.iter() {
-        //     println!(
-        //         "building id: {}, position: {:?}, hp: {}, artifacts: {}",
-        //         b.id, b.position, b.hp, b.artifacts_if_damaged
-        //     );
-        // }
         buildings_damaged
     }
 }
