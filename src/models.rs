@@ -120,7 +120,7 @@ pub struct NewAvailableBlocks {
     pub category: ItemCategory,
 }
 
-#[derive(Queryable, Serialize, Deserialize)]
+#[derive(Queryable, Serialize, Deserialize, Debug)]
 pub struct Game {
     pub id: i32,
     pub attack_id: i32,
@@ -128,10 +128,10 @@ pub struct Game {
     pub map_layout_id: i32,
     pub attack_score: i32,
     pub defend_score: i32,
-    pub artifacts_collected: i32,
     pub emps_used: i32,
-    pub is_game_over: bool,
     pub damage_done: i32,
+    pub is_game_over: bool,
+    pub artifacts_collected: i32,
     pub date: NaiveDate,
 }
 

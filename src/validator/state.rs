@@ -1,34 +1,23 @@
 use std::{
     cmp::max,
     collections::{HashMap, HashSet},
-    hash::Hash,
 };
 // use std::cmp;
 
 use crate::{
-    api::attack::socket::{ActionType, ResultType, SocketRequest, SocketResponse},
-    constants::{BOMB_DAMAGE_MULTIPLIER, PERCENTANGE_ARTIFACTS_OBTAINABLE},
-    simulation::{
-        attack::attacker,
-        blocks::{Coords, SourceDest},
+    api::attack::socket::{BuildingResponse, DefenderResponse},
+    validator::util::{
+        Attacker, BuildingDetails, DefenderDetails, DefenderReturnType, MineDetails,
     },
 };
 use crate::{
-    api::attack::{
-        self,
-        socket::{BuildingResponse, DefenderResponse},
-    },
-    schema::shortest_path,
-    simulation::defense::defender,
-    validator::util::{
-        Attacker, Bomb, BuildingDetails, DefenderDetails, DefenderReturnType, MineDetails,
-    },
+    constants::{BOMB_DAMAGE_MULTIPLIER, PERCENTANGE_ARTIFACTS_OBTAINABLE},
+    simulation::blocks::{Coords, SourceDest},
 };
 
-use rayon::iter;
 use serde::{Deserialize, Serialize};
 
-use super::util::{BombType, IsTriggered};
+use super::util::BombType;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct State {
@@ -85,8 +74,8 @@ impl State {
     }
 
     pub fn set_bombs(&mut self, bomb_type: BombType, bombs: i32) {
-        let mut bomb_count = 0;
-        if (self.bombs.total_count != 0) {
+        let bomb_count: i32;
+        if self.bombs.total_count != 0 {
             bomb_count = self.bombs.total_count;
         } else {
             bomb_count = bombs;
@@ -130,7 +119,6 @@ impl State {
         }
     }
 
-
     pub fn mine_blast_update(&mut self, _id: i32, damage_to_attacker: i32) {
         let attacker = self.attacker.as_mut().unwrap();
 
@@ -138,14 +126,16 @@ impl State {
             attacker.attacker_health =
                 std::cmp::max(0, attacker.attacker_health - damage_to_attacker);
             if attacker.attacker_health == 0 {
-                println!("attacker died due to mine blast and mine damage : {}", damage_to_attacker);
+                println!(
+                    "attacker died due to mine blast and mine damage : {}",
+                    damage_to_attacker
+                );
                 self.attacker_death_count += 1;
                 for defender in self.defenders.iter_mut() {
                     defender.target_id = None;
                 }
                 attacker.attacker_pos = Coords { x: -1, y: -1 };
             }
-
         }
 
         self.mines.retain(|mine| mine.id != _id);
@@ -168,7 +158,6 @@ impl State {
         // } else {
         // self.frame_no += 1;
 
-
         println!("state frame: {} current frame: {}", self.frame_no, frame_no);
 
         for coord in attacker_current.path_in_current_frame.clone().into_iter() {
@@ -181,9 +170,7 @@ impl State {
 
         let mut attacker = attacker_current.clone();
 
-
-
-        if attacker.attacker_speed + 1  != attacker.path_in_current_frame.len() as i32 {
+        if attacker.attacker_speed + 1 != attacker.path_in_current_frame.len() as i32 {
             println!(
                 "attacker speed abuse at {} frame --- speed  :{}, length: {}",
                 frame_no,
@@ -214,7 +201,8 @@ impl State {
             let new_pos = coord;
 
             for defender in self.defenders.iter_mut() {
-                if defender.target_id.is_none() && defender.is_alive
+                if defender.target_id.is_none()
+                    && defender.is_alive
                     && (((defender.defender_pos.x - new_pos.x).abs()
                         + (defender.defender_pos.y - new_pos.y).abs())
                         <= defender.radius)
@@ -229,11 +217,9 @@ impl State {
             }
 
             coord_temp = coord;
-
         }
 
         self.frame_no += 1;
-       
 
         let attacker_result = Attacker {
             id: attacker.id,
@@ -253,7 +239,6 @@ impl State {
         bomb_position: Coords,
     ) -> Vec<BuildingResponse> {
         // if attacker_current.bombs.len() - attacker.bombs.len() > 1 {
-        
 
         // }
 
@@ -285,7 +270,6 @@ impl State {
         }
         return false;
     }
-
 
     pub fn defender_movement(
         &mut self,
@@ -417,7 +401,11 @@ impl State {
                     defender.damage_dealt = true;
                     break;
                 }
-                println!("defender id: {}; path: {}", defender.id, defender.path_in_current_frame.len());
+                println!(
+                    "defender id: {}; path: {}",
+                    defender.id,
+                    defender.path_in_current_frame.len()
+                );
             }
             defender.target_id = Some(0.0);
             if !defender.damage_dealt {
@@ -446,7 +434,10 @@ impl State {
             }
 
             println!("defender id: {}, time: {}", id, time);
-            println!("defender path length: {}", defender.path_in_current_frame.len());
+            println!(
+                "defender path length: {}",
+                defender.path_in_current_frame.len()
+            );
             if attacker.attacker_health == 0 {
                 println!("attacker died");
                 self.attacker_death_count += 1;
@@ -472,8 +463,6 @@ impl State {
                 attacker_death_time = time;
                 self.attacker_death_count += 1;
                 println!("attacker died");
-
-
             }
         }
 
@@ -484,10 +473,7 @@ impl State {
         }
     }
 
-    pub fn mine_blast(
-        &mut self,
-        start_pos: Option<Coords>,
-    ) -> Vec<MineDetails> {
+    pub fn mine_blast(&mut self, start_pos: Option<Coords>) -> Vec<MineDetails> {
         // if (frame_no - self.frame_no) != 1 {
         //     //GAME_OVER
         //     None

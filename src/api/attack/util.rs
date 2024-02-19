@@ -1,6 +1,5 @@
 use crate::api::attack::rating::new_rating;
 use crate::api::auth::TokenClaims;
-use crate::api::defense::shortest_path::run_shortest_paths;
 use crate::api::defense::util::{
     fetch_map_layout, get_map_details_for_attack, get_map_details_for_simulation,
     AttackBaseResponse, DefenseResponse, SimulationBaseResponse,
@@ -20,7 +19,6 @@ use crate::models::{
     EmpType, Game, LevelsFixture, MapLayout, MapSpaces, MineType, NewAttackerPath, NewGame,
     NewSimulationLog, User,
 };
-use crate::schema::game::attack_id;
 use crate::schema::user;
 use crate::simulation::blocks::Coords;
 use crate::simulation::{RenderAttacker, RenderMine};
@@ -30,9 +28,7 @@ use crate::validator::util::{BombType, BuildingDetails, DefenderDetails, MineDet
 use ::serde::{Deserialize, Serialize};
 use anyhow::{Context, Result};
 use chrono;
-use diesel::dsl::exists;
 use diesel::prelude::*;
-use diesel::select;
 use diesel::PgConnection;
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use rand::seq::IteratorRandom;
@@ -40,7 +36,6 @@ use redis::Commands;
 use std::collections::{HashMap, HashSet};
 use std::env;
 use std::io::Write;
-use std::time;
 
 use super::socket::BuildingResponse;
 
@@ -743,7 +738,8 @@ pub struct AttackResponse {
     pub max_bombs: i32,
     pub attacker_types: Vec<AttackerType>,
     pub bomb_types: Vec<EmpType>,
-    pub shortest_paths: Vec<ShortestPathResponse>,
+    pub shortest_paths: Option<Vec<ShortestPathResponse>>,
+    pub obtainable_artifacts: i32,
     pub attack_token: String,
     pub game_id: i32,
 }
@@ -845,35 +841,35 @@ pub fn get_random_opponent(
     }
 }
 
-pub fn get_shortest_paths_for_attack(
-    conn: &mut PgConnection,
-    map_id: i32,
-) -> Result<Vec<ShortestPathResponse>> {
-    let shortest_paths = run_shortest_paths(conn, map_id);
+// pub fn get_shortest_paths_for_attack(
+//     conn: &mut PgConnection,
+//     map_id: i32,
+// ) -> Result<Vec<ShortestPathResponse>> {
+//     let shortest_paths = run_shortest_paths(conn, map_id);
 
-    let mut shortest_paths_response: Vec<ShortestPathResponse> = Vec::new();
+//     let mut shortest_paths_response: Vec<ShortestPathResponse> = Vec::new();
 
-    if let Ok(shortest_paths) = shortest_paths {
-        for path in shortest_paths.iter() {
-            shortest_paths_response.push(ShortestPathResponse {
-                source: Coords {
-                    x: path.0.source_x,
-                    y: path.0.source_y,
-                },
-                dest: Coords {
-                    x: path.0.dest_x,
-                    y: path.0.dest_y,
-                },
-                next_hop: Coords {
-                    x: path.1.x,
-                    y: path.1.y,
-                },
-            });
-        }
-    }
+//     if let Ok(shortest_paths) = shortest_paths {
+//         for path in shortest_paths.iter() {
+//             shortest_paths_response.push(ShortestPathResponse {
+//                 source: Coords {
+//                     x: path.0.source_x,
+//                     y: path.0.source_y,
+//                 },
+//                 dest: Coords {
+//                     x: path.0.dest_x,
+//                     y: path.0.dest_y,
+//                 },
+//                 next_hop: Coords {
+//                     x: path.1.x,
+//                     y: path.1.y,
+//                 },
+//             });
+//         }
+//     }
 
-    Ok(shortest_paths_response)
-}
+//     Ok(shortest_paths_response)
+// }
 
 pub fn get_opponent_base_details_for_attack(
     defender_id: i32,
@@ -1074,7 +1070,7 @@ pub fn get_defenders(
 
     let mut defenders: Vec<DefenderDetails> = Vec::new();
 
-    for (defender_id, (map_space, (_, _, _, defender_type))) in result.iter().enumerate() {
+    for (_, (map_space, (_, _, _, defender_type))) in result.iter().enumerate() {
         let (hut_x, hut_y) = (map_space.x_coordinate, map_space.y_coordinate);
         // let path: Vec<(i32, i32)> = vec![(hut_x, hut_y)];
         defenders.push(DefenderDetails {
@@ -1425,4 +1421,29 @@ pub fn deduct_artifacts_from_building(
         }
     }
     Ok(())
+}
+
+pub fn artifacts_obtainable_from_base(map_id: i32, conn: &mut PgConnection) -> Result<i32> {
+    use crate::schema::{artifact, map_spaces};
+
+    let mut artifacts = 0;
+
+    for (_, count) in map_spaces::table
+        .left_join(artifact::table)
+        .filter(map_spaces::map_id.eq(map_id))
+        .select((map_spaces::all_columns, artifact::count.nullable()))
+        .load::<(MapSpaces, Option<i32>)>(conn)
+        .map_err(|err| DieselError {
+            table: "map_spaces",
+            function: function!(),
+            error: err,
+        })?
+        .into_iter()
+    {
+        if let Some(count) = count {
+            artifacts += (count as f32 * PERCENTANGE_ARTIFACTS_OBTAINABLE).floor() as i32;
+        }
+    }
+
+    Ok(artifacts)
 }

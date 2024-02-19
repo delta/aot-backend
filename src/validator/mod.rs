@@ -2,21 +2,17 @@ use std::collections::{HashMap, HashSet};
 
 use crate::{
     api::attack::{
-        socket::{
-            self, ActionType, BuildingResponse, DefenderResponse, GameStateResponse, ResultType,
-            SocketRequest, SocketResponse,
-        },
+        socket::{ActionType, BuildingResponse, ResultType, SocketRequest, SocketResponse},
         util::{Direction, EventResponse, GameLog},
     },
     models::AttackerType,
     simulation::blocks::{Coords, SourceDest},
 };
 use anyhow::{Ok, Result};
-use r2d2::event;
 
 use self::{
     state::State,
-    util::{Attacker, BombType, BuildingDetails, DefenderDetails, DefenderReturnType, MineDetails},
+    util::{Attacker, BombType, DefenderReturnType, MineDetails},
 };
 
 pub mod error;

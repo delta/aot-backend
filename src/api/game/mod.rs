@@ -68,5 +68,7 @@ async fn get_game_details(
     })
     .await?
     .map_err(|err| error::handle_error(err.into()))?;
+
+    println!("{:#?}", response);
     Ok(web::Json(response))
 }

@@ -1,4 +1,3 @@
-use self::socket::SocketResponse;
 use self::util::{get_valid_road_paths, AttackResponse, GameLog, NewAttack, ResultResponse};
 use super::auth::session::AuthUser;
 use super::defense::shortest_path::run_shortest_paths;
@@ -9,7 +8,6 @@ use super::user::util::fetch_user;
 use super::{error, PgPool, RedisPool};
 use crate::api;
 use crate::api::attack::socket::{ResultType, SocketRequest};
-use crate::api::attack::util::ShortestPathResponse;
 use crate::api::util::HistoryboardQuery;
 use crate::constants::{GAME_AGE_IN_MINUTES, MAX_BOMBS_PER_ATTACK};
 use crate::models::{AttackerType, LevelsFixture, User};
@@ -118,12 +116,20 @@ async fn init_attack(
 
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
 
-    let shortest_paths = web::block(move || {
-        Ok(util::get_shortest_paths_for_attack(&mut conn, map_id)?)
-            as anyhow::Result<Vec<ShortestPathResponse>>
+    // let shortest_paths = web::block(move || {
+    //     Ok(util::get_shortest_paths_for_attack(&mut conn, map_id)?)
+    //         as anyhow::Result<Vec<ShortestPathResponse>>
+    // })
+    // .await?
+    // .map_err(|err| error::handle_error(err.into()))?;
+
+    let obtainable_artifacts = web::block(move || {
+        Ok(util::artifacts_obtainable_from_base(map_id, &mut conn)?) as anyhow::Result<i32>
     })
     .await?
     .map_err(|err| error::handle_error(err.into()))?;
+
+    println!("obatain {}", obtainable_artifacts);
 
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
 
@@ -164,7 +170,8 @@ async fn init_attack(
                 })
                 .collect(),
         },
-        shortest_paths,
+        shortest_paths: None,
+        obtainable_artifacts,
         attack_token,
         attacker_types: opponent_base.attacker_types,
         bomb_types: opponent_base.bomb_types,
