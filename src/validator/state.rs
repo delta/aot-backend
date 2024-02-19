@@ -455,12 +455,6 @@ impl State {
                         dest_y: attacker.attacker_pos.y,
                     })
                     .unwrap_or(&defender.defender_pos);
-                if defender.target_id.unwrap() >= ((i as f32) / (defender.speed as f32)) {
-                    defender.path_in_current_frame.push(defender.defender_pos);
-                    continue;
-                }
-                defender.defender_pos = *next_hop;
-                defender.path_in_current_frame.push(defender.defender_pos);
 
                 let mut attacker_tiles_covered_fract = (((i - 1) as f32) * attacker_ratio).fract();
 
@@ -510,6 +504,13 @@ impl State {
                     x: attacker_float_coords.0.round() as i32,
                     y: attacker_float_coords.1.round() as i32,
                 };
+
+                if defender.target_id.unwrap() >= ((i as f32) / (defender.speed as f32)) {
+                    defender.path_in_current_frame.push(defender.defender_pos);
+                    continue;
+                }
+                defender.defender_pos = *next_hop;
+                defender.path_in_current_frame.push(defender.defender_pos);
 
                 println!(
                     "attacker pos: {:?}; defender_position: {:?}",
