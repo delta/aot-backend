@@ -18,8 +18,6 @@ use rand::distributions::Alphanumeric;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-// use redis::Commands;  //Uncomment to check for user under attack//
-// use crate::api::RedisPool;
 
 #[derive(Serialize, Clone)]
 pub struct MapSpacesResponseWithArifacts {
@@ -129,22 +127,6 @@ pub struct DefenceHistoryResponse {
     pub games: Vec<Game>,
 }
 
-//Uncomment to check for user under attack//
-
-// pub fn check_user_under_attack(redis_pool: &RedisPool, user_id: &i32) -> Result<bool> {
-//     // Get a connection from the pool
-//     let mut conn = redis_pool.get()?;
-
-//     // Use the GET command to check if the user_id exists and is 'defender'
-//     let result: Option<String> = conn.get(format!("Game:{}", user_id))?;
-
-//     match result {
-//         Some(_value) => Ok(true),
-//         //Some(value) if value == "defender_id" => Ok(true),
-//         _ => Ok(false),
-//     }
-// }
-
 pub fn check_valid_map_id(
     conn: &mut PgConnection,
     player: &i32,
@@ -154,7 +136,7 @@ pub fn check_valid_map_id(
 
     let map_layout_id = map_layout::table
         .filter(map_layout::player.eq(player))
-        .inner_join(map_spaces::table.on(map_layout::id.eq(map_spaces::map_id))) //.on(map_layout::id.eq(map_spaces::map_id)))
+        .inner_join(map_spaces::table.on(map_layout::id.eq(map_spaces::map_id)))
         .filter(map_spaces::id.eq(map_space_id))
         .select(map_layout::id)
         .first::<i32>(conn)
@@ -357,10 +339,8 @@ pub fn get_building_capacity(conn: &mut PgConnection, given_map_space_id: &i32) 
 pub fn fetch_map_layout(conn: &mut PgConnection, player: &i32) -> Result<MapLayout> {
     use crate::schema::map_layout;
 
-    // let level_id: &i32 = &api::util::get_current_levels_fixture(conn)?.id;
     let layout = map_layout::table
         .filter(map_layout::player.eq(player))
-        // .filter(map_layout::level_id.eq(level_id))
         .first::<MapLayout>(conn)
         .map_err(|err| DieselError {
             table: "map_layout",
@@ -369,17 +349,6 @@ pub fn fetch_map_layout(conn: &mut PgConnection, player: &i32) -> Result<MapLayo
         })?;
 
     Ok(layout)
-    // else {
-    //     let new_map_layout = NewMapLayout { player, level_id };
-    //     Ok(diesel::insert_into(map_layout::table)
-    //         .values(&new_map_layout)
-    //         .get_result(conn)
-    //         .map_err(|err| DieselError {
-    //             table: "map_layout",
-    //             function: function!(),
-    //             error: err,
-    //         })?)
-    // }
 }
 
 pub fn fetch_map_layout_from_game(
@@ -442,22 +411,6 @@ pub fn get_details_from_map_layout(
         .collect();
 
     let blocks = fetch_building_blocks(conn, &map.player)?;
-    // let levels_fixture = levels_fixture::table
-    //     .find(map.level_id)
-    //     .first::<LevelsFixture>(conn)
-    //     .map_err(|err| DieselError {
-    //         table: "levels_fixture",
-    //         function: function!(),
-    //         error: err,
-    //     })?;
-    // let level_constraints = level_constraints::table
-    //     .filter(level_constraints::level_id.eq(map.level_id))
-    //     .load::<LevelConstraints>(conn)
-    //     .map_err(|err| DieselError {
-    //         table: "level_constraints",
-    //         function: function!(),
-    //         error: err,
-    //     })?;
 
     let mine_types = fetch_mine_types(conn, &map.player)?;
     let defender_types = fetch_defender_types(conn, &map.player)?;
@@ -738,37 +691,6 @@ pub fn get_level_constraints(
         .collect())
 }
 
-// pub fn set_map_valid(conn: &mut PgConnection, map_id: i32) -> Result<()> {
-//     use crate::schema::map_layout::dsl::*;
-
-//     diesel::update(map_layout.find(map_id))
-//         .set(is_valid.eq(true))
-//         .execute(conn)
-//         .map_err(|err| DieselError {
-//             table: "map_layout",
-//             function: function!(),
-//             error: err,
-//         })?;
-
-//     Ok(())
-// }
-
-#[allow(dead_code)]
-pub fn set_map_invalid(conn: &mut PgConnection, map_id: i32) -> Result<()> {
-    use crate::schema::map_layout::dsl::*;
-
-    diesel::update(map_layout.find(map_id))
-        .set(is_valid.eq(false))
-        .execute(conn)
-        .map_err(|err| DieselError {
-            table: "map_layout",
-            function: function!(),
-            error: err,
-        })?;
-
-    Ok(())
-}
-
 pub fn fetch_defense_historyboard(
     user_id: i32,
     page: i64,
@@ -884,7 +806,7 @@ pub fn fetch_mine_types(conn: &mut PgConnection, user_id: &i32) -> Result<Vec<Mi
                 block_id: block_type.id,
                 cost: mine_type.cost,
                 level: mine_type.level,
-                name: "random name".to_string(), // TODO: "name" is not in the schema, so it's not in the struct "MineTypeResponse
+                name: "random name".to_string(),
             })
         })
         .collect();
@@ -915,7 +837,7 @@ pub fn fetch_defender_types(
                 speed: defender_type.speed,
                 damage: defender_type.damage,
                 block_id: block_type.id,
-                name: "random name".to_string(), // TODO: "name" is not in the schema, so it's not in the struct "DefenderTypeResponse
+                name: "random name".to_string(),
                 level: defender_type.level,
                 cost: defender_type.cost,
             })
@@ -1006,21 +928,6 @@ pub fn fetch_attacker_types(conn: &mut PgConnection, user_id: &i32) -> Result<Ve
 
     Ok(results)
 }
-
-// pub fn calculate_shortest_paths(conn: &mut PgConnection, map_id: i32) -> Result<()> {
-//     use crate::schema::shortest_path::dsl::*;
-
-//     diesel::delete(shortest_path.filter(base_id.eq(map_id)))
-//         .execute(conn)
-//         .map_err(|err| DieselError {
-//             table: "shortest_path",
-//             function: function!(),
-//             error: err,
-//         })?;
-//     run_shortest_paths(conn, map_id)?;
-
-//     Ok(())
-// }
 
 pub fn add_user_default_base(
     conn: &mut PgConnection,

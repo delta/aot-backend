@@ -3,6 +3,7 @@ use std::{
     collections::{HashMap, HashSet},
 };
 
+use crate::constants::{BOMB_DAMAGE_MULTIPLIER, PERCENTANGE_ARTIFACTS_OBTAINABLE};
 use crate::{
     api::attack::socket::{BuildingResponse, DefenderResponse},
     validator::util::{
@@ -35,7 +36,6 @@ pub struct State {
     pub in_validation: InValidation,
 }
 
-#[allow(dead_code)]
 impl State {
     pub fn new(
         attacker_user_id: i32,
@@ -296,7 +296,7 @@ impl State {
     pub fn defender_movement(
         &mut self,
         attacker_delta: Vec<Coords>,
-        shortest_path: &HashMap<SourceDest, Coords>,
+        shortest_path: &HashMap<SourceDestXY, Coords>,
     ) -> DefenderReturnType {
         let attacker = self.attacker.as_mut().unwrap();
         let mut defenders_damaged: Vec<DefenderResponse> = Vec::new();
@@ -343,7 +343,7 @@ impl State {
                 // move dwon if needed
 
                 let next_hop = shortest_path
-                    .get(&SourceDest {
+                    .get(&SourceDestXY {
                         source_x: defender.defender_pos.x,
                         source_y: defender.defender_pos.y,
                         dest_x: attacker.attacker_pos.x,

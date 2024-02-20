@@ -22,7 +22,6 @@ fn trophy_scale(old_attacker_rating: f32, old_defender_rating: f32) -> (f32, f32
 }
 
 /* change rating datatype to int */
-#[allow(dead_code)]
 pub fn new_rating(
     old_attacker_rating: i32,
     old_defender_rating: i32,
@@ -55,7 +54,6 @@ pub fn new_rating(
     (new_attacker_rating, new_defender_rating)
 }
 
-#[allow(dead_code)]
 fn bonus_trophies(
     attacker_rating: &mut i32,
     defender_rating: &mut i32,
@@ -66,7 +64,6 @@ fn bonus_trophies(
 }
 
 impl Game {
-    #[allow(dead_code)]
     pub fn update_rating(
         &self,
         metrics: (i32, i32, i32),

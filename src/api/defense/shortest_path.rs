@@ -1,8 +1,8 @@
 use crate::constants::*;
 use crate::error::DieselError;
 use crate::schema::{block_type, map_spaces};
-use crate::simulation::blocks::{Coords, SourceDest};
 use crate::util::function;
+use crate::validator::util::{Coords, SourceDestXY};
 use anyhow::Result;
 use array2d::Array2D;
 use diesel::prelude::*;
@@ -16,7 +16,7 @@ const NO_BLOCK: i32 = -1;
 pub fn run_shortest_paths(
     conn: &mut PgConnection,
     input_map_layout_id: i32,
-) -> Result<HashMap<SourceDest, Coords>> {
+) -> Result<HashMap<SourceDestXY, Coords>> {
     let roads_list: Vec<(i32, i32)> = map_spaces::table
         .inner_join(block_type::table)
         .filter(map_spaces::map_id.eq(input_map_layout_id))
@@ -60,7 +60,7 @@ pub fn run_shortest_paths(
         adjacency_list.insert((road_x, road_y), neighbors);
     }
 
-    let mut shortest_paths: HashMap<SourceDest, Coords> = HashMap::new();
+    let mut shortest_paths: HashMap<SourceDestXY, Coords> = HashMap::new();
 
     for (start_x, start_y) in &roads_list {
         let start_node = (*start_x, *start_y);
@@ -82,7 +82,7 @@ pub fn run_shortest_paths(
                     queue.push_back((*neighbor, next_hop));
 
                     shortest_paths.insert(
-                        SourceDest {
+                        SourceDestXY {
                             source_x: *start_x,
                             source_y: *start_y,
                             dest_x: neighbor.0,

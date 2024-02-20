@@ -6,7 +6,7 @@ use crate::{
         util::{Direction, EventResponse, GameLog},
     },
     models::AttackerType,
-    simulation::blocks::{Coords, SourceDest},
+    validator::util::{Coords, SourceDestXY},
 };
 use anyhow::{Ok, Result};
 
@@ -23,7 +23,7 @@ pub fn game_handler(
     attacker_type: &HashMap<i32, AttackerType>,
     socket_request: SocketRequest,
     _game_state: &mut State,
-    _shortest_path: &HashMap<SourceDest, Coords>,
+    _shortest_path: &HashMap<SourceDestXY, Coords>,
     _roads: &HashSet<(i32, i32)>,
     _bomb_types: &Vec<BombType>,
     mut _game_log: &mut GameLog,

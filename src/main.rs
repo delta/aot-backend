@@ -14,7 +14,6 @@ mod constants;
 mod error;
 mod models;
 mod schema;
-mod simulation;
 mod util;
 mod validator;
 

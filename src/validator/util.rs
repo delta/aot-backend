@@ -1,15 +1,15 @@
+use crate::api::attack::socket::DefenderResponse;
 use crate::api::attack::socket::{ResultType, SocketResponse};
-// use crate::{constants::ROAD_ID, validator::state::State};
 use crate::validator::state::State;
-use crate::{api::attack::socket::DefenderResponse, simulation::blocks::Coords};
 use serde::{Deserialize, Serialize};
 
-// Structs present in the state
-// #[derive(Debug, Serialize, Deserialize, Clone, Hash, Eq, PartialEq, Copy)]
-// pub struct Coords {
-//     pub x: i32,
-//     pub y: i32,
-// }
+#[derive(Debug, Eq, Hash, PartialEq, Serialize, Clone)]
+pub struct SourceDestXY {
+    pub source_x: i32,
+    pub source_y: i32,
+    pub dest_x: i32,
+    pub dest_y: i32,
+}
 
 #[derive(Serialize, Clone, Copy, Deserialize)]
 pub struct Bomb {
@@ -81,6 +81,12 @@ pub struct BuildingDetails {
 pub struct InValidation {
     pub message: String,
     pub is_invalidated: bool,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq, Eq, Hash, Copy, Deserialize)]
+pub struct Coords {
+    pub x: i32,
+    pub y: i32,
 }
 
 #[derive(Serialize, Clone, Copy)]

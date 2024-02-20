@@ -1,7 +1,3 @@
-pub const GAME_TIME_MINUTES: i32 = 480;
-pub const GAME_MINUTES_PER_FRAME: i32 = 2;
-pub const ATTACKER_RESTRICTED_FRAMES: i32 = 30;
-pub const NO_OF_FRAMES: i32 = GAME_TIME_MINUTES / GAME_MINUTES_PER_FRAME;
 pub const MAP_SIZE: usize = 40;
 pub const TOTAL_ATTACKS_PER_DAY: i64 = 100;
 pub const ROAD_ID: i32 = 0;
