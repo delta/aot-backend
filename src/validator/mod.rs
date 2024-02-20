@@ -323,14 +323,16 @@ pub fn game_handler(
 
             if let Some(attacker) = &_game_state.attacker {
                 if attacker.bomb_count == 0 {
-                    return Some(Ok(
-                        util::send_terminate_game_message(socket_request.frame_number, "No bombs left".to_string())
-                    ));
+                    return Some(Ok(util::send_terminate_game_message(
+                        socket_request.frame_number,
+                        "No bombs left".to_string(),
+                    )));
                 }
             } else {
-                return Some(Ok(
-                    util::send_terminate_game_message(socket_request.frame_number, "Bomb placed without placing attacker".to_string())
-                ));
+                return Some(Ok(util::send_terminate_game_message(
+                    socket_request.frame_number,
+                    "Bomb placed without placing attacker".to_string(),
+                )));
             }
 
             for coord in attacker_delta.clone() {

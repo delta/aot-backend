@@ -140,6 +140,10 @@ pub fn is_valid_save_layout(
         let building_type = block.building_type;
 
         if artifacts > buildings[&building_type].capacity {
+            println!("Artifacts: {}", artifacts);
+            println!("Capacity: {}", buildings[&building_type].capacity);
+            println!("Building name: {}", buildings[&building_type].name);
+            println!("Block id: {}", block_type_id);
             return Err(BaseInvalidError::InvalidArtifactCount);
         }
 

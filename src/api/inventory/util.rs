@@ -1068,7 +1068,9 @@ fn run_transaction(
         let id_of_map = get_user_map_id(player_id, conn)?;
 
         diesel::update(
-            available_blocks::table.filter(available_blocks::block_type_id.eq(block_id)),
+            available_blocks::table
+                .filter(available_blocks::block_type_id.eq(block_id))
+                .filter(available_blocks::user_id.eq(player_id)),
         )
         .set(available_blocks::block_type_id.eq(next_level_block_id))
         .execute(conn)?;
