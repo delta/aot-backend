@@ -19,6 +19,7 @@ DELETE FROM public.mine_type;
 DELETE FROM public.emp_type;
 DELETE FROM public.defender_type;
 DELETE FROM public.building_type;
+DELETE FROM public.simulation_log;
 DELETE FROM public.game;
 DELETE FROM public.map_layout;
 DELETE FROM public.user;
@@ -29,7 +30,7 @@ COPY public.levels_fixture FROM stdin;
 \.
 
 COPY public.user FROM stdin;
-1	Bot	donwick32@gmail.com	bot	true	0	0	1000	0	270
+1	Bot	donwick32@gmail.com	bot	true	0	0	1000	0	500
 \.
 
 COPY public.map_layout FROM stdin;
@@ -78,24 +79,29 @@ COPY public.building_type FROM stdin;
 38	Building_8	4	4	120	3	-1	140
 39	Building_9	5	5	140	3	-1	160
 40	Building_10	3	3	90	3	-1	110
+41	Building_11	4	4	110	3	-1	130
+42	Building_12	5	5	130	3	-1	150
+43	Building_13	3	3	80	3	-1	100
+44	Building_14	4	4	100	3	-1	120
+45	Building_15	5	5	120	3	-1	140
 \.
 
 COPY public.defender_type FROM stdin;
-1	4	50	8	1	0	defender_1
-2	4	40	10	1	0	defender_2
-3	4	30	6	1	0	defender_3
-4	5	60	7	2	150	defender_1
-5	4	50	8	2	250	defender_2
-6	4	40	9	2	350	defender_3
-7	4	70	9	3	-1	defender_1
-8	4	60	10	3	-1	defender_2
-9	4	50	8	3	-1	defender_3
+1	4	50	8	1	10	Defender_1
+2	4	40	10	1	10	Defender_2
+3	4	30	6	1	10	Defender_3
+4	4	60	7	2	150	Defender_1
+5	4	50	8	2	250	Defender_2
+6	4	40	9	2	350	Defender_3
+7	4	70	9	3	-1	Defender_1
+8	4	60	10	3	-1	Defender_2
+9	4	50	8	3	-1	Defender_3
 \.
 
 COPY public.emp_type FROM stdin;
-1	Bomb_1	3	20	0	Bomb_1	1
-2	Bomb_2	5	30	0	Bomb_2	1
-3	Bomb_3	4	25	0	Bomb_3	1
+1	Bomb_1	3	20	10	Bomb_1	1
+2	Bomb_2	5	30	10	Bomb_2	1
+3	Bomb_3	4	25	10	Bomb_3	1
 4	Bomb_1	4	30	120	Bomb_1	2
 5	Bomb_2	6	40	180	Bomb_2	2
 6	Bomb_3	5	35	150	Bomb_3	2
@@ -105,26 +111,26 @@ COPY public.emp_type FROM stdin;
 \.
 
 COPY public.mine_type FROM stdin;
-1	5	50	1	0	mine_1
-2	6	60	1	0	mine_2
-3	7	70	1	0	mine_3
-4	6	70	2	120	mine_1
-5	7	80	2	180	mine_2
-6	8	90	2	240	mine_3
-7	7	90	3	-1	mine_1
-8	8	100	3	-1	mine_2
-9	9	110	3	-1	mine_3
+1	5	50	1	10	Mine_1
+2	6	60	1	10	Mine_2
+3	7	70	1	10	Mine_3
+4	6	70	2	120	Mine_1
+5	7	80	2	180	Mine_2
+6	8	90	2	240	Mine_3
+7	7	90	3	-1	Mine_1
+8	8	100	3	-1	Mine_2
+9	9	110	3	-1	Mine_3
 \.
 
 COPY public.attacker_type FROM stdin;
-1	100	2	10	1	0	Attacker_1
-2	120	3	12	1	0	Attacker_2
-3	80	4	8	1	0	Attacker_3
-4	150	2	15	2	80	Attacker_1
-5	180	3	18	2	100	Attacker_2
+1	100	4	10	1	10	Attacker_1
+2	120	4	12	1	10	Attacker_2
+3	80	4	8	1	10	Attacker_3
+4	150	4	15	2	80	Attacker_1
+5	180	4	18	2	100	Attacker_2
 6	120	4	12	2	60	Attacker_3
-7	200	2	20	3	-1	Attacker_1
-8	240	3	24	3	-1	Attacker_2
+7	200	4	20	3	-1	Attacker_1
+8	240	4	24	3	-1	Attacker_2
 9	160	4	16	3	-1	Attacker_3
 \.
 
@@ -170,24 +176,29 @@ COPY public.block_type FROM stdin;
 38	\N	\N	building	38
 39	\N	\N	building	39
 40	\N	\N	building	40
-41	1	\N	defender	0
-42	2	\N	defender	0
-43	3	\N	defender	0
-44	4	\N	defender	0
-45	5	\N	defender	0
-46	6	\N	defender	0
-47	7	\N	defender	0
-48	8	\N	defender	0
-49	9	\N	defender	0
-50	\N	1	mine	0
-51	\N	2	mine	0
-52	\N	3	mine	0
-53	\N	4	mine	0
-54	\N	5	mine	0
-55	\N	6	mine	0
-56	\N	7	mine	0
-57	\N	8	mine	0
-58	\N	9	mine	0
+41	\N	\N	building	41
+42	\N	\N	building	42
+43	\N	\N	building	43
+44	\N	\N	building	44
+45	\N	\N	building	45
+46	1	\N	defender	0
+47	2	\N	defender	0
+48	3	\N	defender	0
+49	4	\N	defender	0
+50	5	\N	defender	0
+51	6	\N	defender	0
+52	7	\N	defender	0
+53	8	\N	defender	0
+54	9	\N	defender	0
+55	\N	1	mine	0
+56	\N	2	mine	0
+57	\N	3	mine	0
+58	\N	4	mine	0
+59	\N	5	mine	0
+60	\N	6	mine	0
+61	\N	7	mine	0
+62	\N	8	mine	0
+63	\N	9	mine	0
 \.
 
 COPY public.available_blocks FROM stdin;
@@ -207,12 +218,12 @@ COPY public.available_blocks FROM stdin;
 13	1	\N	\N	block	13
 14	1	\N	\N	block	14
 15	1	\N	\N	block	15
-41	1	\N	\N	block	16
-42	1	\N	\N	block	17
-43	1	\N	\N	block	18
-50	1	\N	\N	block	19
-51	1	\N	\N	block	20
-52	1	\N	\N	block	21
+46	1	\N	\N	block	16
+47	1	\N	\N	block	17
+48	1	\N	\N	block	18
+55	1	\N	\N	block	19
+56	1	\N	\N	block	20
+57	1	\N	\N	block	21
 \N	1	1	\N	attacker	22
 \N	1	2	\N	attacker	23
 \N	1	3	\N	attacker	24
@@ -289,28 +300,28 @@ COPY public.map_spaces FROM stdin;
 65	1	25	39	0
 66	1	26	39	0
 67	1	27	39	0
-68	1	28	39	0
+68	1	28	39	57
 69	1	29	39	0
-70	1	30	39	0
+70	1	30	39	56
 71	1	31	39	0
-72	1	32	39	0
+72	1	32	39	55
 73	1	33	39	0
-74	1	34	39	0
+74	1	34	39	57
 75	1	35	39	0
-76	1	36	39	0
+76	1	36	39	56
 77	1	37	39	0
-78	1	38	39	0
-79	1	39	39	0
+78	1	38	39	55
+79	1	39	39	46
 80	1	39	38	0
-81	1	39	37	0
+81	1	39	37	47
 82	1	39	36	0
-83	1	39	35	0
+83	1	39	35	48
 84	1	39	34	0
-85	1	39	33	0
+85	1	39	33	46
 86	1	39	32	0
-87	1	39	31	0
+87	1	39	31	47
 88	1	39	30	0
-89	1	39	29	0
+89	1	39	29	48
 90	1	39	28	0
 91	1	39	27	0
 92	1	39	26	0
@@ -393,22 +404,10 @@ COPY public.map_spaces FROM stdin;
 169	1	1	25	13
 170	1	1	30	14
 171	1	1	34	15
-172	1	39	39	50
-173	1	39	37	51
-174	1	39	35	52
-175	1	38	39	41
-176	1	36	39	42
-177	1	34	39	43
 \.
 
 COPY public.artifact FROM stdin;
-157	10
-159	30
-161	50
-163	70
-165	10
-168	40
-170	60
+157	500
 \.
 
 COPY public.level_constraints FROM stdin;
@@ -457,24 +456,29 @@ COPY public.level_constraints FROM stdin;
 1	1	43
 1	1	44
 1	1	45
-1	1	46
-1	1	47
-1	1	48
+1	2	46
+1	2	47
+1	2	48
 1	1	49
 1	1	50
 1	1	51
 1	1	52
 1	1	53
 1	1	54
-1	1	55
-1	1	56
-1	1	57
+1	2	55
+1	2	56
+1	2	57
 1	1	58
+1	1	59
+1	1	60
+1	1	61
+1	1	62
+1	1	63
 \.
 
 SELECT pg_catalog.setval('public.user_id_seq', 2, false);
 SELECT pg_catalog.setval('public.map_layout_id_seq', 2, false);
 SELECT pg_catalog.setval('public.game_id_seq', 1, false);
-SELECT pg_catalog.setval('public.block_type_id_seq', 59, false);
+SELECT pg_catalog.setval('public.block_type_id_seq', 64, false);
 SELECT pg_catalog.setval('public.map_spaces_id_seq', 178, false);
 SELECT pg_catalog.setval('public.available_blocks_id_seq', 28, false);

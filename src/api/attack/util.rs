@@ -829,6 +829,7 @@ pub fn terminate_game(
 
         diesel::insert_into(simulation_log::table)
             .values(new_simulation_log)
+            .on_conflict_do_nothing()
             .execute(conn)
             .map_err(|err| DieselError {
                 table: "simulation_log",
