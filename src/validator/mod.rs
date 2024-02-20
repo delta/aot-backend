@@ -72,8 +72,8 @@ pub fn game_handler(
             // _game_state.set_mines(mine_positions);
             event_response.bomb_id = socket_request.bomb_id;
 
-            _game_log.events.push(event_response);
-            _game_log.result.attackers_used += 1;
+            _game_log.e.push(event_response);
+            _game_log.r.au += 1;
 
             if _game_state.in_validation.is_invalidated {
                 println!(
@@ -132,7 +132,7 @@ pub fn game_handler(
                 for coord in attacker_delta {
                     let mut direction = Direction::Up;
 
-                    let prev_pos = _game_log.events.last().unwrap().coords;
+                    let prev_pos = _game_log.e.last().unwrap().coords;
                     if prev_pos.x < coord.x {
                         direction = Direction::Down;
                     } else if prev_pos.x > coord.x {
@@ -151,7 +151,7 @@ pub fn game_handler(
                         is_bomb: false,
                     };
 
-                    _game_log.events.push(event_response.clone());
+                    _game_log.e.push(event_response.clone());
                 }
 
                 let mut bool_temp = false;
@@ -265,7 +265,7 @@ pub fn game_handler(
             for coord in attacker_delta.clone() {
                 let mut direction = Direction::Up;
 
-                let prev_pos = _game_log.events.last().unwrap().coords;
+                let prev_pos = _game_log.e.last().unwrap().coords;
                 if prev_pos.x < coord.x {
                     direction = Direction::Down;
                 } else if prev_pos.x > coord.x {
@@ -284,14 +284,14 @@ pub fn game_handler(
                     is_bomb: coord == bomb_coords,
                 };
 
-                _game_log.events.push(event_response.clone());
+                _game_log.e.push(event_response.clone());
             }
 
             buildings_damaged_result = _game_state.place_bombs(current_pos, bomb_coords);
 
-            _game_log.result.bombs_used += 1;
-            _game_log.result.damage_done = _game_state.damage_percentage as i32;
-            _game_log.result.artifacts_collected = _game_state.artifacts;
+            _game_log.r.b += 1;
+            _game_log.r.d = _game_state.damage_percentage as i32;
+            _game_log.r.a = _game_state.artifacts;
 
             let mut bool_temp = false;
             if !buildings_damaged_result.is_empty() {

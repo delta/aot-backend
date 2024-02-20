@@ -99,13 +99,13 @@ pub struct AttackBaseResponse {
 
 #[derive(Serialize, Clone)]
 pub struct SimulationBaseResponse {
-    pub map_id: i32,
-    pub map_spaces: Vec<MapSpacesResponseWithArifacts>,
-    pub blocks: Vec<BuildingTypeResponse>,
-    pub defender_types: Vec<DefenderTypeResponse>,
-    pub mine_types: Vec<MineTypeResponse>,
-    pub attacker_types: Vec<AttackerType>,
-    pub bomb_types: Vec<EmpType>,
+    pub m: i32,                                 //map_id
+    pub ms: Vec<MapSpacesResponseWithArifacts>, //map_spaces
+    pub b: Vec<BuildingTypeResponse>,           //blocks
+    pub d: Vec<DefenderTypeResponse>,           //defender_types
+    pub mt: Vec<MineTypeResponse>,              //mine_types
+    pub at: Vec<AttackerType>,                  //attacker_types
+    pub bt: Vec<EmpType>,                       //bomb_types
 }
 
 #[derive(Serialize)]
@@ -564,13 +564,13 @@ pub fn get_map_details_for_simulation(
     let attacker_types = fetch_attacker_types(conn, &map.player)?;
 
     Ok(SimulationBaseResponse {
-        map_id: map.id,
-        map_spaces,
-        blocks,
-        bomb_types,
-        mine_types,
-        defender_types,
-        attacker_types,
+        m: map.id,
+        ms: map_spaces,
+        b: blocks,
+        bt: bomb_types,
+        mt: mine_types,
+        d: defender_types,
+        at: attacker_types,
     })
 }
 

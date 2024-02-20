@@ -317,20 +317,20 @@ async fn socket_handler(
     }
 
     let game_log = GameLog {
-        game_id,
-        attacker: attacker_user_details.unwrap(),
-        defender: defender_user_details.unwrap(),
-        base: defender_base_details,
-        events: Vec::new(),
-        result: ResultResponse {
-            damage_done: 0,
-            artifacts_collected: 0,
-            bombs_used: 0,
-            attackers_used: 0,
-            new_attacker_trophies: 0,
-            new_defender_trophies: 0,
-            old_attacker_trophies: 0,
-            old_defender_trophies: 0,
+        g: game_id,
+        a: attacker_user_details.unwrap(),
+        d: defender_user_details.unwrap(),
+        b: defender_base_details,
+        e: Vec::new(),
+        r: ResultResponse {
+            d: 0,
+            a: 0,
+            b: 0,
+            au: 0,
+            na: 0,
+            nd: 0,
+            oa: 0,
+            od: 0,
         },
     };
 

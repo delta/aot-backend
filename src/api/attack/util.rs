@@ -84,24 +84,24 @@ pub struct EventResponse {
 
 #[derive(Serialize, Clone, Debug)]
 pub struct ResultResponse {
-    pub damage_done: i32,
-    pub artifacts_collected: i32,
-    pub bombs_used: i32,
-    pub attackers_used: i32,
-    pub new_attacker_trophies: i32,
-    pub new_defender_trophies: i32,
-    pub old_attacker_trophies: i32,
-    pub old_defender_trophies: i32,
+    pub d: i32,  //damage_done
+    pub a: i32,  //artifacts_collected
+    pub b: i32,  //bombs_used
+    pub au: i32, //attackers_used
+    pub na: i32, //new_attacker_trophies
+    pub nd: i32, //new_defender_trophies
+    pub oa: i32, //old_attacker_trophies
+    pub od: i32, //old_defender_trophies
 }
 
 #[derive(Serialize, Clone)]
 pub struct GameLog {
-    pub game_id: i32,
-    pub attacker: User,
-    pub defender: User,
-    pub base: SimulationBaseResponse,
-    pub events: Vec<EventResponse>,
-    pub result: ResultResponse,
+    pub g: i32,                    //game_id
+    pub a: User,                   //attacker
+    pub d: User,                   //defender
+    pub b: SimulationBaseResponse, //base
+    pub e: Vec<EventResponse>,     //events
+    pub r: ResultResponse,         //result
 }
 
 pub fn get_map_id(defender_id: &i32, conn: &mut PgConnection) -> Result<Option<i32>> {
@@ -706,12 +706,12 @@ pub fn terminate_game(
     redis_conn: &mut RedisConn,
 ) -> Result<()> {
     use crate::schema::{artifact, game, simulation_log};
-    let attacker_id = game_log.attacker.id;
-    let defender_id = game_log.defender.id;
-    let damage_done = game_log.result.damage_done;
-    let bombs_used = game_log.result.bombs_used;
-    let artifacts_collected = game_log.result.artifacts_collected;
-    let game_id = game_log.game_id;
+    let attacker_id = game_log.a.id;
+    let defender_id = game_log.d.id;
+    let damage_done = game_log.r.d;
+    let bombs_used = game_log.r.b;
+    let artifacts_collected = game_log.r.a;
+    let game_id = game_log.g;
 
     println!("Damage done: {}", damage_done);
     println!("Artifacts Collected: {}", artifacts_collected);
@@ -759,10 +759,10 @@ pub fn terminate_game(
 
     //Add bonus trophies (just call the function)
 
-    game_log.result.old_attacker_trophies = attacker_details.trophies;
-    game_log.result.old_defender_trophies = defender_details.trophies;
-    game_log.result.new_attacker_trophies = new_trophies.0;
-    game_log.result.new_defender_trophies = new_trophies.1;
+    game_log.r.oa = attacker_details.trophies;
+    game_log.r.od = defender_details.trophies;
+    game_log.r.na = new_trophies.0;
+    game_log.r.nd = new_trophies.1;
 
     println!("Attack score: 5");
 
@@ -783,7 +783,7 @@ pub fn terminate_game(
         })?;
     println!("Attack score: 6");
 
-    diesel::update(user::table.find(&game_log.attacker.id))
+    diesel::update(user::table.find(&game_log.a.id))
         .set((
             user::artifacts.eq(user::artifacts + artifacts_collected),
             user::trophies.eq(user::trophies + new_trophies.0 - attacker_details.trophies),
@@ -795,7 +795,7 @@ pub fn terminate_game(
             error: err,
         })?;
 
-    diesel::update(user::table.find(&game_log.defender.id))
+    diesel::update(user::table.find(&game_log.d.id))
         .set((
             user::artifacts.eq(user::artifacts - artifacts_collected),
             user::trophies.eq(user::trophies + new_trophies.1 - defender_details.trophies),
@@ -837,7 +837,7 @@ pub fn terminate_game(
             })?;
     }
 
-    if delete_game_id_from_redis(game_log.attacker.id, game_log.defender.id, redis_conn).is_err() {
+    if delete_game_id_from_redis(game_log.a.id, game_log.d.id, redis_conn).is_err() {
         return Err(anyhow::anyhow!("Can't remove game from redis"));
     }
 
@@ -845,7 +845,7 @@ pub fn terminate_game(
     //     println!("Event: {:?}\n", event);
     // }
 
-    println!("Result: {:?}", game_log.result);
+    println!("Result: {:?}", game_log.r);
     println!("Game termination is done");
     Ok(())
 }
