@@ -2,16 +2,15 @@ use std::{
     cmp::max,
     collections::{HashMap, HashSet},
 };
-// use std::cmp;
 
 use crate::{
     api::attack::socket::{BuildingResponse, DefenderResponse},
     validator::util::{
-        Attacker, BuildingDetails, DefenderDetails, DefenderReturnType, MineDetails,
+        Attacker, BuildingDetails, DefenderDetails, DefenderReturnType, InValidation, MineDetails,
     },
 };
 use crate::{
-    constants::{BOMB_DAMAGE_MULTIPLIER, PERCENTANGE_ARTIFACTS_OBTAINABLE},
+    constants::{BOMB_DAMAGE_MULTIPLIER, LIVES, PERCENTANGE_ARTIFACTS_OBTAINABLE},
     simulation::blocks::{Coords, SourceDest},
 };
 
@@ -33,6 +32,7 @@ pub struct State {
     pub mines: Vec<MineDetails>,
     pub buildings: Vec<BuildingDetails>,
     pub total_hp_buildings: i32,
+    pub in_validation: InValidation,
 }
 
 #[allow(dead_code)]
@@ -62,6 +62,10 @@ impl State {
             mines,
             buildings,
             total_hp_buildings: 0,
+            in_validation: InValidation {
+                message: "".to_string(),
+                is_invalidated: false,
+            },
         }
     }
 
@@ -74,18 +78,11 @@ impl State {
     }
 
     pub fn set_bombs(&mut self, bomb_type: BombType, bombs: i32) {
-        let bomb_count: i32;
-        if self.bombs.total_count != 0 {
-            bomb_count = self.bombs.total_count;
-        } else {
-            bomb_count = bombs;
-        }
-
         self.bombs = BombType {
             id: bomb_type.id,
             radius: bomb_type.radius,
             damage: bomb_type.damage,
-            total_count: bomb_count,
+            total_count: bombs,
         };
     }
 
@@ -151,12 +148,20 @@ impl State {
         roads: &HashSet<(i32, i32)>,
         attacker_current: Attacker,
     ) -> Option<Attacker> {
-        // if (frame_no - self.frame_no) != 1 {
-        //     // Some(self) // invalid frame error
-        //     None
-        //     // GAME_OVER
-        // } else {
-        // self.frame_no += 1;
+        if (frame_no - self.frame_no) != 1 {
+            self.in_validation = InValidation {
+                message: "Frame number mismatch".to_string(),
+                is_invalidated: true,
+            };
+            // GAME_OVER
+        }
+
+        if self.attacker_death_count == LIVES {
+            self.in_validation = InValidation {
+                message: "Attacker Lives forged!".to_string(),
+                is_invalidated: true,
+            };
+        }
 
         println!("state frame: {} current frame: {}", self.frame_no, frame_no);
 
@@ -195,7 +200,11 @@ impl State {
                 || ((coord_temp.y - coord.y).abs() == 1 && coord_temp.x != coord.x)
             {
                 // GAME_OVER
-                println!("attacker skipped a tile at {} frame", frame_no);
+                // println!("attacker skipped a tile at {} frame", frame_no);
+                self.in_validation = InValidation {
+                    message: "attacker skipped a tile".to_string(),
+                    is_invalidated: true,
+                };
             }
 
             let new_pos = coord;
@@ -236,7 +245,7 @@ impl State {
 
     pub fn place_bombs(
         &mut self,
-        attacker_delta: Vec<Coords>,
+        current_pos: Coords,
         bomb_position: Coords,
     ) -> Vec<BuildingResponse> {
         // if attacker_current.bombs.len() - attacker.bombs.len() > 1 {
@@ -244,8 +253,11 @@ impl State {
         // }
 
         if self.bombs.total_count <= 0 {
-            //Nothing
             println!("Bomb over");
+            self.in_validation = InValidation {
+                message: "Bomb Count forged".to_string(),
+                is_invalidated: true,
+            };
         }
 
         if let Some(attacker) = &mut self.attacker {
@@ -253,9 +265,13 @@ impl State {
             println!("bomb count: {}", attacker.bomb_count);
         }
 
-        if !attacker_delta.contains(&bomb_position) {
+        if current_pos.x != bomb_position.x || current_pos.y != bomb_position.y {
             //GAME_OVER
             println!("Bomb placed out of path");
+            self.in_validation = InValidation {
+                message: "Bomb placed out of path".to_string(),
+                is_invalidated: true,
+            };
         }
 
         let buildings_damaged = self.bomb_blast(bomb_position);
@@ -274,7 +290,7 @@ impl State {
         {
             return true;
         }
-        return false;
+        false
     }
 
     pub fn defender_movement(
@@ -282,39 +298,37 @@ impl State {
         attacker_delta: Vec<Coords>,
         shortest_path: &HashMap<SourceDest, Coords>,
     ) -> DefenderReturnType {
-        // self.frame_no += 1;
-
         let attacker = self.attacker.as_mut().unwrap();
-        let mut defenders_triggered: Vec<DefenderResponse> = Vec::new();
+        let mut defenders_damaged: Vec<DefenderResponse> = Vec::new();
 
         // if attacker is dead, no need to move the defenders
         if attacker.attacker_health == 0 {
             return DefenderReturnType {
                 attacker_health: attacker.attacker_health,
-                defender_response: defenders_triggered,
+                defender_response: defenders_damaged,
                 state: self.clone(),
             };
         }
 
         let mut collision_array: Vec<(i32, f32)> = Vec::new();
-        println!("attacker delta: {:?}", attacker_delta);
+        // println!("attacker delta: {:?}", attacker_delta);
 
         for defender in self.defenders.iter_mut() {
-            println!("checking defender id: {}", defender.id);
+            // println!("checking defender id: {}", defender.id);
             if !defender.is_alive || defender.target_id.is_none() {
                 continue;
             }
 
-            println!(
-                "defender id is triggered: {}, defender position: {:?}",
-                defender.id, defender.defender_pos
-            );
+            // println!(
+            //     "defender id is triggered: {}, defender position: {:?}",
+            //     defender.id, defender.defender_pos
+            // );
 
             let attacker_ratio = attacker.attacker_speed as f32 / defender.speed as f32;
-            println!(
-                "attacker_ratio: {}; attack speed: {}; defender speed: {}",
-                attacker_ratio, attacker.attacker_speed, defender.speed
-            );
+            // println!(
+            //     "attacker_ratio: {}; attack speed: {}; defender speed: {}",
+            //     attacker_ratio, attacker.attacker_speed, defender.speed
+            // );
             let mut attacker_float_coords = (
                 attacker.attacker_pos.x as f32,
                 attacker.attacker_pos.y as f32,
@@ -343,7 +357,7 @@ impl State {
                 let mut attacker_mov_y = 0.0;
 
                 let mut attacker_tiles_left = attacker_ratio;
-                print!("i: {i}; attacker_tiles_left: {}; ", attacker_tiles_left);
+                // print!("i: {i}; attacker_tiles_left: {}; ", attacker_tiles_left);
                 while attacker_tiles_left > 1e-6 {
                     let attacker_tiles_fract_left = attacker_tiles_left
                         .min(1.0)
@@ -372,14 +386,14 @@ impl State {
                     }
                     // println!("attacker_tiles_left: {}; attacker_tiles_covered_fract: {}; attacker_delta_index: {}", attacker_tiles_left, attacker_tiles_covered_fract, attacker_delta_index);
                 }
-                println!(
-                    "attacker_mov_x: {}; attacker_mov_y: {}",
-                    attacker_mov_x, attacker_mov_y
-                );
+                // println!(
+                //     "attacker_mov_x: {}; attacker_mov_y: {}",
+                //     attacker_mov_x, attacker_mov_y
+                // );
 
                 attacker_float_coords.0 += attacker_mov_x;
                 attacker_float_coords.1 += attacker_mov_y;
-                println!("attacker_fract_pos: {:?}", attacker_float_coords);
+                // println!("attacker_fract_pos: {:?}", attacker_float_coords);
 
                 attacker.attacker_pos = Coords {
                     x: attacker_float_coords.0.round() as i32,
@@ -394,10 +408,10 @@ impl State {
                 defender.defender_pos = *next_hop;
                 defender.path_in_current_frame.push(defender.defender_pos);
 
-                println!(
-                    "attacker pos: {:?}; defender_position: {:?}",
-                    attacker.attacker_pos, defender.defender_pos
-                );
+                // println!(
+                //     "attacker pos: {:?}; defender_position: {:?}",
+                //     attacker.attacker_pos, defender.defender_pos
+                // );
 
                 // if defender and attacker are on the same tile, add the defender to the collision_array
                 if (defender.defender_pos == attacker.attacker_pos)
@@ -407,25 +421,25 @@ impl State {
                     defender.damage_dealt = true;
                     break;
                 }
-                println!(
-                    "defender id: {}; path: {}",
-                    defender.id,
-                    defender.path_in_current_frame.len()
-                );
+                // println!(
+                //     "defender id: {}; path: {}",
+                //     defender.id,
+                //     defender.path_in_current_frame.len()
+                // );
             }
             defender.target_id = Some(0.0);
             if !defender.damage_dealt {
                 collision_array.push((defender.id, 2.0));
             }
             attacker.attacker_pos = *attacker_delta.first().unwrap();
-            println!("done checking defender id: {}", defender.id);
+            // println!("done checking defender id: {}", defender.id);
         }
 
         attacker.attacker_pos = *attacker_delta.last().unwrap();
         // sort the collision_array by the time of collision
         collision_array.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
         if !collision_array.is_empty() {
-            println!("collision array {:?}", collision_array);
+            // println!("collision array {:?}", collision_array);
         }
         let mut attacker_death_time = 0.0; // frame fraction at which attacker dies
         for (id, time) in collision_array {
@@ -439,14 +453,14 @@ impl State {
                 break;
             }
 
-            println!("defender id: {}, time: {}", id, time);
-            println!(
-                "defender path length: {}",
-                defender.path_in_current_frame.len()
-            );
+            // println!("defender id: {}, time: {}", id, time);
+            // println!(
+            //     "defender path length: {}",
+            //     defender.path_in_current_frame.len()
+            // );
             if attacker.attacker_health == 0 {
-                println!("attacker died");
-                self.attacker_death_count += 1;
+                // println!("attacker died");
+                // self.attacker_death_count += 1;
                 defender.defender_pos = defender.path_in_current_frame
                     [1 + (attacker_death_time * (defender.speed as f32)) as usize];
                 continue;
@@ -455,7 +469,7 @@ impl State {
                 "defender {} hit attacker when defender was at ---- x:{}, y:{}",
                 defender.id, defender.defender_pos.x, defender.defender_pos.y
             );
-            defenders_triggered.push(DefenderResponse {
+            defenders_damaged.push(DefenderResponse {
                 id: defender.id,
                 position: defender.defender_pos,
                 damage: defender.damage,
@@ -474,16 +488,12 @@ impl State {
 
         DefenderReturnType {
             attacker_health: attacker.attacker_health,
-            defender_response: defenders_triggered,
+            defender_response: defenders_damaged,
             state: self.clone(),
         }
     }
 
     pub fn mine_blast(&mut self, start_pos: Option<Coords>) -> Vec<MineDetails> {
-        // if (frame_no - self.frame_no) != 1 {
-        //     //GAME_OVER
-        //     None
-        // } else {
         let mut damage_to_attacker;
         let attack_current_pos = start_pos.unwrap();
 
@@ -503,25 +513,16 @@ impl State {
         }
 
         triggered_mines
-        // }
     }
 
     pub fn bomb_blast(&mut self, bomb_position: Coords) -> Vec<BuildingResponse> {
-        // if bomb.blast_radius != self.attacker.as_ref().unwrap().bombs[0].blast_radius {
-        //     return Some(self);
-        // }
-        // if bomb.damage != self.attacker.as_ref().unwrap().bombs[0].damage {
-        //     return Some(self);
-        // }
-
         let bomb = &mut self.bombs;
-        // println!("bomb blast damage: {}", bomb.damage);
+        println!("bomb blast damage: {}", bomb.damage);
         let mut buildings_damaged: Vec<BuildingResponse> = Vec::new();
         for building in self.buildings.iter_mut() {
-            if building.current_hp != 0 {
+            if building.current_hp > 0 {
                 let mut artifacts_taken_by_destroying_building: i32 = 0;
 
-                // let damage_buildings = self.calculate_damage_area(building, bomb);
                 let building_matrix: HashSet<Coords> = (building.tile.y
                     ..building.tile.y + building.width)
                     .flat_map(|y| {
@@ -544,13 +545,20 @@ impl State {
                     coinciding_coords_damage as f32 / building_matrix.len() as f32;
 
                 if damage_buildings != 0.0 {
-                    // println!("damage building: {}, bomb damage: {}, total_hp:{}",damage_buildings,bomb.damage,building.total_hp);
+                    println!(
+                        "damage building: {}, bomb damage: {}, total_hp:{}",
+                        damage_buildings, bomb.damage, building.total_hp
+                    );
 
                     let old_hp = building.current_hp;
                     let mut current_damage = (damage_buildings
                         * (bomb.damage as f32 * BOMB_DAMAGE_MULTIPLIER))
                         .round() as i32;
-                    // println!("current damage: {}, current_hp: {}",current_damage,building.current_hp - current_damage);
+                    println!(
+                        "current damage: {}, current_hp: {}",
+                        current_damage,
+                        building.current_hp - current_damage
+                    );
 
                     building.current_hp -= current_damage;
 

@@ -77,6 +77,12 @@ pub struct BuildingDetails {
     pub width: i32,
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+pub struct InValidation {
+    pub message: String,
+    pub is_invalidated: bool,
+}
+
 #[derive(Serialize, Clone, Copy)]
 pub struct SourceDest {
     pub source: Coords,
@@ -101,13 +107,6 @@ pub struct ValidatorResponse {
     pub is_sync: bool,
 }
 
-// pub fn is_road(pos: &Coords) -> bool {
-//     // create user_map_space with id and block_type_id stored with the map_id for base (also redis?)
-//     let block_type_id = user_map_space[pos.x][pos.y].block_type_id;
-//     // have a global block_types (same as BlockType table) (redis)
-//     block_types[block_type_id][BUILDING_TYPE_INDEX] == ROAD_ID
-// }
-
 pub fn send_terminate_game_message(frame_number: i32, message: String) -> SocketResponse {
     let socket_response = SocketResponse {
         frame_number,
@@ -115,7 +114,7 @@ pub fn send_terminate_game_message(frame_number: i32, message: String) -> Socket
         is_alive: None,
         attacker_health: None,
         exploded_mines: None,
-        triggered_defenders: None,
+        defender_damaged: None,
         damaged_buildings: None,
         artifacts_gained_total: None,
         is_sync: false,

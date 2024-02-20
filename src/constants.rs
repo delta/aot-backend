@@ -15,7 +15,9 @@ pub const HIGHEST_TROPHY: f32 = 2_000.0;
 pub const BONUS_SCALE: i32 = 2;
 pub const MAX_BOMBS_PER_ATTACK: i32 = 30;
 pub const ATTACK_TOKEN_AGE_IN_MINUTES: i64 = 5;
-pub const GAME_AGE_IN_MINUTES: usize = 25;
+pub const GAME_AGE_IN_MINUTES: usize = 1;
 pub const MATCH_MAKING_ATTEMPTS: i32 = 10;
 pub const PERCENTANGE_ARTIFACTS_OBTAINABLE: f32 = 0.3;
 pub const BOMB_DAMAGE_MULTIPLIER: f32 = 5.0;
+
+pub const LIVES: i32 = 3;
