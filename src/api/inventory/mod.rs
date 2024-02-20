@@ -5,7 +5,7 @@ use super::{
 use actix_web::{
     error::ErrorBadRequest,
     web::{self, Json},
-    HttpResponse, Responder, Result,
+    Responder, Result,
 };
 use serde::{Deserialize, Serialize};
 pub mod util;
@@ -52,14 +52,22 @@ async fn upgrade(
         return Err(ErrorBadRequest("You are under attack. Cannot upgrade now"));
     }
 
+    let mut map_space_id_if_valid = 0;
+
     match item_type.as_str() {
-        "attacker" => upgrade_attacker(user_id, &mut conn, item_id),
-        "building" => upgrade_building(user_id, &mut conn, item_id),
-        "defender" => upgrade_defender(user_id, &mut conn, item_id),
-        "emp" => upgrade_emp(user_id, &mut conn, item_id),
-        "mine" => upgrade_mine(user_id, &mut conn, item_id),
+        "attacker" => upgrade_attacker(user_id, &mut conn, item_id)
+            .map_err(|err| ErrorBadRequest(err.to_string()))?,
+        "building" => {
+            map_space_id_if_valid = upgrade_building(user_id, &mut conn, item_id)
+                .map_err(|err| ErrorBadRequest(err.to_string()))?;
+        }
+        "defender" => upgrade_defender(user_id, &mut conn, item_id)
+            .map_err(|err| ErrorBadRequest(err.to_string()))?,
+        "emp" => upgrade_emp(user_id, &mut conn, item_id)
+            .map_err(|err| ErrorBadRequest(err.to_string()))?,
+        "mine" => upgrade_mine(user_id, &mut conn, item_id)
+            .map_err(|err| ErrorBadRequest(err.to_string()))?,
         _ => return Err(ErrorBadRequest("Invalid item type")),
     }
-    .map_err(|err| ErrorBadRequest(err.to_string()))?;
-    Ok(HttpResponse::Ok().finish())
+    Ok(Json(map_space_id_if_valid))
 }

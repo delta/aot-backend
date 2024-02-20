@@ -600,7 +600,7 @@ pub(crate) fn upgrade_building(
     player_id: i32,
     conn: &mut PgConnection,
     block_id: i32,
-) -> Result<()> {
+) -> Result<i32> {
     let user_artifacts = get_user_artifacts(player_id, conn)?;
 
     //check if the given block id is a building
@@ -681,7 +681,7 @@ pub(crate) fn upgrade_building(
     if artifacts_in_bank < cost {
         return Err(anyhow::anyhow!("Not enough artifacts in bank"));
     }
-    run_transaction(
+    let _ = run_transaction(
         conn,
         block_id,
         next_level_block_id,
@@ -689,7 +689,10 @@ pub(crate) fn upgrade_building(
         cost,
         user_artifacts,
         bank_map_space_id,
-    )
+    );
+    let building_map_space_id = get_building_map_space_id(conn, &id_of_map, &next_level_block_id)?;
+    println!("building_map_space_id: {:?}", building_map_space_id);
+    Ok(building_map_space_id)
 }
 
 pub(crate) fn upgrade_defender(
@@ -1177,4 +1180,22 @@ pub fn get_bank_map_space_id(
             error: err,
         })?;
     Ok(fetched_bank_map_space_id)
+}
+
+pub fn get_building_map_space_id(
+    conn: &mut PgConnection,
+    filtered_layout_id: &i32,
+    block_id: &i32,
+) -> Result<i32> {
+    let fetched_building_map_space_id = map_spaces::table
+        .filter(map_spaces::map_id.eq(filtered_layout_id))
+        .filter(map_spaces::block_type_id.eq(block_id))
+        .select(map_spaces::id)
+        .first::<i32>(conn)
+        .map_err(|err| DieselError {
+            table: "map_spaces",
+            function: function!(),
+            error: err,
+        })?;
+    Ok(fetched_building_map_space_id)
 }
