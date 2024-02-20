@@ -1,3 +1,4 @@
+use crate::api::attack::socket::{ResultType, SocketResponse};
 // use crate::{constants::ROAD_ID, validator::state::State};
 use crate::validator::state::State;
 use crate::{api::attack::socket::DefenderResponse, simulation::blocks::Coords};
@@ -28,6 +29,7 @@ pub struct Attacker {
     pub path_in_current_frame: Vec<Coords>,
     pub bombs: Vec<Bomb>,
     pub trigger_defender: bool,
+    pub bomb_count: i32,
 }
 
 #[derive(Serialize, Clone, Deserialize)]
@@ -105,3 +107,21 @@ pub struct ValidatorResponse {
 //     // have a global block_types (same as BlockType table) (redis)
 //     block_types[block_type_id][BUILDING_TYPE_INDEX] == ROAD_ID
 // }
+
+pub fn send_terminate_game_message(frame_number: i32, message: String) -> SocketResponse {
+    let socket_response = SocketResponse {
+        frame_number,
+        result_type: ResultType::GameOver,
+        is_alive: None,
+        attacker_health: None,
+        exploded_mines: None,
+        triggered_defenders: None,
+        damaged_buildings: None,
+        artifacts_gained_total: None,
+        is_sync: false,
+        is_game_over: true,
+        message: Some(String::from(message)),
+    };
+
+    socket_response
+}

@@ -229,6 +229,7 @@ impl State {
             path_in_current_frame: attacker.path_in_current_frame.clone(),
             bombs: attacker.bombs.clone(),
             trigger_defender: attacker.trigger_defender,
+            bomb_count: attacker.bomb_count,
         };
         Some(attacker_result)
     }
@@ -245,6 +246,11 @@ impl State {
         if self.bombs.total_count <= 0 {
             //Nothing
             println!("Bomb over");
+        }
+
+        if let Some(attacker) = &mut self.attacker {
+            attacker.bomb_count -= 1;
+            println!("bomb count: {}", attacker.bomb_count);
         }
 
         if !attacker_delta.contains(&bomb_position) {

@@ -73,6 +73,7 @@ pub fn game_handler(
                     attacker_speed: attacker.speed,
                     bombs: Vec::new(),
                     trigger_defender: false,
+                    bomb_count: attacker.amt_of_emps,
                 });
 
                 event_response.attacker_id = Some(attacker_id);
@@ -153,6 +154,7 @@ pub fn game_handler(
                         attacker_speed: attacker.speed,
                         bombs: Vec::new(),
                         trigger_defender: false,
+                        bomb_count: attacker.amt_of_emps,
                     },
                 );
 
@@ -318,6 +320,18 @@ pub fn game_handler(
             // place_bombs
             let attacker_delta: Vec<Coords> = socket_request.attacker_path;
             let bomb_coords = socket_request.bomb_position;
+
+            if let Some(attacker) = &_game_state.attacker {
+                if attacker.bomb_count == 0 {
+                    return Some(Ok(
+                        util::send_terminate_game_message(socket_request.frame_number, "No bombs left".to_string())
+                    ));
+                }
+            } else {
+                return Some(Ok(
+                    util::send_terminate_game_message(socket_request.frame_number, "Bomb placed without placing attacker".to_string())
+                ));
+            }
 
             for coord in attacker_delta.clone() {
                 let mut direction = Direction::Up;
