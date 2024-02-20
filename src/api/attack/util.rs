@@ -1218,11 +1218,14 @@ pub fn terminate_game(
             error: err,
         })?;
 
+    let attack_score = attack_score as f32 / 100_f32;
+    let defence_score = defense_score as f32 / 100_f32;
+
     let new_trophies = new_rating(
         attacker_details.trophies,
         defender_details.trophies,
         attack_score as f32,
-        defense_score as f32,
+        defence_score as f32,
     );
 
     //Add bonus trophies (just call the function)
@@ -1234,12 +1237,12 @@ pub fn terminate_game(
 
     diesel::update(game::table.find(game_id))
         .set((
-            game::damage_done.eq(&damage_done),
+            game::damage_done.eq(damage_done),
             game::is_game_over.eq(true),
             game::emps_used.eq(bombs_used),
-            game::attack_score.eq(&attack_score),
-            game::defend_score.eq(&defense_score),
-            game::artifacts_collected.eq(&artifacts_collected),
+            game::attack_score.eq(attack_score as i32),
+            game::defend_score.eq(defence_score as i32),
+            game::artifacts_collected.eq(artifacts_collected),
         ))
         .execute(conn)
         .map_err(|err| DieselError {

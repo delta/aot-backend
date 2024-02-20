@@ -357,6 +357,8 @@ async fn socket_handler(
 
     actix_rt::spawn(async move {
         let mut game_state = State::new(attacker_id, defender_id, defenders, mines, buildings);
+        game_state.set_total_hp_buildings();
+
         let mut game_logs = &mut game_log.clone();
 
         let mut conn = pool
