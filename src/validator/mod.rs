@@ -34,7 +34,7 @@ pub fn game_handler(
 
     match socket_request.action_type {
         ActionType::PlaceAttacker => {
-            _game_state.update_frame_number(socket_request.frame_number.clone());
+            _game_state.update_frame_number(socket_request.frame_number);
 
             let mut event_response = EventResponse {
                 attacker_id: None,
@@ -105,15 +105,12 @@ pub fn game_handler(
             }));
         }
         ActionType::MoveAttacker => {
-            // move_attacker
-            // State::new()
-
             if let Some(attacker_id) = socket_request.attacker_id {
                 let attacker: AttackerType = attacker_type.get(&attacker_id).unwrap().clone();
                 let attacker_delta: Vec<Coords> = socket_request.attacker_path;
 
                 let attacker_result = _game_state.attacker_movement(
-                    socket_request.frame_number.clone(),
+                    socket_request.frame_number,
                     _roads,
                     Attacker {
                         id: attacker.id,
@@ -135,7 +132,7 @@ pub fn game_handler(
                 for coord in attacker_delta {
                     let mut direction = Direction::Up;
 
-                    let prev_pos = _game_log.events.last().unwrap().coords.clone();
+                    let prev_pos = _game_log.events.last().unwrap().coords;
                     if prev_pos.x < coord.x {
                         direction = Direction::Down;
                     } else if prev_pos.x > coord.x {
@@ -208,7 +205,7 @@ pub fn game_handler(
             exploded_mines_result = _game_state.mine_blast(start_pos);
 
             let mut bool_temp = false;
-            if exploded_mines_result.clone().len() > 0 {
+            if !exploded_mines_result.is_empty() {
                 bool_temp = true;
             }
             let result_type = if bool_temp {
@@ -268,7 +265,7 @@ pub fn game_handler(
             for coord in attacker_delta.clone() {
                 let mut direction = Direction::Up;
 
-                let prev_pos = _game_log.events.last().unwrap().coords.clone();
+                let prev_pos = _game_log.events.last().unwrap().coords;
                 if prev_pos.x < coord.x {
                     direction = Direction::Down;
                 } else if prev_pos.x > coord.x {
@@ -297,7 +294,7 @@ pub fn game_handler(
             _game_log.result.artifacts_collected = _game_state.artifacts;
 
             let mut bool_temp = false;
-            if buildings_damaged_result.clone().len() > 0 {
+            if !buildings_damaged_result.is_empty() {
                 bool_temp = true;
             }
             let result_type = if bool_temp {

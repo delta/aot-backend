@@ -303,7 +303,7 @@ pub struct AttackResponse {
 
 pub fn get_random_opponent_id(
     attacker_id: i32,
-    mut conn: &mut PgConnection,
+    conn: &mut PgConnection,
     mut redis_conn: RedisConn,
 ) -> Result<Option<i32>> {
     let sorted_users: Vec<(i32, i32)> = user::table
@@ -347,25 +347,22 @@ pub fn get_random_opponent_id(
                         Ok(opponent) => opponent,
                         Err(_) => return Err(anyhow::anyhow!("Failed to find an opponent")),
                     };
-            } else {
-                if let Ok(check) = can_attack_happen(&mut conn, random_opponent, false) {
-                    if !check {
-                        random_opponent = match get_random_opponent(
-                            &less_or_equal_trophies,
-                            &more_or_equal_trophies,
-                        ) {
+            } else if let Ok(check) = can_attack_happen(conn, random_opponent, false) {
+                if !check {
+                    random_opponent =
+                        match get_random_opponent(&less_or_equal_trophies, &more_or_equal_trophies)
+                        {
                             Ok(opponent) => opponent,
                             Err(_) => {
                                 return Err(anyhow::anyhow!("Failed to find another opponent"))
                             }
                         };
-                        println!("Random opponent (retry): {}", random_opponent);
-                    } else {
-                        return Ok(Some(random_opponent));
-                    }
+                    println!("Random opponent (retry): {}", random_opponent);
                 } else {
-                    return Err(anyhow::anyhow!("Cannot check if attack can happen now"));
+                    return Ok(Some(random_opponent));
                 }
+            } else {
+                return Err(anyhow::anyhow!("Cannot check if attack can happen now"));
             }
             println!("Random opponent: {}", random_opponent);
 
@@ -382,15 +379,14 @@ pub fn get_random_opponent_id(
 }
 
 pub fn get_random_opponent(
-    less_or_equal_trophies: &Vec<(i32, i32)>,
-    more_or_equal_trophies: &Vec<(i32, i32)>,
+    less_or_equal_trophies: &[(i32, i32)],
+    more_or_equal_trophies: &[(i32, i32)],
 ) -> Result<i32> {
     if let Some(random_opponent) = less_or_equal_trophies
         .iter()
         .chain(more_or_equal_trophies.iter())
         .map(|&(id, _)| id)
         .choose(&mut rand::thread_rng())
-        .map(|id| id)
     {
         Ok(random_opponent)
     } else {
@@ -597,7 +593,7 @@ pub fn get_defenders(
 
     let mut defenders: Vec<DefenderDetails> = Vec::new();
 
-    for (_, (map_space, (_, _, _, defender_type))) in result.iter().enumerate() {
+    for (map_space, (_, _, _, defender_type)) in result.iter() {
         let (hut_x, hut_y) = (map_space.x_coordinate, map_space.y_coordinate);
         // let path: Vec<(i32, i32)> = vec![(hut_x, hut_y)];
         defenders.push(DefenderDetails {
@@ -755,8 +751,8 @@ pub fn terminate_game(
     let new_trophies = new_rating(
         attacker_details.trophies,
         defender_details.trophies,
-        attack_score as f32,
-        defence_score as f32,
+        attack_score,
+        defence_score,
     );
 
     println!("Attack score: 4");
@@ -841,9 +837,7 @@ pub fn terminate_game(
             })?;
     }
 
-    if let Err(_) =
-        delete_game_id_from_redis(game_log.attacker.id, game_log.defender.id, redis_conn)
-    {
+    if delete_game_id_from_redis(game_log.attacker.id, game_log.defender.id, redis_conn).is_err() {
         return Err(anyhow::anyhow!("Can't remove game from redis"));
     }
 

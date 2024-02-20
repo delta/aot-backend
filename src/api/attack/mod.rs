@@ -198,8 +198,8 @@ async fn socket_handler(
         return Err(ErrorBadRequest("Defender has an ongoing game"));
     }
 
-    if let Err(_) =
-        util::check_and_remove_incomplete_game(&attacker_id, &defender_id, &game_id, &mut conn)
+    if util::check_and_remove_incomplete_game(&attacker_id, &defender_id, &game_id, &mut conn)
+        .is_err()
     {
         println!(
             "Failed to remove incomplete games for Attacker:{} and Defender:{}",
@@ -338,7 +338,7 @@ async fn socket_handler(
         let mut game_state = State::new(attacker_id, defender_id, defenders, mines, buildings);
         game_state.set_total_hp_buildings();
 
-        let mut game_logs = &mut game_log.clone();
+        let game_logs = &mut game_log.clone();
 
         let mut conn = pool
             .get()
@@ -372,7 +372,7 @@ async fn socket_handler(
                             shortest_path,
                             roads,
                             bomb_types,
-                            &mut game_logs,
+                            game_logs,
                         );
                         match response_result {
                             Some(Ok(response)) => {
@@ -383,14 +383,16 @@ async fn socket_handler(
                                         if session_clone.text(response_json).await.is_err() {
                                             return;
                                         }
-                                        if let Err(_) = session_clone.clone().close(None).await {
+                                        if (session_clone.clone().close(None).await).is_err() {
                                             println!("Error closing the socket connection");
                                         }
-                                        if let Err(_) = util::terminate_game(
-                                            &mut game_logs,
+                                        if util::terminate_game(
+                                            game_logs,
                                             &mut conn,
                                             &mut redis_conn,
-                                        ) {
+                                        )
+                                        .is_err()
+                                        {
                                             println!("Error terminating the game 1");
                                         }
                                     } else if response.result_type == ResultType::MinesExploded {
@@ -411,10 +413,12 @@ async fn socket_handler(
                                         }
                                     } else if response.result_type == ResultType::BuildingsDamaged {
                                         println!("BuildingsDamaged response sent");
-                                        if let Err(_) = util::deduct_artifacts_from_building(
+                                        if util::deduct_artifacts_from_building(
                                             response.damaged_buildings.unwrap(),
                                             &mut conn,
-                                        ) {
+                                        )
+                                        .is_err()
+                                        {
                                             println!("Failed to deduct artifacts from building");
                                         }
                                         if session_clone.text(response_json).await.is_err() {
@@ -456,8 +460,7 @@ async fn socket_handler(
                 }
                 Message::Close(s) => {
                     println!("Received close: {:?}", s);
-                    if let Err(_) = util::terminate_game(&mut game_logs, &mut conn, &mut redis_conn)
-                    {
+                    if util::terminate_game(game_logs, &mut conn, &mut redis_conn).is_err() {
                         println!("Error terminating the game 2");
                     }
                     break;
@@ -476,7 +479,7 @@ async fn socket_handler(
             actix_rt::time::sleep(time::Duration::from_secs(1)).await;
 
             if time::Instant::now() - last_activity > timeout_duration {
-                if let Err(_) = session.close(None).await {
+                if (session.close(None).await).is_err() {
                     println!("Can't close socket connection");
                 }
 

@@ -90,15 +90,13 @@ pub fn get_oauth_user(pg_conn: &mut PgConnection, email: &str, name: &str) -> Re
         })?
     {
         Ok(user)
+    } else if let Ok(user) =
+        add_user_default_base(pg_conn, name, email).map_err(|err| error::handle_error(err.into()))
+    {
+        Ok(user)
     } else {
-        if let Ok(user) = add_user_default_base(pg_conn, name, email)
-            .map_err(|err| error::handle_error(err.into()))
-        {
-            Ok(user)
-        } else {
-            Err(anyhow::anyhow!(
-                "Can't add user to database! Try again later."
-            ))
-        }
+        Err(anyhow::anyhow!(
+            "Can't add user to database! Try again later."
+        ))
     }
 }

@@ -114,7 +114,7 @@ pub struct ValidatorResponse {
 }
 
 pub fn send_terminate_game_message(frame_number: i32, message: String) -> SocketResponse {
-    let socket_response = SocketResponse {
+    SocketResponse {
         frame_number,
         result_type: ResultType::GameOver,
         is_alive: None,
@@ -125,8 +125,6 @@ pub fn send_terminate_game_message(frame_number: i32, message: String) -> Socket
         artifacts_gained_total: None,
         is_sync: false,
         is_game_over: true,
-        message: Some(String::from(message)),
-    };
-
-    socket_response
+        message: Some(message),
+    }
 }
