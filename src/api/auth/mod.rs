@@ -17,7 +17,8 @@ use self::session::AuthUser;
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
     cfg.service(web::resource("/login").route(web::post().to(login)))
-        .service(web::resource("/logout").route(web::post().to(logout)));
+        .service(web::resource("/logout").route(web::post().to(logout)))
+        .service(web::resource("/isLoggedIn").route(web::get().to(is_logged_in)));
 }
 
 #[derive(Serialize)]
@@ -157,4 +158,8 @@ async fn login(
             email: user.email,
             token: Some(token),
         })))
+}
+
+async fn is_logged_in(_: AuthUser) -> Result<impl Responder> {
+    Ok(HttpResponse::NoContent().finish())
 }

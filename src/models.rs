@@ -1,5 +1,5 @@
 use super::schema::*;
-use chrono::NaiveDateTime;
+use chrono::{NaiveDate, NaiveDateTime};
 use serde::{Deserialize, Serialize};
 
 #[derive(diesel_derive_enum::DbEnum, Debug, Serialize, Clone, PartialEq, Copy)]
@@ -16,6 +16,17 @@ pub enum ItemCategory {
     Attacker,
     Emp,
     Block,
+}
+
+#[derive(Queryable, Serialize, Clone, Debug)]
+pub struct EmpType {
+    pub id: i32,
+    pub att_type: String,
+    pub attack_radius: i32,
+    pub attack_damage: i32,
+    pub cost: i32,
+    pub name: String,
+    pub level: i32,
 }
 
 #[derive(Queryable, Serialize)]
@@ -109,7 +120,7 @@ pub struct NewAvailableBlocks {
     pub category: ItemCategory,
 }
 
-#[derive(Queryable, Serialize, Deserialize)]
+#[derive(Queryable, Serialize, Deserialize, Debug)]
 pub struct Game {
     pub id: i32,
     pub attack_id: i32,
@@ -117,10 +128,11 @@ pub struct Game {
     pub map_layout_id: i32,
     pub attack_score: i32,
     pub defend_score: i32,
-    pub artifacts_collected: i32,
     pub emps_used: i32,
-    pub is_attacker_alive: bool,
     pub damage_done: i32,
+    pub is_game_over: bool,
+    pub artifacts_collected: i32,
+    pub date: NaiveDate,
 }
 
 #[derive(Insertable)]
@@ -134,7 +146,8 @@ pub struct NewGame<'a> {
     pub artifacts_collected: &'a i32,
     pub emps_used: &'a i32,
     pub damage_done: &'a i32,
-    pub is_attacker_alive: &'a bool,
+    pub is_game_over: &'a bool,
+    pub date: &'a NaiveDate,
 }
 
 #[derive(Queryable, Serialize)]
@@ -185,9 +198,10 @@ pub struct MapLayout {
 pub struct NewMapLayout<'a> {
     pub player: &'a i32,
     pub level_id: &'a i32,
+    pub is_valid: &'a bool,
 }
 
-#[derive(Queryable, Debug, Serialize, Deserialize)]
+#[derive(Queryable, Debug, Serialize, Deserialize, Clone)]
 pub struct MapSpaces {
     pub id: i32,
     pub map_id: i32,
@@ -272,7 +286,6 @@ pub struct NewSimulationLog<'a> {
 #[derive(AsChangeset, Debug, Deserialize)]
 #[diesel(table_name = user)]
 pub struct UpdateUser {
-    name: Option<String>,
     pub username: Option<String>,
     pub avatar_id: Option<i32>,
 }
@@ -325,15 +338,4 @@ pub struct AttackerType {
     pub level: i32,
     pub cost: i32,
     pub name: String,
-}
-
-#[derive(Queryable, Clone, Debug, Serialize)]
-pub struct EmpType {
-    pub id: i32,
-    pub att_type: String,
-    pub attack_radius: i32,
-    pub attack_damage: i32,
-    pub cost: i32,
-    pub name: String,
-    pub level: i32,
 }

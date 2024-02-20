@@ -112,8 +112,9 @@ diesel::table! {
         defend_score -> Int4,
         emps_used -> Int4,
         damage_done -> Int4,
-        is_attacker_alive -> Bool,
+        is_game_over -> Bool,
         artifacts_collected -> Int4,
+        date -> Date,
     }
 }
 

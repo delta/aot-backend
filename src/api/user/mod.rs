@@ -11,6 +11,7 @@ pub mod util;
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
     cfg.service(web::resource("/update").route(web::patch().to(update_user)))
+        .service(web::resource("/profile/{player_id}").route(web::get().to(view_user_profile)))
         .service(web::resource("/register").route(web::post().to(register)))
         .service(web::resource("/{id}/stats").route(web::get().to(get_user_stats)));
 }
@@ -20,16 +21,7 @@ pub struct InputUser {
     name: String,
     username: String,
 }
-#[derive(Serialize)]
-struct UserProfileResponse {
-    user_id: i32,
-    name: String,
-    trophies: i32,
-    artifacts: i32,
-    attacks_won: i32,
-    defenses_won: i32,
-    avatar_id: i32,
-}
+
 #[derive(Debug, Serialize)]
 struct ErrorResponse {
     message: String,
@@ -77,13 +69,23 @@ async fn update_user(
 ) -> Result<impl Responder> {
     let user_id = user.0;
     let username = user_details.username.clone();
+    if username.is_some()
+        && (username.as_ref().unwrap().len() < 5 || username.as_ref().unwrap().len() > 30)
+    {
+        return Err(ErrorBadRequest(
+            "Username should contain atleast 5 characters and atmost 30 characters",
+        ));
+    }
     if let Some(username) = username {
         let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
         let duplicate = web::block(move || util::get_duplicate_username(&mut conn, &username))
             .await?
             .map_err(|err| error::handle_error(err.into()))?;
-        if duplicate.is_some() && duplicate.unwrap().id != user_id {
+        if duplicate.is_some() && duplicate.as_ref().unwrap().id != user_id {
             return Err(ErrorConflict("Username already exists"));
+        }
+        if duplicate.is_some() && duplicate.unwrap().id == user_id {
+            return Ok("No change in Username");
         }
     }
     web::block(move || {
@@ -109,6 +111,26 @@ async fn get_user_stats(user_id: Path<i32>, pool: Data<PgPool>) -> Result<impl R
             let defense_game = util::fetch_defense_game(&mut conn, user_id)?;
             let users = util::fetch_all_user(&mut conn)?;
             util::make_response(&user, &attack_game, &defense_game, &users)
+        })
+        .await?
+        .map_err(|err| error::handle_error(err.into()))?;
+        Ok(Json(response))
+    } else {
+        Err(ErrorNotFound("User not found"))
+    }
+}
+
+async fn view_user_profile(player_id: Path<i32>, pool: Data<PgPool>) -> Result<impl Responder> {
+    let user_id = player_id.into_inner();
+    let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
+    let user = web::block(move || util::fetch_user(&mut conn, user_id))
+        .await?
+        .map_err(|err| error::handle_error(err.into()))?;
+    if let Some(user) = user {
+        let response = web::block(move || {
+            let mut conn = pool.get()?;
+            let users = util::fetch_all_user(&mut conn)?;
+            util::make_profile_response(&user, &users)
         })
         .await?
         .map_err(|err| error::handle_error(err.into()))?;
