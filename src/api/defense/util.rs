@@ -735,6 +735,7 @@ pub fn fetch_defense_historyboard(
                 trophies_taken: game.defend_score,
                 match_id: game.id,
                 replay_availability: is_replay_available,
+                avatar_id: user.avatar_id,
             })
         })
         .collect();

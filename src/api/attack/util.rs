@@ -212,6 +212,7 @@ pub fn fetch_attack_history(
                 trophies_taken: game.attack_score,
                 match_id: game.id,
                 replay_availability: is_replay_available,
+                avatar_id: user.avatar_id,
             })
         })
         .collect();

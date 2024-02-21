@@ -19,6 +19,7 @@ use actix_web::web::{Data, Json};
 use actix_web::{web, Error, HttpRequest, HttpResponse, Responder, Result};
 use std::collections::{HashMap, HashSet};
 use std::time;
+use log;
 
 use crate::validator::game_handler;
 use actix_ws::Message;
@@ -55,7 +56,7 @@ async fn init_attack(
 
     //Check if attacker is already in a game
     if let Ok(Some(_)) = util::get_game_id_from_redis(attacker_id, &mut redis_conn, true) {
-        println!("Attacker:{} has an ongoing game", attacker_id);
+        log::info!("Attacker:{} has an ongoing game", attacker_id);
         return Err(ErrorBadRequest("Attacker has an ongoing game"));
     }
 
@@ -64,7 +65,6 @@ async fn init_attack(
         .get()
         .map_err(|err| error::handle_error(err.into()))?;
 
-    //Generate random opponent id
     let random_opponent_id = web::block(move || {
         Ok(util::get_random_opponent_id(
             attacker_id,
