@@ -150,6 +150,7 @@ async fn init_attack(
         game_id,
     };
 
+    println!("Sent game id {} to frontend", game_id);
     Ok(Json(response))
 }
 
@@ -170,6 +171,8 @@ async fn socket_handler(
     let attack_token_data =
         util::decode_attack_token(attack_token).map_err(|err| error::handle_error(err.into()))?;
     let game_id = attack_token_data.game_id;
+
+    println!("Received game id {} from frontend", game_id);
 
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
 
@@ -198,6 +201,7 @@ async fn socket_handler(
         return Err(ErrorBadRequest("Defender has an ongoing game"));
     }
 
+    println!("Checking if there are incomplte games");
     if util::check_and_remove_incomplete_game(&attacker_id, &defender_id, &game_id, &mut conn)
         .is_err()
     {
@@ -233,7 +237,7 @@ async fn socket_handler(
     .map_err(|err| error::handle_error(err.into()))?;
 
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
-    let defenders = web::block(move || {
+    let defenders: Vec<DefenderDetails> = web::block(move || {
         Ok(util::get_defenders(&mut conn, map_id, defender_id)?)
             as anyhow::Result<Vec<DefenderDetails>>
     })
@@ -315,6 +319,8 @@ async fn socket_handler(
         println!("Cannot add game:{} to redis", game_id);
         return Err(ErrorBadRequest("Internal Server Error"));
     }
+
+    println!("Added game:{} to redis", game_id);
 
     let game_log = GameLog {
         g: game_id,

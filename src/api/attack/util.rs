@@ -171,6 +171,7 @@ pub fn add_game(
             error: err,
         })?;
 
+    println!("Successfully inserted game to table: {}", inserted_game.id);
     Ok(inserted_game.id)
 }
 
@@ -766,6 +767,7 @@ pub fn terminate_game(
 
     println!("Attack score: 5");
 
+    println!("Going to update game table {}", game_id);
     diesel::update(game::table.find(game_id))
         .set((
             game::damage_done.eq(damage_done),
@@ -781,6 +783,8 @@ pub fn terminate_game(
             function: function!(),
             error: err,
         })?;
+
+    println!("Done update game table {}", game_id);
     println!("Attack score: 6");
 
     diesel::update(user::table.find(&game_log.a.id))
@@ -827,6 +831,7 @@ pub fn terminate_game(
             log_text: &sim_log,
         };
 
+        println!("Inserting into similation log, game id: {}", game_id);
         diesel::insert_into(simulation_log::table)
             .values(new_simulation_log)
             .on_conflict_do_nothing()
@@ -836,6 +841,7 @@ pub fn terminate_game(
                 function: function!(),
                 error: err,
             })?;
+        println!("Done Inserting into similation log, game id: {}", game_id);
     }
 
     if delete_game_id_from_redis(game_log.a.id, game_log.d.id, redis_conn).is_err() {
@@ -877,6 +883,7 @@ pub fn check_and_remove_incomplete_game(
     let len = pending_games.len();
 
     for pending_game in pending_games {
+        println!("removing game id {}", pending_game.id);
         diesel::delete(game.filter(id.eq(pending_game.id)))
             .execute(conn)
             .map_err(|err| DieselError {
