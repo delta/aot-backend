@@ -16,8 +16,7 @@ use crate::constants::*;
 use crate::error::DieselError;
 use crate::models::{
     Artifact, AttackerType, AvailableBlocks, BlockCategory, BlockType, BuildingType, DefenderType,
-    EmpType, Game, LevelsFixture, MapLayout, MapSpaces, MineType, NewAttackerPath, NewGame,
-    NewSimulationLog, User,
+    EmpType, Game, LevelsFixture, MapLayout, MapSpaces, MineType, NewAttackerPath, NewGame, User,
 };
 use crate::schema::user;
 use crate::util::function;
@@ -708,7 +707,7 @@ pub fn terminate_game(
     conn: &mut PgConnection,
     redis_conn: &mut RedisConn,
 ) -> Result<()> {
-    use crate::schema::{artifact, game, simulation_log};
+    use crate::schema::{artifact, game};
     let attacker_id = game_log.a.id;
     let defender_id = game_log.d.id;
     let damage_done = game_log.r.d;
@@ -835,24 +834,24 @@ pub fn terminate_game(
             error: err,
         })?;
 
-    if let Ok(sim_log) = serde_json::to_string(&game_log) {
-        let new_simulation_log = NewSimulationLog {
-            game_id: &game_id,
-            log_text: &sim_log,
-        };
+    // if let Ok(sim_log) = serde_json::to_string(&game_log) {
+    //     let new_simulation_log = NewSimulationLog {
+    //         game_id: &game_id,
+    //         log_text: &sim_log,
+    //     };
 
-        println!("Inserting into similation log, game id: {}", game_id);
-        diesel::insert_into(simulation_log::table)
-            .values(new_simulation_log)
-            .on_conflict_do_nothing()
-            .execute(conn)
-            .map_err(|err| DieselError {
-                table: "simulation_log",
-                function: function!(),
-                error: err,
-            })?;
-        println!("Done Inserting into similation log, game id: {}", game_id);
-    }
+    //     println!("Inserting into similation log, game id: {}", game_id);
+    //     diesel::insert_into(simulation_log::table)
+    //         .values(new_simulation_log)
+    //         .on_conflict_do_nothing()
+    //         .execute(conn)
+    //         .map_err(|err| DieselError {
+    //             table: "simulation_log",
+    //             function: function!(),
+    //             error: err,
+    //         })?;
+    //     println!("Done Inserting into similation log, game id: {}", game_id);
+    // }
 
     if delete_game_id_from_redis(game_log.a.id, game_log.d.id, redis_conn).is_err() {
         return Err(anyhow::anyhow!("Can't remove game from redis"));
