@@ -184,7 +184,8 @@ pub fn fetch_attack_history(
     use crate::schema::{game, levels_fixture, map_layout};
     let joined_table = game::table
         .filter(game::attack_id.eq(user_id))
-        .inner_join(map_layout::table.inner_join(levels_fixture::table));
+        .inner_join(map_layout::table.inner_join(levels_fixture::table))
+        .inner_join(user::table.on(game::defend_id.eq(user::id)));
 
     let total_entries: i64 = joined_table
         .count()
@@ -200,12 +201,12 @@ pub fn fetch_attack_history(
     let games_result: Result<Vec<HistoryboardEntry>> = joined_table
         .offset(off_set)
         .limit(limit)
-        .load::<(Game, (MapLayout, LevelsFixture))>(conn)?
+        .load::<(Game, (MapLayout, LevelsFixture), User)>(conn)?
         .into_iter()
-        .map(|(game, (_, levels_fixture))| {
+        .map(|(game, (_, levels_fixture), user)| {
             let is_replay_available = api::util::can_show_replay(user_id, &game, &levels_fixture);
             Ok(HistoryboardEntry {
-                opponent_user_id: game.defend_id,
+                opponent_user_name: user.username.to_string(),
                 is_attack: true,
                 damage_percent: game.damage_done,
                 artifacts_taken: game.artifacts_collected,
@@ -773,8 +774,8 @@ pub fn terminate_game(
             game::damage_done.eq(damage_done),
             game::is_game_over.eq(true),
             game::emps_used.eq(bombs_used),
-            game::attack_score.eq(attack_score as i32),
-            game::defend_score.eq(defence_score as i32),
+            game::attack_score.eq(new_trophies.0 - attacker_details.trophies),
+            game::defend_score.eq(new_trophies.1 - defender_details.trophies),
             game::artifacts_collected.eq(artifacts_collected),
         ))
         .execute(conn)

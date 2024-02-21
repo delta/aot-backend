@@ -697,11 +697,12 @@ pub fn fetch_defense_historyboard(
     limit: i64,
     conn: &mut PgConnection,
 ) -> Result<HistoryboardResponse> {
-    use crate::schema::{game, levels_fixture, map_layout};
+    use crate::schema::{game, levels_fixture, map_layout, user};
 
     let joined_table = game::table
         .filter(game::defend_id.eq(user_id))
-        .inner_join(map_layout::table.inner_join(levels_fixture::table));
+        .inner_join(map_layout::table.inner_join(levels_fixture::table))
+        .inner_join(user::table.on(game::attack_id.eq(user::id)));
 
     let total_entries: i64 = joined_table
         .count()
@@ -717,17 +718,17 @@ pub fn fetch_defense_historyboard(
     let games_result: Result<Vec<HistoryboardEntry>> = joined_table
         .offset(off_set)
         .limit(limit)
-        .load::<(Game, (MapLayout, LevelsFixture))>(conn)
+        .load::<(Game, (MapLayout, LevelsFixture), User)>(conn)
         .map_err(|err| DieselError {
             table: "game",
             function: function!(),
             error: err,
         })?
         .into_iter()
-        .map(|(game, (_, levels_fixture))| {
+        .map(|(game, (_, levels_fixture), user)| {
             let is_replay_available = api::util::can_show_replay(user_id, &game, &levels_fixture);
             Ok(HistoryboardEntry {
-                opponent_user_id: game.attack_id,
+                opponent_user_name: user.username.to_string(),
                 is_attack: false,
                 damage_percent: game.damage_done,
                 artifacts_taken: -game.artifacts_collected,

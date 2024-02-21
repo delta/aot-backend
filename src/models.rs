@@ -141,8 +141,8 @@ pub struct NewGame<'a> {
     pub attack_id: &'a i32,
     pub defend_id: &'a i32,
     pub map_layout_id: &'a i32,
-    pub attack_score: &'a i32,
-    pub defend_score: &'a i32,
+    pub attack_score: &'a i32, //attacker's trophy change
+    pub defend_score: &'a i32, //defender's trophy change
     pub artifacts_collected: &'a i32,
     pub emps_used: &'a i32,
     pub damage_done: &'a i32,

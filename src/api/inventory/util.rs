@@ -1,7 +1,8 @@
 use crate::constants::BANK_BUILDING_NAME;
 use crate::error::DieselError;
 use crate::models::{
-    AttackerType, BlockCategory, BuildingType, DefenderType, EmpType, ItemCategory, MineType,
+    AttackerType, BlockCategory, BlockType, BuildingType, DefenderType, EmpType, ItemCategory,
+    MineType,
 };
 use crate::schema::{
     artifact, attacker_type, available_blocks, block_type, building_type, defender_type, emp_type,
@@ -205,25 +206,37 @@ fn get_building_types(
                 }
             } else {
                 let next_level = building_type.level + 1;
-                let next_level_stats = building_type::table
+
+                let next_level_stats: (BuildingType, BlockType) = building_type::table
+                    .inner_join(block_type::table)
                     .filter(building_type::name.eq(&building_type.name))
                     .filter(building_type::level.eq(next_level))
-                    .first::<BuildingType>(conn)
+                    .first::<(BuildingType, BlockType)>(conn)
                     .map_err(|err| DieselError {
                         table: "building_type",
                         function: function!(),
                         error: err,
                     })
-                    .unwrap_or(BuildingType {
-                        id: 0,
-                        name: "".to_string(),
-                        width: 0,
-                        height: 0,
-                        capacity: 0,
-                        level: 0,
-                        cost: 0,
-                        hp: 0,
-                    });
+                    .unwrap_or((
+                        BuildingType {
+                            id: 0,
+                            name: "".to_string(),
+                            width: 0,
+                            height: 0,
+                            capacity: 0,
+                            level: 0,
+                            cost: 0,
+                            hp: 0,
+                        },
+                        BlockType {
+                            id: 0,
+                            defender_type: None,
+                            mine_type: None,
+                            category: BlockCategory::Building,
+                            building_type: 0,
+                        },
+                    ));
+
                 BuildingTypeResponse {
                     id: building_type.id,
                     block_id,
@@ -235,15 +248,15 @@ fn get_building_types(
                     cost: building_type.cost,
                     hp: building_type.hp,
                     next_level_stats: Some(NextLevelBuildingTypeResponse {
-                        id: next_level_stats.id,
-                        block_id,
-                        name: next_level_stats.name,
-                        width: next_level_stats.width,
-                        height: next_level_stats.height,
-                        capacity: next_level_stats.capacity,
-                        level: next_level_stats.level,
-                        cost: next_level_stats.cost,
-                        hp: next_level_stats.hp,
+                        id: next_level_stats.0.id,
+                        block_id: next_level_stats.1.id,
+                        name: next_level_stats.0.name,
+                        width: next_level_stats.0.width,
+                        height: next_level_stats.0.height,
+                        capacity: next_level_stats.0.capacity,
+                        level: next_level_stats.0.level,
+                        cost: next_level_stats.0.cost,
+                        hp: next_level_stats.0.hp,
                     }),
                 }
             }
@@ -384,24 +397,36 @@ fn get_defender_types(
                 }
             } else {
                 let next_level = defender_type.level + 1;
-                let next_level_stats = defender_type::table
+
+                let next_level_stats: (DefenderType, BlockType) = defender_type::table
+                    .inner_join(block_type::table)
                     .filter(defender_type::name.eq(&defender_type.name))
                     .filter(defender_type::level.eq(next_level))
-                    .first::<DefenderType>(conn)
+                    .first::<(DefenderType, BlockType)>(conn)
                     .map_err(|err| DieselError {
-                        table: "defender_type",
+                        table: "building_type",
                         function: function!(),
                         error: err,
                     })
-                    .unwrap_or(DefenderType {
-                        id: 0,
-                        speed: 0,
-                        damage: 0,
-                        radius: 0,
-                        level: 0,
-                        cost: 0,
-                        name: "".to_string(),
-                    });
+                    .unwrap_or((
+                        DefenderType {
+                            id: 0,
+                            speed: 0,
+                            damage: 0,
+                            radius: 0,
+                            level: 0,
+                            cost: 0,
+                            name: "".to_string(),
+                        },
+                        BlockType {
+                            id: 0,
+                            defender_type: Some(0),
+                            mine_type: None,
+                            category: BlockCategory::Defender,
+                            building_type: 0,
+                        },
+                    ));
+
                 DefenderTypeResponse {
                     id: defender_type.id,
                     block_id,
@@ -412,14 +437,14 @@ fn get_defender_types(
                     cost: defender_type.cost,
                     name: defender_type.name,
                     next_level_stats: Some(NextLevelDefenderTypeResponse {
-                        id: next_level_stats.id,
-                        block_id,
-                        speed: next_level_stats.speed,
-                        damage: next_level_stats.damage,
-                        radius: next_level_stats.radius,
-                        level: next_level_stats.level,
-                        cost: next_level_stats.cost,
-                        name: next_level_stats.name,
+                        id: next_level_stats.0.id,
+                        block_id: next_level_stats.1.id,
+                        speed: next_level_stats.0.speed,
+                        damage: next_level_stats.0.damage,
+                        radius: next_level_stats.0.radius,
+                        level: next_level_stats.0.level,
+                        cost: next_level_stats.0.cost,
+                        name: next_level_stats.0.name,
                     }),
                 }
             }
@@ -471,23 +496,35 @@ fn get_mine_types(player_id: i32, conn: &mut PgConnection) -> Result<Vec<MineTyp
                 }
             } else {
                 let next_level = mine_type.level + 1;
-                let next_level_stats = mine_type::table
+
+                let next_level_stats: (MineType, BlockType) = mine_type::table
+                    .inner_join(block_type::table)
                     .filter(mine_type::name.eq(&mine_type.name))
                     .filter(mine_type::level.eq(next_level))
-                    .first::<MineType>(conn)
+                    .first::<(MineType, BlockType)>(conn)
                     .map_err(|err| DieselError {
-                        table: "mine_type",
+                        table: "building_type",
                         function: function!(),
                         error: err,
                     })
-                    .unwrap_or(MineType {
-                        id: 0,
-                        radius: 0,
-                        damage: 0,
-                        level: 0,
-                        cost: 0,
-                        name: "".to_string(),
-                    });
+                    .unwrap_or((
+                        MineType {
+                            id: 0,
+                            radius: 0,
+                            damage: 0,
+                            level: 0,
+                            cost: 0,
+                            name: "".to_string(),
+                        },
+                        BlockType {
+                            id: 0,
+                            defender_type: None,
+                            mine_type: Some(0),
+                            category: BlockCategory::Mine,
+                            building_type: 0,
+                        },
+                    ));
+
                 MineTypeResponse {
                     id: mine_type.id,
                     block_id,
@@ -497,13 +534,13 @@ fn get_mine_types(player_id: i32, conn: &mut PgConnection) -> Result<Vec<MineTyp
                     cost: mine_type.cost,
                     name: mine_type.name,
                     next_level_stats: Some(NextLevelMineTypeResponse {
-                        id: next_level_stats.id,
-                        block_id,
-                        radius: next_level_stats.radius,
-                        damage: next_level_stats.damage,
-                        level: next_level_stats.level,
-                        cost: next_level_stats.cost,
-                        name: next_level_stats.name,
+                        id: next_level_stats.0.id,
+                        block_id: next_level_stats.1.id,
+                        radius: next_level_stats.0.radius,
+                        damage: next_level_stats.0.damage,
+                        level: next_level_stats.0.level,
+                        cost: next_level_stats.0.cost,
+                        name: next_level_stats.0.name,
                     }),
                 }
             }

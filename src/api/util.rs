@@ -23,7 +23,7 @@ pub struct HistoryboardResponse {
 
 #[derive(Deserialize, Serialize)]
 pub struct HistoryboardEntry {
-    pub opponent_user_id: i32,
+    pub opponent_user_name: String,
     pub is_attack: bool,
     pub damage_percent: i32,
     pub artifacts_taken: i32,

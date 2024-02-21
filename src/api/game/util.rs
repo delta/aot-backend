@@ -59,7 +59,7 @@ pub fn get_leaderboard(
     let leaderboard_entries = user::table
         .select((
             user::id,
-            user::name,
+            user::username,
             user::trophies,
             user::artifacts,
             user::attacks_won,
