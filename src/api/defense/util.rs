@@ -957,7 +957,7 @@ pub fn add_user_default_base(
             attacks_won: &0,
             defenses_won: &0,
             trophies: &INITIAL_RATING,
-            avatar_id: &0,
+            avatar_id: &rand::thread_rng().gen_range(0..=7),
             artifacts: &INITIAL_ARTIFACTS,
         };
 

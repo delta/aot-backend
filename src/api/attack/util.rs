@@ -309,6 +309,7 @@ pub fn get_random_opponent_id(
     mut redis_conn: RedisConn,
 ) -> Result<Option<i32>> {
     let sorted_users: Vec<(i32, i32)> = user::table
+        .filter(user::is_pragyan.eq(false))
         .order_by(user::trophies.asc())
         .select((user::id, user::trophies))
         .load::<(i32, i32)>(conn)?;
@@ -788,10 +789,17 @@ pub fn terminate_game(
     println!("Done update game table {}", game_id);
     println!("Attack score: 6");
 
+    let (attacker_wins, defender_wins) = if damage_done < WIN_THRESHOLD {
+        (0, 1)
+    } else {
+        (1, 0)
+    };
+
     diesel::update(user::table.find(&game_log.a.id))
         .set((
             user::artifacts.eq(user::artifacts + artifacts_collected),
             user::trophies.eq(user::trophies + new_trophies.0 - attacker_details.trophies),
+            user::attacks_won.eq(user::attacks_won + attacker_wins),
         ))
         .execute(conn)
         .map_err(|err| DieselError {
@@ -804,6 +812,7 @@ pub fn terminate_game(
         .set((
             user::artifacts.eq(user::artifacts - artifacts_collected),
             user::trophies.eq(user::trophies + new_trophies.1 - defender_details.trophies),
+            user::defenses_won.eq(user::defenses_won + defender_wins),
         ))
         .execute(conn)
         .map_err(|err| DieselError {
