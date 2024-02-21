@@ -39,21 +39,21 @@ COPY public.map_layout FROM stdin;
 
 COPY public.building_type FROM stdin;
 0	Road	1	1	0	0	0	0
-1	Bank	3	3	2147483647	1	0	120
-2	Building_2	4	4	120	1	0	140
-3	Building_3	5	5	140	1	0	160
-4	Building_4	3	3	90	1	0	110
-5	Building_5	4	4	110	1	0	130
-6	Building_6	5	5	130	1	0	150
-7	Building_7	3	3	80	1	0	100
-8	Building_8	4	4	100	1	0	120
-9	Building_9	5	5	120	1	0	140
-10	Building_10	3	3	70	1	0	90
-11	Building_11	4	4	90	1	0	110
-12	Building_12	5	5	110	1	0	130
-13	Building_13	3	3	60	1	0	80
-14	Building_14	4	4	80	1	0	100
-15	Building_15	5	5	100	1	0	120
+1	Bank	3	3	2147483647	1	10	120
+2	Building_2	4	4	120	1	10	140
+3	Building_3	5	5	140	1	10	160
+4	Building_4	3	3	90	1	10	110
+5	Building_5	4	4	110	1	10	130
+6	Building_6	5	5	130	1	10	150
+7	Building_7	3	3	80	1	10	100
+8	Building_8	4	4	100	1	10	120
+9	Building_9	5	5	120	1	10	140
+10	Building_10	3	3	70	1	10	90
+11	Building_11	4	4	90	1	10	110
+12	Building_12	5	5	110	1	10	130
+13	Building_13	3	3	60	1	10	80
+14	Building_14	4	4	80	1	10	100
+15	Building_15	5	5	100	1	10	120
 16	Bank	3	3	2147483647	2	50	140
 17	Building_2	4	4	130	2	75	160
 18	Building_3	5	5	150	2	100	180
@@ -459,21 +459,21 @@ COPY public.level_constraints FROM stdin;
 1	2	46
 1	2	47
 1	2	48
-1	1	49
-1	1	50
-1	1	51
-1	1	52
-1	1	53
-1	1	54
+1	2	49
+1	2	50
+1	2	51
+1	2	52
+1	2	53
+1	2	54
 1	2	55
 1	2	56
 1	2	57
-1	1	58
-1	1	59
-1	1	60
-1	1	61
-1	1	62
-1	1	63
+1	2	58
+1	2	59
+1	2	60
+1	2	61
+1	2	62
+1	2	63
 \.
 
 SELECT pg_catalog.setval('public.user_id_seq', 2, false);

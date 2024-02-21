@@ -806,7 +806,7 @@ pub fn fetch_mine_types(conn: &mut PgConnection, user_id: &i32) -> Result<Vec<Mi
                 block_id: block_type.id,
                 cost: mine_type.cost,
                 level: mine_type.level,
-                name: "random name".to_string(),
+                name: mine_type.name,
             })
         })
         .collect();
@@ -837,7 +837,7 @@ pub fn fetch_defender_types(
                 speed: defender_type.speed,
                 damage: defender_type.damage,
                 block_id: block_type.id,
-                name: "random name".to_string(),
+                name: defender_type.name,
                 level: defender_type.level,
                 cost: defender_type.cost,
             })
