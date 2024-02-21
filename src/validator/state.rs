@@ -66,6 +66,15 @@ impl State {
         }
     }
 
+    pub fn self_destruct(&mut self) {
+        self.attacker_death_count += 1;
+        self.attacker.as_mut().unwrap().attacker_health = 0;
+        for defender in self.defenders.iter_mut() {
+            defender.target_id = None;
+        }
+        println!("attacker died due to self destruct");
+    }
+
     pub fn set_total_hp_buildings(&mut self) {
         let mut total_hp = 0;
         for building in self.buildings.iter() {

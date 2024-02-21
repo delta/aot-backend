@@ -122,7 +122,7 @@ pub fn send_terminate_game_message(frame_number: i32, message: String) -> Socket
         exploded_mines: None,
         defender_damaged: None,
         damaged_buildings: None,
-        artifacts_gained_total: None,
+        total_damage_percentage: None,
         is_sync: false,
         is_game_over: true,
         message: Some(message),
