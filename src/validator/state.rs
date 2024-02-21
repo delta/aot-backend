@@ -66,6 +66,15 @@ impl State {
         }
     }
 
+    pub fn self_destruct(&mut self) {
+        self.attacker_death_count += 1;
+        self.attacker.as_mut().unwrap().attacker_health = 0;
+        for defender in self.defenders.iter_mut() {
+            defender.target_id = None;
+        }
+        println!("attacker died due to self destruct");
+    }
+
     pub fn set_total_hp_buildings(&mut self) {
         let mut total_hp = 0;
         for building in self.buildings.iter() {
@@ -82,9 +91,12 @@ impl State {
             total_count: bombs,
         };
     }
-
     pub fn place_attacker(&mut self, attacker: Attacker) {
         self.attacker = Some(attacker);
+        // println!("defnders: {:?}",self.defenders);
+        for defender in self.defenders.iter_mut() {
+            println!("defender: {:?}", defender.id);
+        }
     }
 
     pub fn mine_blast_update(&mut self, _id: i32, damage_to_attacker: i32) {
@@ -187,10 +199,10 @@ impl State {
                         + (defender.defender_pos.y - new_pos.y).abs())
                         <= defender.radius)
                 {
-                    println!(
-                        "defender triggered when attacker was at ---- x:{}, y:{} and defender id: {}",
-                        new_pos.x, new_pos.y, defender.id
-                    );
+                    // println!(
+                    //     "defender triggered when attacker was at ---- x:{}, y:{} and defender id: {}",
+                    //     new_pos.x, new_pos.y, defender.id
+                    // );
                     defender.target_id = Some((i) as f32 / attacker.attacker_speed as f32);
                     attacker.trigger_defender = true;
                 }
@@ -253,6 +265,7 @@ impl State {
         attacker_delta: Vec<Coords>,
         shortest_path: &HashMap<SourceDestXY, Coords>,
     ) -> DefenderReturnType {
+        println!("attacker delta: {:?}", attacker_delta);
         let attacker = self.attacker.as_mut().unwrap();
         let mut defenders_damaged: Vec<DefenderResponse> = Vec::new();
 
@@ -265,9 +278,9 @@ impl State {
             };
         }
 
-        let mut collision_array: Vec<(i32, f32)> = Vec::new();
+        let mut collision_array: Vec<(usize, f32)> = Vec::new();
 
-        for defender in self.defenders.iter_mut() {
+        for (index, defender) in self.defenders.iter_mut().enumerate() {
             if !defender.is_alive || defender.target_id.is_none() {
                 continue;
             }
@@ -337,18 +350,23 @@ impl State {
                 defender.defender_pos = *next_hop;
                 defender.path_in_current_frame.push(defender.defender_pos);
 
+                println!(
+                    "{i}; attacker pos: {:?}, defender pos: {:?}",
+                    attacker.attacker_pos, defender.defender_pos
+                );
+
                 // if defender and attacker are on the same tile, add the defender to the collision_array
                 if (defender.defender_pos == attacker.attacker_pos)
                     || (defender.path_in_current_frame[(i - 1) as usize] == attacker.attacker_pos)
                 {
-                    collision_array.push((defender.id, (i as f32) / (defender.speed as f32)));
+                    collision_array.push((index, (i as f32) / (defender.speed as f32)));
                     defender.damage_dealt = true;
                     break;
                 }
             }
             defender.target_id = Some(0.0);
             if !defender.damage_dealt {
-                collision_array.push((defender.id, 2.0));
+                collision_array.push((index, 2.0));
             }
             attacker.attacker_pos = *attacker_delta.first().unwrap();
         }
@@ -357,30 +375,27 @@ impl State {
         // sort the collision_array by the time of collision
         collision_array.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
         let mut attacker_death_time = 0.0; // frame fraction at which attacker dies
-        for (id, time) in collision_array {
-            let defender = self
-                .defenders
-                .iter_mut()
-                .find(|defender| defender.id == id)
-                .unwrap();
-            defender.target_id = None;
+        for (index, time) in collision_array {
+            self.defenders[index].target_id = None;
             if time > 1.0 {
                 break;
             }
+            println!("defender id: {} collided at time: {}", index, time);
             if attacker.attacker_health == 0 {
-                defender.defender_pos = defender.path_in_current_frame
-                    [1 + (attacker_death_time * (defender.speed as f32)) as usize];
+                self.defenders[index].defender_pos = self.defenders[index].path_in_current_frame
+                    [1 + (attacker_death_time * (self.defenders[index].speed as f32)) as usize];
                 continue;
             }
             defenders_damaged.push(DefenderResponse {
-                id: defender.id,
-                position: defender.defender_pos,
-                damage: defender.damage,
+                id: self.defenders[index].id,
+                position: self.defenders[index].defender_pos,
+                damage: self.defenders[index].damage,
             });
-            defender.damage_dealt = true;
+            self.defenders[index].damage_dealt = true;
             attacker.trigger_defender = true;
-            attacker.attacker_health = max(0, attacker.attacker_health - defender.damage);
-            defender.is_alive = false;
+            attacker.attacker_health =
+                max(0, attacker.attacker_health - self.defenders[index].damage);
+            self.defenders[index].is_alive = false;
 
             if attacker.attacker_health == 0 {
                 attacker_death_time = time;

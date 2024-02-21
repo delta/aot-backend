@@ -57,9 +57,10 @@ pub fn get_leaderboard(
     let last_page: i64 = (total_entries as f64 / limit as f64).ceil() as i64;
 
     let leaderboard_entries = user::table
+        .filter(user::is_pragyan.eq(false))
         .select((
             user::id,
-            user::name,
+            user::username,
             user::trophies,
             user::artifacts,
             user::attacks_won,
@@ -131,6 +132,9 @@ pub fn fetch_replay(game_id: i32, conn: &mut PgConnection) -> Result<SimulationL
 
 pub fn fetch_game_details(game_id: i32, user_id: i32, conn: &mut PgConnection) -> Result<Game> {
     use crate::schema::game;
+
+    println!("Fetching game details for game_id: {}", game_id);
+
     Ok(game::table
         .filter(game::id.eq(game_id))
         .filter(game::attack_id.eq(user_id).or(game::defend_id.eq(user_id)))

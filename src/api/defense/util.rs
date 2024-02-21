@@ -697,11 +697,12 @@ pub fn fetch_defense_historyboard(
     limit: i64,
     conn: &mut PgConnection,
 ) -> Result<HistoryboardResponse> {
-    use crate::schema::{game, levels_fixture, map_layout};
+    use crate::schema::{game, levels_fixture, map_layout, user};
 
     let joined_table = game::table
         .filter(game::defend_id.eq(user_id))
-        .inner_join(map_layout::table.inner_join(levels_fixture::table));
+        .inner_join(map_layout::table.inner_join(levels_fixture::table))
+        .inner_join(user::table.on(game::attack_id.eq(user::id)));
 
     let total_entries: i64 = joined_table
         .count()
@@ -717,23 +718,24 @@ pub fn fetch_defense_historyboard(
     let games_result: Result<Vec<HistoryboardEntry>> = joined_table
         .offset(off_set)
         .limit(limit)
-        .load::<(Game, (MapLayout, LevelsFixture))>(conn)
+        .load::<(Game, (MapLayout, LevelsFixture), User)>(conn)
         .map_err(|err| DieselError {
             table: "game",
             function: function!(),
             error: err,
         })?
         .into_iter()
-        .map(|(game, (_, levels_fixture))| {
+        .map(|(game, (_, levels_fixture), user)| {
             let is_replay_available = api::util::can_show_replay(user_id, &game, &levels_fixture);
             Ok(HistoryboardEntry {
-                opponent_user_id: game.attack_id,
+                opponent_user_name: user.username.to_string(),
                 is_attack: false,
                 damage_percent: game.damage_done,
                 artifacts_taken: -game.artifacts_collected,
                 trophies_taken: game.defend_score,
                 match_id: game.id,
                 replay_availability: is_replay_available,
+                avatar_id: user.avatar_id,
             })
         })
         .collect();
@@ -806,7 +808,7 @@ pub fn fetch_mine_types(conn: &mut PgConnection, user_id: &i32) -> Result<Vec<Mi
                 block_id: block_type.id,
                 cost: mine_type.cost,
                 level: mine_type.level,
-                name: "random name".to_string(),
+                name: mine_type.name,
             })
         })
         .collect();
@@ -837,7 +839,7 @@ pub fn fetch_defender_types(
                 speed: defender_type.speed,
                 damage: defender_type.damage,
                 block_id: block_type.id,
-                name: "random name".to_string(),
+                name: defender_type.name,
                 level: defender_type.level,
                 cost: defender_type.cost,
             })
@@ -956,7 +958,7 @@ pub fn add_user_default_base(
             attacks_won: &0,
             defenses_won: &0,
             trophies: &INITIAL_RATING,
-            avatar_id: &0,
+            avatar_id: &rand::thread_rng().gen_range(0..=7),
             artifacts: &INITIAL_ARTIFACTS,
         };
 

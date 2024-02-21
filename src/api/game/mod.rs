@@ -62,6 +62,8 @@ async fn get_game_details(
     let user_id = user.0;
     let game_id = game_id.into_inner();
 
+    println!("Request for game_id stats: {}", game_id);
+
     let response = web::block(move || {
         let mut conn = pool.get()?;
         util::fetch_game_details(game_id, user_id, &mut conn)

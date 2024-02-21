@@ -96,7 +96,7 @@ pub fn game_handler(
                 // triggered_defenders: None,
                 defender_damaged: None,
                 damaged_buildings: None,
-                artifacts_gained_total: None,
+                total_damage_percentage: Some(_game_state.damage_percentage),
                 is_sync: false,
                 is_game_over: false,
                 message: Some(String::from(
@@ -159,7 +159,7 @@ pub fn game_handler(
                     bool_temp = true;
                 }
                 let result_type = if bool_temp {
-                    ResultType::DefendersTriggered
+                    ResultType::DefendersDamaged
                 } else {
                     ResultType::Nothing
                 };
@@ -192,7 +192,7 @@ pub fn game_handler(
                     // triggered_defenders: Some(defender_damaged_result.clone().defender_response),
                     defender_damaged: Some(defender_damaged_result.clone().defender_response),
                     damaged_buildings: None,
-                    artifacts_gained_total: Some(defender_damaged_result.clone().state.artifacts),
+                    total_damage_percentage: Some(_game_state.damage_percentage),
                     is_sync: false,
                     is_game_over: false,
                     message: Some(String::from("Movement Response")),
@@ -243,7 +243,7 @@ pub fn game_handler(
                 // triggered_defenders: None,
                 defender_damaged: None,
                 damaged_buildings: None,
-                artifacts_gained_total: None,
+                total_damage_percentage: Some(_game_state.damage_percentage),
                 is_sync: false,
                 is_game_over: false,
                 message: Some(String::from("Is Mine Response")),
@@ -324,7 +324,7 @@ pub fn game_handler(
                 // triggered_defenders: None,
                 defender_damaged: None,
                 damaged_buildings: Some(buildings_damaged_result),
-                artifacts_gained_total: None,
+                total_damage_percentage: Some(_game_state.damage_percentage),
                 is_sync: false,
                 is_game_over: false,
                 message: Some(String::from("Place Bomb Response")),
@@ -341,7 +341,7 @@ pub fn game_handler(
                 // triggered_defenders: None,
                 defender_damaged: None,
                 damaged_buildings: None,
-                artifacts_gained_total: None,
+                total_damage_percentage: Some(_game_state.damage_percentage),
                 is_sync: false,
                 is_game_over: false,
                 message: Some(String::from("Idle Response")),
@@ -357,10 +357,29 @@ pub fn game_handler(
                 // triggered_defenders: None,
                 defender_damaged: None,
                 damaged_buildings: None,
-                artifacts_gained_total: None,
+                total_damage_percentage: Some(_game_state.damage_percentage),
                 is_sync: false,
                 is_game_over: true,
                 message: Some(String::from("Game over")),
+            };
+
+            return Some(Ok(socket_response));
+        }
+        ActionType::SelfDestruct => {
+            _game_state.self_destruct();
+            let socket_response = SocketResponse {
+                frame_number: socket_request.frame_number,
+                result_type: ResultType::Nothing,
+                is_alive: Some(false),
+                attacker_health: None,
+                exploded_mines: None,
+                // triggered_defenders: None,
+                defender_damaged: None,
+                damaged_buildings: None,
+                total_damage_percentage: Some(_game_state.damage_percentage),
+                is_sync: false,
+                is_game_over: false,
+                message: Some(String::from("Self Destructed")),
             };
 
             return Some(Ok(socket_response));

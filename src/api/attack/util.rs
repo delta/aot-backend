@@ -16,8 +16,7 @@ use crate::constants::*;
 use crate::error::DieselError;
 use crate::models::{
     Artifact, AttackerType, AvailableBlocks, BlockCategory, BlockType, BuildingType, DefenderType,
-    EmpType, Game, LevelsFixture, MapLayout, MapSpaces, MineType, NewAttackerPath, NewGame,
-    NewSimulationLog, User,
+    EmpType, Game, LevelsFixture, MapLayout, MapSpaces, MineType, NewAttackerPath, NewGame, User,
 };
 use crate::schema::user;
 use crate::util::function;
@@ -171,6 +170,7 @@ pub fn add_game(
             error: err,
         })?;
 
+    println!("Successfully inserted game to table: {}", inserted_game.id);
     Ok(inserted_game.id)
 }
 
@@ -183,7 +183,8 @@ pub fn fetch_attack_history(
     use crate::schema::{game, levels_fixture, map_layout};
     let joined_table = game::table
         .filter(game::attack_id.eq(user_id))
-        .inner_join(map_layout::table.inner_join(levels_fixture::table));
+        .inner_join(map_layout::table.inner_join(levels_fixture::table))
+        .inner_join(user::table.on(game::defend_id.eq(user::id)));
 
     let total_entries: i64 = joined_table
         .count()
@@ -199,18 +200,19 @@ pub fn fetch_attack_history(
     let games_result: Result<Vec<HistoryboardEntry>> = joined_table
         .offset(off_set)
         .limit(limit)
-        .load::<(Game, (MapLayout, LevelsFixture))>(conn)?
+        .load::<(Game, (MapLayout, LevelsFixture), User)>(conn)?
         .into_iter()
-        .map(|(game, (_, levels_fixture))| {
+        .map(|(game, (_, levels_fixture), user)| {
             let is_replay_available = api::util::can_show_replay(user_id, &game, &levels_fixture);
             Ok(HistoryboardEntry {
-                opponent_user_id: game.defend_id,
+                opponent_user_name: user.username.to_string(),
                 is_attack: true,
                 damage_percent: game.damage_done,
                 artifacts_taken: game.artifacts_collected,
                 trophies_taken: game.attack_score,
                 match_id: game.id,
                 replay_availability: is_replay_available,
+                avatar_id: user.avatar_id,
             })
         })
         .collect();
@@ -307,6 +309,7 @@ pub fn get_random_opponent_id(
     mut redis_conn: RedisConn,
 ) -> Result<Option<i32>> {
     let sorted_users: Vec<(i32, i32)> = user::table
+        .filter(user::is_pragyan.eq(false))
         .order_by(user::trophies.asc())
         .select((user::id, user::trophies))
         .load::<(i32, i32)>(conn)?;
@@ -705,7 +708,7 @@ pub fn terminate_game(
     conn: &mut PgConnection,
     redis_conn: &mut RedisConn,
 ) -> Result<()> {
-    use crate::schema::{artifact, game, simulation_log};
+    use crate::schema::{artifact, game};
     let attacker_id = game_log.a.id;
     let defender_id = game_log.d.id;
     let damage_done = game_log.r.d;
@@ -766,13 +769,14 @@ pub fn terminate_game(
 
     println!("Attack score: 5");
 
+    println!("Going to update game table {}", game_id);
     diesel::update(game::table.find(game_id))
         .set((
             game::damage_done.eq(damage_done),
             game::is_game_over.eq(true),
             game::emps_used.eq(bombs_used),
-            game::attack_score.eq(attack_score as i32),
-            game::defend_score.eq(defence_score as i32),
+            game::attack_score.eq(new_trophies.0 - attacker_details.trophies),
+            game::defend_score.eq(new_trophies.1 - defender_details.trophies),
             game::artifacts_collected.eq(artifacts_collected),
         ))
         .execute(conn)
@@ -781,12 +785,21 @@ pub fn terminate_game(
             function: function!(),
             error: err,
         })?;
+
+    println!("Done update game table {}", game_id);
     println!("Attack score: 6");
+
+    let (attacker_wins, defender_wins) = if damage_done < WIN_THRESHOLD {
+        (0, 1)
+    } else {
+        (1, 0)
+    };
 
     diesel::update(user::table.find(&game_log.a.id))
         .set((
             user::artifacts.eq(user::artifacts + artifacts_collected),
             user::trophies.eq(user::trophies + new_trophies.0 - attacker_details.trophies),
+            user::attacks_won.eq(user::attacks_won + attacker_wins),
         ))
         .execute(conn)
         .map_err(|err| DieselError {
@@ -799,6 +812,7 @@ pub fn terminate_game(
         .set((
             user::artifacts.eq(user::artifacts - artifacts_collected),
             user::trophies.eq(user::trophies + new_trophies.1 - defender_details.trophies),
+            user::defenses_won.eq(user::defenses_won + defender_wins),
         ))
         .execute(conn)
         .map_err(|err| DieselError {
@@ -821,22 +835,24 @@ pub fn terminate_game(
             error: err,
         })?;
 
-    if let Ok(sim_log) = serde_json::to_string(&game_log) {
-        let new_simulation_log = NewSimulationLog {
-            game_id: &game_id,
-            log_text: &sim_log,
-        };
+    // if let Ok(sim_log) = serde_json::to_string(&game_log) {
+    //     let new_simulation_log = NewSimulationLog {
+    //         game_id: &game_id,
+    //         log_text: &sim_log,
+    //     };
 
-        diesel::insert_into(simulation_log::table)
-            .values(new_simulation_log)
-            .on_conflict_do_nothing()
-            .execute(conn)
-            .map_err(|err| DieselError {
-                table: "simulation_log",
-                function: function!(),
-                error: err,
-            })?;
-    }
+    //     println!("Inserting into similation log, game id: {}", game_id);
+    //     diesel::insert_into(simulation_log::table)
+    //         .values(new_simulation_log)
+    //         .on_conflict_do_nothing()
+    //         .execute(conn)
+    //         .map_err(|err| DieselError {
+    //             table: "simulation_log",
+    //             function: function!(),
+    //             error: err,
+    //         })?;
+    //     println!("Done Inserting into similation log, game id: {}", game_id);
+    // }
 
     if delete_game_id_from_redis(game_log.a.id, game_log.d.id, redis_conn).is_err() {
         return Err(anyhow::anyhow!("Can't remove game from redis"));
@@ -877,6 +893,7 @@ pub fn check_and_remove_incomplete_game(
     let len = pending_games.len();
 
     for pending_game in pending_games {
+        println!("removing game id {}", pending_game.id);
         diesel::delete(game.filter(id.eq(pending_game.id)))
             .execute(conn)
             .map_err(|err| DieselError {
