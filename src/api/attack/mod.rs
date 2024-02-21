@@ -6,7 +6,7 @@ use super::defense::util::{
 };
 use super::user::util::fetch_user;
 use super::{error, PgPool, RedisPool};
-use crate::api::attack::socket::{ResultType, SocketRequest};
+use crate::api::attack::socket::{ResultType, SocketRequest, SocketResponse};
 use crate::api::util::HistoryboardQuery;
 use crate::constants::{GAME_AGE_IN_MINUTES, MAX_BOMBS_PER_ATTACK};
 use crate::models::{AttackerType, User};
@@ -273,7 +273,8 @@ async fn socket_handler(
 
     let (response, session, mut msg_stream) = actix_ws::handle(&req, body)?;
 
-    let mut session_clone = session.clone();
+    let mut session_clone1 = session.clone();
+    let mut session_clone2 = session.clone();
 
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let attacker_type = web::block(move || {
@@ -365,7 +366,7 @@ async fn socket_handler(
         while let Some(Ok(msg)) = msg_stream.next().await {
             match msg {
                 Message::Ping(bytes) => {
-                    if session_clone.pong(&bytes).await.is_err() {
+                    if session_clone1.pong(&bytes).await.is_err() {
                         return;
                     }
                 }
@@ -386,10 +387,10 @@ async fn socket_handler(
                                     // println!("Response Json ---- {}", response_json);
                                     if response.result_type == ResultType::GameOver {
                                         println!("Game over. Terminating the socket...");
-                                        if session_clone.text(response_json).await.is_err() {
+                                        if session_clone1.text(response_json).await.is_err() {
                                             return;
                                         }
-                                        if (session_clone.clone().close(None).await).is_err() {
+                                        if (session_clone1.clone().close(None).await).is_err() {
                                             println!("Error closing the socket connection");
                                         }
                                         if util::terminate_game(
@@ -403,18 +404,18 @@ async fn socket_handler(
                                         }
                                     } else if response.result_type == ResultType::MinesExploded {
                                         println!("MinesExploded response sent");
-                                        if session_clone.text(response_json).await.is_err() {
+                                        if session_clone1.text(response_json).await.is_err() {
                                             return;
                                         }
                                     } else if response.result_type == ResultType::DefendersDamaged {
                                         println!("DefendersDamaged response sent");
-                                        if session_clone.text(response_json).await.is_err() {
+                                        if session_clone1.text(response_json).await.is_err() {
                                             return;
                                         }
                                     } else if response.result_type == ResultType::DefendersTriggered
                                     {
                                         println!("DefendersTriggered response sent");
-                                        if session_clone.text(response_json).await.is_err() {
+                                        if session_clone1.text(response_json).await.is_err() {
                                             return;
                                         }
                                     } else if response.result_type == ResultType::BuildingsDamaged {
@@ -427,23 +428,24 @@ async fn socket_handler(
                                         {
                                             println!("Failed to deduct artifacts from building");
                                         }
-                                        if session_clone.text(response_json).await.is_err() {
+                                        if session_clone1.text(response_json).await.is_err() {
                                             return;
                                         }
                                     } else if response.result_type == ResultType::PlacedAttacker {
                                         println!("PlacedAttacker response sent");
-                                        if session_clone.text(response_json).await.is_err() {
+                                        if session_clone1.text(response_json).await.is_err() {
                                             return;
                                         }
                                     } else if response.result_type == ResultType::Nothing {
                                         // println!("Nothing response sent");
-                                        if session_clone.text(response_json).await.is_err() {
+                                        if session_clone1.text(response_json).await.is_err() {
                                             return;
                                         }
                                     }
                                 } else {
                                     println!("Error serializing JSON");
-                                    if session_clone.text("Error serializing JSON").await.is_err() {
+                                    if session_clone1.text("Error serializing JSON").await.is_err()
+                                    {
                                         return;
                                     }
                                 }
@@ -459,7 +461,7 @@ async fn socket_handler(
                         }
                     } else {
                         println!("Error parsing JSON");
-                        if session_clone.text("Error parsing JSON").await.is_err() {
+                        if session_clone1.text("Error parsing JSON").await.is_err() {
                             return;
                         }
                     }
@@ -485,11 +487,26 @@ async fn socket_handler(
             actix_rt::time::sleep(time::Duration::from_secs(1)).await;
 
             if time::Instant::now() - last_activity > timeout_duration {
-                if (session.close(None).await).is_err() {
-                    println!("Can't close socket connection");
+                let response_json = serde_json::to_string(&SocketResponse {
+                    frame_number: 0,
+                    result_type: ResultType::GameOver,
+                    is_alive: None,
+                    attacker_health: None,
+                    exploded_mines: None,
+                    defender_damaged: None,
+                    damaged_buildings: None,
+                    total_damage_percentage: None,
+                    is_sync: false,
+                    is_game_over: true,
+                    message: Some("Connection timed out".to_string()),
+                })
+                .unwrap();
+                if session_clone2.text(response_json).await.is_err() {
+                    return;
                 }
 
                 println!("Connection timed out");
+
                 break;
             }
         }
