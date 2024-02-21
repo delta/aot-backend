@@ -17,9 +17,9 @@ use actix_rt;
 use actix_web::error::ErrorBadRequest;
 use actix_web::web::{Data, Json};
 use actix_web::{web, Error, HttpRequest, HttpResponse, Responder, Result};
+use log;
 use std::collections::{HashMap, HashSet};
 use std::time;
-use log;
 
 use crate::validator::game_handler;
 use actix_ws::Message;
@@ -161,7 +161,6 @@ async fn socket_handler(
     body: web::Payload,
 ) -> Result<HttpResponse, Error> {
     println!("error bug fs");
-
     let query_params = req.query_string().split('&').collect::<Vec<&str>>();
     let user_token = query_params[0].split('=').collect::<Vec<&str>>()[1];
     let attack_token = query_params[1].split('=').collect::<Vec<&str>>()[1];
