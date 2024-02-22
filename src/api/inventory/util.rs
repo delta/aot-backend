@@ -728,7 +728,6 @@ pub(crate) fn upgrade_building(
         bank_map_space_id,
     );
     let building_map_space_id = get_building_map_space_id(conn, &id_of_map, &next_level_block_id)?;
-    println!("building_map_space_id: {:?}", building_map_space_id);
     Ok(building_map_space_id)
 }
 
@@ -988,7 +987,9 @@ pub(crate) fn upgrade_attacker(
         })?;
     conn.transaction(|conn| {
         diesel::update(
-            available_blocks::table.filter(available_blocks::attacker_type_id.eq(attacker_id)),
+            available_blocks::table
+                .filter(available_blocks::attacker_type_id.eq(attacker_id))
+                .filter(available_blocks::user_id.eq(player_id)),
         )
         .set(available_blocks::attacker_type_id.eq(next_level_attacker_id))
         .execute(conn)?;
@@ -1072,9 +1073,13 @@ pub(crate) fn upgrade_emp(player_id: i32, conn: &mut PgConnection, emp_id: i32) 
         return Err(anyhow::anyhow!("Not enough artifacts in bank"));
     }
     conn.transaction(|conn| {
-        diesel::update(available_blocks::table.filter(available_blocks::emp_type_id.eq(emp_id)))
-            .set(available_blocks::emp_type_id.eq(next_level_emp_id))
-            .execute(conn)?;
+        diesel::update(
+            available_blocks::table
+                .filter(available_blocks::emp_type_id.eq(emp_id))
+                .filter(available_blocks::user_id.eq(player_id)),
+        )
+        .set(available_blocks::emp_type_id.eq(next_level_emp_id))
+        .execute(conn)?;
 
         //update artifacts in bank
         diesel::update(artifact::table.filter(artifact::map_space_id.eq(bank_map_space_id)))

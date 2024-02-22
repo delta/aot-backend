@@ -170,7 +170,6 @@ pub fn add_game(
             error: err,
         })?;
 
-    println!("Successfully inserted game to table: {}", inserted_game.id);
     Ok(inserted_game.id)
 }
 
@@ -341,8 +340,6 @@ pub fn get_random_opponent_id(
             return Err(anyhow::anyhow!("Failed to find an opponent"));
         };
 
-        println!("Random opponent: {}", random_opponent);
-
         loop {
             if let Ok(Some(_)) = get_game_id_from_redis(random_opponent, &mut redis_conn, false) {
                 random_opponent =
@@ -360,14 +357,12 @@ pub fn get_random_opponent_id(
                                 return Err(anyhow::anyhow!("Failed to find another opponent"))
                             }
                         };
-                    println!("Random opponent (retry): {}", random_opponent);
                 } else {
                     return Ok(Some(random_opponent));
                 }
             } else {
                 return Err(anyhow::anyhow!("Cannot check if attack can happen now"));
             }
-            println!("Random opponent: {}", random_opponent);
 
             attempts += 1;
             if attempts > 10 {
@@ -434,7 +429,6 @@ pub fn add_game_id_to_redis(
         )
         .map_err(|err| anyhow::anyhow!("Failed to set attacker key: {}", err))?;
 
-    println!("Attacker:{} redis creation done", attacker_id);
     redis_conn
         .set_ex(
             format!("Defender:{}", defender_id),
@@ -442,7 +436,6 @@ pub fn add_game_id_to_redis(
             GAME_AGE_IN_MINUTES * 60,
         )
         .map_err(|err| anyhow::anyhow!("Failed to set defender key: {}", err))?;
-    println!("Defender:{} redis creation done", defender_id);
 
     Ok(())
 }
@@ -470,15 +463,12 @@ pub fn delete_game_id_from_redis(
     defender_id: i32,
     redis_conn: &mut RedisConn,
 ) -> Result<()> {
-    println!("Deletion of game ids from redis in progress...");
     redis_conn
         .del(format!("Attacker:{}", attacker_id))
         .map_err(|err| anyhow::anyhow!("Failed to delete attacker key: {}", err))?;
-    println!("Attacker redis deletion done");
     redis_conn
         .del(format!("Defender:{}", defender_id))
         .map_err(|err| anyhow::anyhow!("Failed to delete defender key: {}", err))?;
-    println!("Defender redis deletion done");
 
     Ok(())
 }
@@ -694,10 +684,6 @@ pub fn update_buidling_artifacts(
     // Update the buildings with the artifact count
     for building in buildings.iter_mut() {
         building.artifacts_obtained = *artifact_count.get(&building.id).unwrap_or(&0) as i32;
-        println!(
-            "during import : == Building id: {},hp: {},  Artifacts: {}",
-            building.id, building.total_hp, building.artifacts_obtained
-        );
     }
 
     Ok(buildings)
@@ -716,16 +702,11 @@ pub fn terminate_game(
     let artifacts_collected = game_log.r.a;
     let game_id = game_log.g;
 
-    println!("Damage done: {}", damage_done);
-    println!("Artifacts Collected: {}", artifacts_collected);
-
     let (attack_score, defense_score) = if damage_done < WIN_THRESHOLD {
         (damage_done - 100, 100 - damage_done)
     } else {
         (damage_done, -damage_done)
     };
-
-    println!("Attack score: 1");
 
     let attacker_details = user::table
         .filter(user::id.eq(attacker_id))
@@ -735,7 +716,6 @@ pub fn terminate_game(
             function: function!(),
             error: err,
         })?;
-    println!("Attack score: 2");
 
     let defender_details = user::table
         .filter(user::id.eq(defender_id))
@@ -745,8 +725,6 @@ pub fn terminate_game(
             function: function!(),
             error: err,
         })?;
-
-    println!("Attack score: 3");
 
     let attack_score = attack_score as f32 / 100_f32;
     let defence_score = defense_score as f32 / 100_f32;
@@ -758,8 +736,6 @@ pub fn terminate_game(
         defence_score,
     );
 
-    println!("Attack score: 4");
-
     //Add bonus trophies (just call the function)
 
     game_log.r.oa = attacker_details.trophies;
@@ -767,9 +743,6 @@ pub fn terminate_game(
     game_log.r.na = new_trophies.0;
     game_log.r.nd = new_trophies.1;
 
-    println!("Attack score: 5");
-
-    println!("Going to update game table {}", game_id);
     diesel::update(game::table.find(game_id))
         .set((
             game::damage_done.eq(damage_done),
@@ -785,9 +758,6 @@ pub fn terminate_game(
             function: function!(),
             error: err,
         })?;
-
-    println!("Done update game table {}", game_id);
-    println!("Attack score: 6");
 
     let (attacker_wins, defender_wins) = if damage_done < WIN_THRESHOLD {
         (0, 1)
@@ -862,8 +832,6 @@ pub fn terminate_game(
     //     println!("Event: {:?}\n", event);
     // }
 
-    println!("Result: {:?}", game_log.r);
-    println!("Game termination is done");
     Ok(())
 }
 
@@ -890,10 +858,9 @@ pub fn check_and_remove_incomplete_game(
             error: err,
         })?;
 
-    let len = pending_games.len();
+    let _len = pending_games.len();
 
     for pending_game in pending_games {
-        println!("removing game id {}", pending_game.id);
         diesel::delete(game.filter(id.eq(pending_game.id)))
             .execute(conn)
             .map_err(|err| DieselError {
@@ -902,8 +869,6 @@ pub fn check_and_remove_incomplete_game(
                 error: err,
             })?;
     }
-
-    println!("Removed {} incomplete games", len);
 
     Ok(())
 }

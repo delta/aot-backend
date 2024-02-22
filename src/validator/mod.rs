@@ -76,10 +76,6 @@ pub fn game_handler(
             _game_log.r.au += 1;
 
             if _game_state.in_validation.is_invalidated {
-                println!(
-                    "Invalidated due to: {}",
-                    _game_state.in_validation.message.clone()
-                );
                 return Some(Ok(send_terminate_game_message(
                     socket_request.frame_number,
                     _game_state.in_validation.message.clone(),
@@ -173,10 +169,6 @@ pub fn game_handler(
                 }
 
                 if _game_state.in_validation.is_invalidated {
-                    println!(
-                        "Invalidated due to: {}",
-                        _game_state.in_validation.message.clone()
-                    );
                     return Some(Ok(send_terminate_game_message(
                         socket_request.frame_number,
                         _game_state.in_validation.message.clone(),
@@ -223,10 +215,6 @@ pub fn game_handler(
             }
 
             if _game_state.in_validation.is_invalidated {
-                println!(
-                    "Invalidated due to: {}",
-                    _game_state.in_validation.message.clone()
-                );
                 return Some(Ok(send_terminate_game_message(
                     socket_request.frame_number,
                     _game_state.in_validation.message.clone(),
@@ -252,7 +240,6 @@ pub fn game_handler(
         ActionType::PlaceBombs => {
             let attacker_delta: Vec<Coords> = socket_request.attacker_path.clone();
             let current_pos = socket_request.start_position.unwrap();
-            println!("attacker delta: {:?}", attacker_delta);
             let bomb_coords = socket_request.bomb_position;
 
             if _game_state.bombs.total_count == 0 {
@@ -304,10 +291,6 @@ pub fn game_handler(
             };
 
             if _game_state.in_validation.is_invalidated {
-                println!(
-                    "Invalidated due to: {}",
-                    _game_state.in_validation.message.clone()
-                );
                 return Some(Ok(send_terminate_game_message(
                     socket_request.frame_number,
                     _game_state.in_validation.message.clone(),

@@ -72,7 +72,6 @@ impl State {
         for defender in self.defenders.iter_mut() {
             defender.target_id = None;
         }
-        println!("attacker died due to self destruct");
     }
 
     pub fn set_total_hp_buildings(&mut self) {
@@ -94,9 +93,6 @@ impl State {
     pub fn place_attacker(&mut self, attacker: Attacker) {
         self.attacker = Some(attacker);
         // println!("defnders: {:?}",self.defenders);
-        for defender in self.defenders.iter_mut() {
-            println!("defender: {:?}", defender.id);
-        }
     }
 
     pub fn mine_blast_update(&mut self, _id: i32, damage_to_attacker: i32) {
@@ -106,10 +102,6 @@ impl State {
             attacker.attacker_health =
                 std::cmp::max(0, attacker.attacker_health - damage_to_attacker);
             if attacker.attacker_health == 0 {
-                println!(
-                    "attacker died due to mine blast and mine damage : {}",
-                    damage_to_attacker
-                );
                 self.attacker_death_count += 1;
                 for defender in self.defenders.iter_mut() {
                     defender.target_id = None;
@@ -145,8 +137,6 @@ impl State {
                 is_invalidated: true,
             };
         }
-
-        println!("state frame: {} current frame: {}", self.frame_no, frame_no);
 
         for coord in attacker_current.path_in_current_frame.clone().into_iter() {
             if !roads.contains(&(coord.x, coord.y)) {
@@ -236,7 +226,6 @@ impl State {
         // }
 
         if self.bombs.total_count <= 0 {
-            println!("Bomb over");
             self.in_validation = InValidation {
                 message: "Bomb Count forged".to_string(),
                 is_invalidated: true,
@@ -245,7 +234,6 @@ impl State {
 
         if let Some(attacker) = &mut self.attacker {
             attacker.bomb_count -= 1;
-            println!("bomb count: {}", attacker.bomb_count);
         }
 
         if current_pos.x != bomb_position.x || current_pos.y != bomb_position.y {
@@ -265,7 +253,6 @@ impl State {
         attacker_delta: Vec<Coords>,
         shortest_path: &HashMap<SourceDestXY, Coords>,
     ) -> DefenderReturnType {
-        println!("attacker delta: {:?}", attacker_delta);
         let attacker = self.attacker.as_mut().unwrap();
         let mut defenders_damaged: Vec<DefenderResponse> = Vec::new();
 
@@ -350,11 +337,6 @@ impl State {
                 defender.defender_pos = *next_hop;
                 defender.path_in_current_frame.push(defender.defender_pos);
 
-                println!(
-                    "{i}; attacker pos: {:?}, defender pos: {:?}",
-                    attacker.attacker_pos, defender.defender_pos
-                );
-
                 // if defender and attacker are on the same tile, add the defender to the collision_array
                 if (defender.defender_pos == attacker.attacker_pos)
                     || (defender.path_in_current_frame[(i - 1) as usize] == attacker.attacker_pos)
@@ -380,7 +362,6 @@ impl State {
             if time > 1.0 {
                 break;
             }
-            println!("defender id: {} collided at time: {}", index, time);
             if attacker.attacker_health == 0 {
                 self.defenders[index].defender_pos = self.defenders[index].path_in_current_frame
                     [1 + (attacker_death_time * (self.defenders[index].speed as f32)) as usize];
@@ -400,7 +381,6 @@ impl State {
             if attacker.attacker_health == 0 {
                 attacker_death_time = time;
                 self.attacker_death_count += 1;
-                println!("attacker died");
             }
         }
 
@@ -435,7 +415,6 @@ impl State {
 
     pub fn bomb_blast(&mut self, bomb_position: Coords) -> Vec<BuildingResponse> {
         let bomb = &mut self.bombs;
-        println!("bomb blast damage: {}", bomb.damage);
         let mut buildings_damaged: Vec<BuildingResponse> = Vec::new();
         for building in self.buildings.iter_mut() {
             if building.current_hp > 0 {
@@ -463,20 +442,10 @@ impl State {
                     coinciding_coords_damage as f32 / building_matrix.len() as f32;
 
                 if damage_buildings != 0.0 {
-                    println!(
-                        "damage building: {}, bomb damage: {}, total_hp:{}",
-                        damage_buildings, bomb.damage, building.total_hp
-                    );
-
                     let old_hp = building.current_hp;
                     let mut current_damage = (damage_buildings
                         * (bomb.damage as f32 * BOMB_DAMAGE_MULTIPLIER))
                         .round() as i32;
-                    println!(
-                        "current damage: {}, current_hp: {}",
-                        current_damage,
-                        building.current_hp - current_damage
-                    );
 
                     building.current_hp -= current_damage;
 

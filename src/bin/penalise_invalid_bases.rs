@@ -29,6 +29,4 @@ fn main() {
         .set(user::trophies.eq(user::trophies - ((4.0 * SCALE_FACTOR) as i32)))
         .execute(&mut conn)
         .expect("Could not update user ratings");
-
-    println!("Ratings have been updated");
 }
