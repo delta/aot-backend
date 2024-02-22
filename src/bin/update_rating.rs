@@ -10,6 +10,4 @@ fn main() {
         .set(user::trophies.eq(1000))
         .execute(&mut conn)
         .expect("Could not update user ratings");
-
-    println!("Ratings have been updated");
 }

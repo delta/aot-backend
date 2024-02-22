@@ -269,7 +269,6 @@ async fn set_base_details(
     user: AuthUser,
 ) -> Result<impl Responder> {
     let defender_id = user.0;
-    println!("Defender ID: {}", defender_id);
     let map_spaces = map_spaces.into_inner();
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
     let (map, blocks, buildings) = web::block(move || {

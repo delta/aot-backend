@@ -101,8 +101,6 @@ async fn init_attack(
     .await?
     .map_err(|err| error::handle_error(err.into()))?;
 
-    println!("obatain {}", obtainable_artifacts);
-
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
 
     let user_details =
@@ -117,7 +115,6 @@ async fn init_attack(
     })
     .await?
     .map_err(|err| error::handle_error(err.into()))?;
-    println!("Added game: {}", game_id);
 
     //Generate attack token to validate the /attack/start
     let attack_token = util::encode_attack_token(attacker_id, opponent_id, game_id)
@@ -150,7 +147,6 @@ async fn init_attack(
         game_id,
     };
 
-    println!("Sent game id {} to frontend", game_id);
     Ok(Json(response))
 }
 
@@ -160,7 +156,6 @@ async fn socket_handler(
     req: HttpRequest,
     body: web::Payload,
 ) -> Result<HttpResponse, Error> {
-    println!("error bug fs");
     let query_params = req.query_string().split('&').collect::<Vec<&str>>();
     let user_token = query_params[0].split('=').collect::<Vec<&str>>()[1];
     let attack_token = query_params[1].split('=').collect::<Vec<&str>>()[1];
@@ -171,18 +166,14 @@ async fn socket_handler(
         util::decode_attack_token(attack_token).map_err(|err| error::handle_error(err.into()))?;
     let game_id = attack_token_data.game_id;
 
-    println!("Received game id {} from frontend", game_id);
-
     let mut conn = pool.get().map_err(|err| error::handle_error(err.into()))?;
 
     if attacker_id != attack_token_data.attacker_id {
-        println!("Attacker:{} is not authorised", attacker_id);
         return Err(ErrorBadRequest("User not authorised"));
     }
 
     let defender_id = attack_token_data.defender_id;
     if attacker_id == defender_id {
-        println!("Attacker:{} can't attack yourself", attacker_id);
         return Err(ErrorBadRequest("Can't attack yourself"));
     }
 
@@ -191,16 +182,13 @@ async fn socket_handler(
         .map_err(|err| error::handle_error(err.into()))?;
 
     if let Ok(Some(_)) = util::get_game_id_from_redis(attacker_id, &mut redis_conn, true) {
-        println!("Attacker:{} has an ongoing game", attacker_id);
         return Err(ErrorBadRequest("Attacker has an ongoing game"));
     }
 
     if let Ok(Some(_)) = util::get_game_id_from_redis(defender_id, &mut redis_conn, false) {
-        println!("Defender:{} has an ongoing game", defender_id);
         return Err(ErrorBadRequest("Defender has an ongoing game"));
     }
 
-    println!("Checking if there are incomplte games");
     if util::check_and_remove_incomplete_game(&attacker_id, &defender_id, &game_id, &mut conn)
         .is_err()
     {
@@ -223,7 +211,6 @@ async fn socket_handler(
     let map_id = if let Some(map) = map {
         map
     } else {
-        println!("Defender:{}'s base is invalid", defender_id);
         return Err(ErrorBadRequest("Invalid base"));
     };
 
@@ -385,7 +372,6 @@ async fn socket_handler(
                                 if let Ok(response_json) = serde_json::to_string(&response) {
                                     // println!("Response Json ---- {}", response_json);
                                     if response.result_type == ResultType::GameOver {
-                                        println!("Game over. Terminating the socket...");
                                         if session_clone1.text(response_json).await.is_err() {
                                             return;
                                         }
@@ -402,23 +388,19 @@ async fn socket_handler(
                                             println!("Error terminating the game 1");
                                         }
                                     } else if response.result_type == ResultType::MinesExploded {
-                                        println!("MinesExploded response sent");
                                         if session_clone1.text(response_json).await.is_err() {
                                             return;
                                         }
                                     } else if response.result_type == ResultType::DefendersDamaged {
-                                        println!("DefendersDamaged response sent");
                                         if session_clone1.text(response_json).await.is_err() {
                                             return;
                                         }
                                     } else if response.result_type == ResultType::DefendersTriggered
                                     {
-                                        println!("DefendersTriggered response sent");
                                         if session_clone1.text(response_json).await.is_err() {
                                             return;
                                         }
                                     } else if response.result_type == ResultType::BuildingsDamaged {
-                                        println!("BuildingsDamaged response sent");
                                         if util::deduct_artifacts_from_building(
                                             response.damaged_buildings.unwrap(),
                                             &mut conn,
@@ -431,15 +413,13 @@ async fn socket_handler(
                                             return;
                                         }
                                     } else if response.result_type == ResultType::PlacedAttacker {
-                                        println!("PlacedAttacker response sent");
                                         if session_clone1.text(response_json).await.is_err() {
                                             return;
                                         }
-                                    } else if response.result_type == ResultType::Nothing {
-                                        // println!("Nothing response sent");
-                                        if session_clone1.text(response_json).await.is_err() {
-                                            return;
-                                        }
+                                    } else if response.result_type == ResultType::Nothing
+                                        && session_clone1.text(response_json).await.is_err()
+                                    {
+                                        return;
                                     }
                                 } else {
                                     println!("Error serializing JSON");
@@ -459,14 +439,14 @@ async fn socket_handler(
                             }
                         }
                     } else {
-                        println!("Error parsing JSON");
+                        println!("Error serializing JSON");
+
                         if session_clone1.text("Error parsing JSON").await.is_err() {
                             return;
                         }
                     }
                 }
-                Message::Close(s) => {
-                    println!("Received close: {:?}", s);
+                Message::Close(_s) => {
                     if util::terminate_game(game_logs, &mut conn, &mut redis_conn).is_err() {
                         println!("Error terminating the game 2");
                     }
@@ -481,7 +461,6 @@ async fn socket_handler(
         let timeout_duration = time::Duration::from_secs((GAME_AGE_IN_MINUTES as u64) * 60);
         let last_activity = time::Instant::now();
 
-        println!("Started timer");
         loop {
             actix_rt::time::sleep(time::Duration::from_secs(1)).await;
 
@@ -503,8 +482,6 @@ async fn socket_handler(
                 if session_clone2.text(response_json).await.is_err() {
                     return;
                 }
-
-                println!("Connection timed out");
 
                 break;
             }

@@ -728,7 +728,6 @@ pub(crate) fn upgrade_building(
         bank_map_space_id,
     );
     let building_map_space_id = get_building_map_space_id(conn, &id_of_map, &next_level_block_id)?;
-    println!("building_map_space_id: {:?}", building_map_space_id);
     Ok(building_map_space_id)
 }
 
