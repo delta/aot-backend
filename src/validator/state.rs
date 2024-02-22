@@ -364,7 +364,7 @@ impl State {
             }
             if attacker.attacker_health == 0 {
                 self.defenders[index].defender_pos = self.defenders[index].path_in_current_frame
-                    [1 + (attacker_death_time * (self.defenders[index].speed as f32)) as usize];
+                    [(attacker_death_time * (self.defenders[index].speed as f32)) as usize];
                 continue;
             }
             defenders_damaged.push(DefenderResponse {
