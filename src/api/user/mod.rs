@@ -70,10 +70,10 @@ async fn update_user(
     let user_id = user.0;
     let username = user_details.username.clone();
     if username.is_some()
-        && (username.as_ref().unwrap().len() < 5 || username.as_ref().unwrap().len() > 30)
+        && (username.as_ref().unwrap().len() < 5 || username.as_ref().unwrap().len() > 15)
     {
         return Err(ErrorBadRequest(
-            "Username should contain atleast 5 characters and atmost 30 characters",
+            "Username should contain atleast 5 characters and atmost 15 characters",
         ));
     }
     if let Some(username) = username {

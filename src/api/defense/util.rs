@@ -14,7 +14,6 @@ use crate::{api::util::GameHistoryResponse, error::DieselError};
 use anyhow::{Ok, Result};
 use diesel::dsl::exists;
 use diesel::{prelude::*, select};
-use rand::distributions::Alphanumeric;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -939,17 +938,7 @@ pub fn add_user_default_base(
     conn.transaction(|conn| {
         use crate::schema::{artifact, available_blocks, map_layout, map_spaces, user};
 
-        let random_string: String = rand::thread_rng()
-            .sample_iter(&Alphanumeric)
-            .take(4)
-            .map(char::from)
-            .collect();
-
-        let username = &format!(
-            "{}_{}",
-            user_email.split('@').next().unwrap(),
-            random_string
-        );
+        let username = user_email.split('@').next().unwrap();
         let new_user = NewUser {
             name: user_name,
             email: user_email,
