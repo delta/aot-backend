@@ -319,14 +319,14 @@ pub fn get_random_opponent_id(
             .take(attacker_index)
             .filter(|(id, _)| *id != attacker_id)
             .rev()
-            .take(5)
+            .take(10)
             .cloned()
             .collect::<Vec<_>>();
         let more_or_equal_trophies = sorted_users
             .iter()
             .skip(attacker_index + 1)
             .filter(|(id, _)| *id != attacker_id)
-            .take(5)
+            .take(10)
             .cloned()
             .collect::<Vec<_>>();
 
@@ -395,11 +395,12 @@ pub fn get_random_opponent(
 pub fn get_opponent_base_details_for_attack(
     defender_id: i32,
     conn: &mut PgConnection,
+    attacker_id: i32,
 ) -> Result<(i32, DefenseResponse)> {
     let map = fetch_map_layout(conn, &defender_id)?;
     let map_id = map.id;
 
-    let response = get_map_details_for_attack(conn, map)?;
+    let response = get_map_details_for_attack(conn, map, attacker_id)?;
 
     Ok((map_id, response))
 }

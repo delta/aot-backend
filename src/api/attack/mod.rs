@@ -88,6 +88,7 @@ async fn init_attack(
         Ok(util::get_opponent_base_details_for_attack(
             opponent_id,
             &mut conn,
+            attacker_id,
         )?) as anyhow::Result<(i32, DefenseResponse)>
     })
     .await?

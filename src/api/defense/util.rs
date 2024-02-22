@@ -442,6 +442,7 @@ pub fn get_details_from_map_layout(
 pub fn get_map_details_for_attack(
     conn: &mut PgConnection,
     map: MapLayout,
+    attacker_id: i32,
 ) -> Result<DefenseResponse> {
     use crate::schema::{
         available_blocks, block_type, emp_type, level_constraints, levels_fixture, map_spaces,
@@ -488,7 +489,7 @@ pub fn get_map_details_for_attack(
 
     let bomb_types = emp_type::table
         .inner_join(available_blocks::table)
-        .filter(available_blocks::user_id.eq(&map.player))
+        .filter(available_blocks::user_id.eq(&attacker_id))
         .load::<(EmpType, AvailableBlocks)>(conn)
         .map_err(|err| DieselError {
             table: "emp_type",
@@ -501,7 +502,7 @@ pub fn get_map_details_for_attack(
 
     let mine_types = fetch_mine_types(conn, &map.player)?;
     let defender_types = fetch_defender_types(conn, &map.player)?;
-    let attacker_types = fetch_attacker_types(conn, &map.player)?;
+    let attacker_types = fetch_attacker_types(conn, &attacker_id)?;
 
     Ok(DefenseResponse {
         map_spaces,
