@@ -703,7 +703,7 @@ pub fn terminate_game(
     let artifacts_collected = game_log.r.a;
     let game_id = game_log.g;
 
-    log::debug!(
+    log::info!(
         "Terminating game for game:{} and attacker:{} and opponent:{}",
         game_id,
         attacker_id,
@@ -833,7 +833,7 @@ pub fn terminate_game(
     // }
 
     if delete_game_id_from_redis(game_log.a.id, game_log.d.id, redis_conn).is_err() {
-        log::debug!(
+        log::info!(
             "Can't remove game:{} and attacker:{} and opponent:{} from redis",
             game_id,
             attacker_id,
@@ -846,7 +846,7 @@ pub fn terminate_game(
     //     println!("Event: {:?}\n", event);
     // }
 
-    log::debug!(
+    log::info!(
         "Game terminated successfully for game:{} and attacker:{} and opponent:{}",
         game_id,
         attacker_id,
