@@ -7,7 +7,7 @@ use diesel::prelude::*;
 use diesel::QueryDsl;
 
 fn main() {
-    let artifacts_to_increase_for_all_players = 500;
+    let artifacts_to_increase_for_all_players = 750;
 
     let pool = util::get_pg_conn_pool();
     let mut conn = pool.get().expect("Could not retrieve connection from pool");
@@ -34,4 +34,9 @@ fn main() {
 
         Ok(())
     }));
+
+    println!(
+        "Added {} artifacts to all users",
+        artifacts_to_increase_for_all_players
+    );
 }
