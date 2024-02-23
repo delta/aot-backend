@@ -588,6 +588,13 @@ async fn socket_handler(
         }
     });
 
+    log::info!(
+        "End of Game:{}, Attacker:{} and Defender:{}",
+        game_id,
+        attacker_id,
+        defender_id,
+    );
+
     Ok(response)
 }
 
