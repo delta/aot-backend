@@ -703,6 +703,13 @@ pub fn terminate_game(
     let artifacts_collected = game_log.r.a;
     let game_id = game_log.g;
 
+    log::debug!(
+        "Terminating game for game:{} and attacker:{} and opponent:{}",
+        game_id,
+        attacker_id,
+        defender_id
+    );
+
     let (attack_score, defense_score) = if damage_done < WIN_THRESHOLD {
         (damage_done - 100, 100 - damage_done)
     } else {
@@ -826,12 +833,25 @@ pub fn terminate_game(
     // }
 
     if delete_game_id_from_redis(game_log.a.id, game_log.d.id, redis_conn).is_err() {
+        log::debug!(
+            "Can't remove game:{} and attacker:{} and opponent:{} from redis",
+            game_id,
+            attacker_id,
+            defender_id
+        );
         return Err(anyhow::anyhow!("Can't remove game from redis"));
     }
 
     // for event in game_log.events.iter() {
     //     println!("Event: {:?}\n", event);
     // }
+
+    log::debug!(
+        "Game terminated successfully for game:{} and attacker:{} and opponent:{}",
+        game_id,
+        attacker_id,
+        defender_id
+    );
 
     Ok(())
 }
