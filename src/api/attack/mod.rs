@@ -6,7 +6,7 @@ use super::defense::util::{
 };
 use super::user::util::fetch_user;
 use super::{error, PgPool, RedisPool};
-use crate::api::attack::socket::{ResultType, SocketRequest, SocketResponse};
+use crate::api::attack::socket::{BuildingResponse, ResultType, SocketRequest, SocketResponse};
 use crate::api::util::HistoryboardQuery;
 use crate::constants::{GAME_AGE_IN_MINUTES, MAX_BOMBS_PER_ATTACK};
 use crate::models::{AttackerType, User};
@@ -357,6 +357,8 @@ async fn socket_handler(
         return Err(ErrorBadRequest("Internal Server Error"));
     }
 
+    let mut damaged_buildings: Vec<BuildingResponse> = Vec::new();
+
     let game_log = GameLog {
         g: game_id,
         a: attacker_user_details.unwrap(),
@@ -455,6 +457,7 @@ async fn socket_handler(
                                         if util::terminate_game(
                                             game_logs,
                                             &mut conn,
+                                            &damaged_buildings,
                                             &mut redis_conn,
                                         )
                                         .is_err()
@@ -475,14 +478,16 @@ async fn socket_handler(
                                             return;
                                         }
                                     } else if response.result_type == ResultType::BuildingsDamaged {
-                                        if util::deduct_artifacts_from_building(
-                                            response.damaged_buildings.unwrap(),
-                                            &mut conn,
-                                        )
-                                        .is_err()
-                                        {
-                                            log::info!("Failed to deduct artifacts from building for game:{} and attacker:{} and opponent:{}", game_id, attacker_id, defender_id);
-                                        }
+                                        damaged_buildings
+                                            .extend(response.damaged_buildings.unwrap());
+                                        // if util::deduct_artifacts_from_building(
+                                        //     response.damaged_buildings.unwrap(),
+                                        //     &mut conn,
+                                        // )
+                                        // .is_err()
+                                        // {
+                                        //     log::info!("Failed to deduct artifacts from building for game:{} and attacker:{} and opponent:{}", game_id, attacker_id, defender_id);
+                                        // }
                                         if session_clone1.text(response_json).await.is_err() {
                                             return;
                                         }
@@ -526,7 +531,14 @@ async fn socket_handler(
                     }
                 }
                 Message::Close(_s) => {
-                    if util::terminate_game(game_logs, &mut conn, &mut redis_conn).is_err() {
+                    if util::terminate_game(
+                        game_logs,
+                        &mut conn,
+                        &damaged_buildings,
+                        &mut redis_conn,
+                    )
+                    .is_err()
+                    {
                         log::info!("Error terminating the game 2 for game:{} and attacker:{} and opponent:{}", game_id, attacker_id, defender_id);
                     }
                     break;

@@ -693,6 +693,7 @@ pub fn update_buidling_artifacts(
 pub fn terminate_game(
     game_log: &mut GameLog,
     conn: &mut PgConnection,
+    damaged_buildings: &[BuildingResponse],
     redis_conn: &mut RedisConn,
 ) -> Result<()> {
     use crate::schema::{artifact, game};
@@ -702,7 +703,6 @@ pub fn terminate_game(
     let bombs_used = game_log.r.b;
     let artifacts_collected = game_log.r.a;
     let game_id = game_log.g;
-
     log::info!(
         "Terminating game for game:{} and attacker:{} and opponent:{}",
         game_id,
@@ -786,6 +786,14 @@ pub fn terminate_game(
             error: err,
         })?;
 
+    if deduct_artifacts_from_building(damaged_buildings.to_vec(), conn).is_err() {
+        log::info!(
+            "Failed to deduct artifacts from building for game:{} and attacker:{} and opponent:{}",
+            game_id,
+            attacker_id,
+            defender_id
+        );
+    }
     diesel::update(user::table.find(&game_log.d.id))
         .set((
             user::artifacts.eq(user::artifacts - artifacts_collected),
