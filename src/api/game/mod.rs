@@ -6,7 +6,8 @@ pub mod util;
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
     cfg.service(web::resource("/leaderboard").route(web::get().to(list_leaderboard)))
-        .service(web::resource("/{game_id}/replay").route(web::get().to(get_replay)));
+        .service(web::resource("/{game_id}/replay").route(web::get().to(get_replay)))
+        .service(web::resource("/{game_id}/stats").route(web::get().to(get_game_details)));
 }
 
 async fn list_leaderboard(
@@ -50,5 +51,23 @@ async fn get_replay(
     })
     .await?
     .map_err(|err| error::handle_error(err.into()))?;
+    Ok(web::Json(response))
+}
+
+async fn get_game_details(
+    game_id: web::Path<i32>,
+    pool: web::Data<PgPool>,
+    user: AuthUser,
+) -> Result<impl Responder> {
+    let user_id = user.0;
+    let game_id = game_id.into_inner();
+
+    let response = web::block(move || {
+        let mut conn = pool.get()?;
+        util::fetch_game_details(game_id, user_id, &mut conn)
+    })
+    .await?
+    .map_err(|err| error::handle_error(err.into()))?;
+
     Ok(web::Json(response))
 }

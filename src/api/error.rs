@@ -42,10 +42,12 @@ pub enum BaseInvalidError {
     InvalidBuildingType(i32),
     OverlappingBlocks,
     BlockOutsideMap,
-    RoundRoad,
+    // RoundRoad,
     BlockCountExceeded(i32),
+    InvalidArtifactCount,
     BlocksUnused(String),
     NotConnected(String),
+    NotAdjacentToRoad,
 }
 
 impl ResponseError for BaseInvalidError {
@@ -69,8 +71,12 @@ impl ResponseError for BaseInvalidError {
             BaseInvalidError::BlocksUnused(block_type) => {
                 format!("You have some unused {block_type} buildings. Use all of them.")
             }
+            BaseInvalidError::InvalidArtifactCount => "Artifacts count is invalid".to_string(),
             BaseInvalidError::NotConnected(no_path_info) => no_path_info.to_string(),
-            BaseInvalidError::RoundRoad => "A 4x4 Square Cannot have all as Road".to_string(),
+
+            BaseInvalidError::NotAdjacentToRoad => {
+                "A building is not adjacent to a road".to_string()
+            } // BaseInvalidError::RoundRoad => "A 4x4 Square Cannot have all as Road".to_string(),
         };
         ErrorBadRequest(response_body).into()
     }

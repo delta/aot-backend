@@ -1,14 +1,32 @@
 use super::schema::*;
-use chrono::NaiveDateTime;
-use diesel_derive_enum::DbEnum;
+use chrono::{NaiveDate, NaiveDateTime};
 use serde::{Deserialize, Serialize};
 
-#[derive(DbEnum, Debug, Serialize, Clone, PartialEq, Copy)]
+#[derive(diesel_derive_enum::DbEnum, Debug, Serialize, Clone, PartialEq, Copy)]
 #[DieselTypePath = "crate::schema::sql_types::BlockCategory"]
 pub enum BlockCategory {
     Building,
     Defender,
     Mine,
+}
+
+#[derive(diesel_derive_enum::DbEnum, Debug, Serialize, Clone, PartialEq, Copy, Deserialize)]
+#[DieselTypePath = "crate::schema::sql_types::ItemCategory"]
+pub enum ItemCategory {
+    Attacker,
+    Emp,
+    Block,
+}
+
+#[derive(Queryable, Serialize, Clone, Debug)]
+pub struct EmpType {
+    pub id: i32,
+    pub att_type: String,
+    pub attack_radius: i32,
+    pub attack_damage: i32,
+    pub cost: i32,
+    pub name: String,
+    pub level: i32,
 }
 
 #[derive(Queryable, Serialize)]
@@ -84,18 +102,25 @@ pub struct NewArtifact {
 
 #[derive(Queryable, Debug, Serialize, Deserialize)]
 pub struct AvailableBlocks {
-    pub block_type_id: i32,
+    pub block_type_id: Option<i32>,
     pub user_id: i32,
+    pub attacker_type_id: Option<i32>,
+    pub emp_type_id: Option<i32>,
+    pub category: ItemCategory,
+    pub id: i32,
 }
 
 #[derive(Deserialize, Insertable)]
 #[diesel(table_name = available_blocks)]
 pub struct NewAvailableBlocks {
-    pub block_type_id: i32,
+    pub block_type_id: Option<i32>,
     pub user_id: i32,
+    pub attacker_type_id: Option<i32>,
+    pub emp_type_id: Option<i32>,
+    pub category: ItemCategory,
 }
 
-#[derive(Queryable, Serialize, Deserialize)]
+#[derive(Queryable, Serialize, Deserialize, Debug)]
 pub struct Game {
     pub id: i32,
     pub attack_id: i32,
@@ -103,10 +128,11 @@ pub struct Game {
     pub map_layout_id: i32,
     pub attack_score: i32,
     pub defend_score: i32,
-    pub artifacts_collected: i32,
     pub emps_used: i32,
-    pub is_attacker_alive: bool,
     pub damage_done: i32,
+    pub is_game_over: bool,
+    pub artifacts_collected: i32,
+    pub date: NaiveDate,
 }
 
 #[derive(Insertable)]
@@ -115,12 +141,13 @@ pub struct NewGame<'a> {
     pub attack_id: &'a i32,
     pub defend_id: &'a i32,
     pub map_layout_id: &'a i32,
-    pub attack_score: &'a i32,
-    pub defend_score: &'a i32,
+    pub attack_score: &'a i32, //attacker's trophy change
+    pub defend_score: &'a i32, //defender's trophy change
     pub artifacts_collected: &'a i32,
     pub emps_used: &'a i32,
     pub damage_done: &'a i32,
-    pub is_attacker_alive: &'a bool,
+    pub is_game_over: &'a bool,
+    pub date: &'a NaiveDate,
 }
 
 #[derive(Queryable, Serialize)]
@@ -146,16 +173,16 @@ pub struct NewLevelFixture<'a> {
 #[derive(Queryable, Serialize)]
 pub struct LevelConstraints {
     pub level_id: i32,
-    pub no_of_buildings: i32,
-    pub building_id: i32,
+    pub no_of_blocks: i32,
+    pub block_id: i32,
 }
 
 #[derive(Insertable)]
 #[diesel(table_name = level_constraints)]
 pub struct NewLevelConstraint<'a> {
     pub level_id: &'a i32,
-    pub no_of_buildings: &'a i32,
-    pub building_id: &'a i32,
+    pub no_of_blocks: &'a i32,
+    pub block_id: &'a i32,
 }
 
 #[derive(Clone, Queryable, Serialize)]
@@ -171,9 +198,10 @@ pub struct MapLayout {
 pub struct NewMapLayout<'a> {
     pub player: &'a i32,
     pub level_id: &'a i32,
+    pub is_valid: &'a bool,
 }
 
-#[derive(Queryable, Debug, Serialize, Deserialize)]
+#[derive(Queryable, Debug, Serialize, Deserialize, Clone)]
 pub struct MapSpaces {
     pub id: i32,
     pub map_id: i32,
@@ -191,17 +219,18 @@ pub struct NewMapSpaces {
     pub block_type_id: i32,
 }
 
-#[derive(Queryable)]
+#[derive(Queryable, Debug)]
 pub struct ShortestPath {
     pub base_id: i32,
     pub source_x: i32,
     pub source_y: i32,
     pub dest_x: i32,
     pub dest_y: i32,
-    pub pathlist: String,
+    pub next_hop_x: i32,
+    pub next_hop_y: i32,
 }
 
-#[derive(Insertable)]
+#[derive(Insertable, PartialEq)]
 #[diesel(table_name = shortest_path)]
 pub struct NewShortestPath {
     pub base_id: i32,
@@ -209,7 +238,8 @@ pub struct NewShortestPath {
     pub source_y: i32,
     pub dest_x: i32,
     pub dest_y: i32,
-    pub pathlist: String,
+    pub next_hop_x: i32,
+    pub next_hop_y: i32,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Queryable)]
@@ -256,7 +286,6 @@ pub struct NewSimulationLog<'a> {
 #[derive(AsChangeset, Debug, Deserialize)]
 #[diesel(table_name = user)]
 pub struct UpdateUser {
-    name: Option<String>,
     pub username: Option<String>,
     pub avatar_id: Option<i32>,
 }
@@ -268,6 +297,7 @@ pub struct MineType {
     pub damage: i32,
     pub level: i32,
     pub cost: i32,
+    pub name: String,
 }
 
 #[derive(Queryable, Clone, Debug, Serialize)]
@@ -278,6 +308,7 @@ pub struct DefenderType {
     pub radius: i32,
     pub level: i32,
     pub cost: i32,
+    pub name: String,
 }
 
 #[derive(Queryable, Clone, Debug, Serialize)]

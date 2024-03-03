@@ -5,10 +5,12 @@ on:
     branches:
       - aor23
       - aor24
+      - socket
   pull_request:
     branches:
       - aor23
       - aor24
+      - socket
 
 jobs:
   check:

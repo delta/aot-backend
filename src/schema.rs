@@ -86,6 +86,7 @@ diesel::table! {
         radius -> Int4,
         level -> Int4,
         cost -> Int4,
+        name -> Varchar,
     }
 }
 
@@ -111,16 +112,17 @@ diesel::table! {
         defend_score -> Int4,
         emps_used -> Int4,
         damage_done -> Int4,
-        is_attacker_alive -> Bool,
+        is_game_over -> Bool,
         artifacts_collected -> Int4,
+        date -> Date,
     }
 }
 
 diesel::table! {
-    level_constraints (level_id, building_id) {
+    level_constraints (level_id, block_id) {
         level_id -> Int4,
-        no_of_buildings -> Int4,
-        building_id -> Int4,
+        no_of_blocks -> Int4,
+        block_id -> Int4,
     }
 }
 
@@ -161,6 +163,7 @@ diesel::table! {
         damage -> Int4,
         level -> Int4,
         cost -> Int4,
+        name -> Varchar,
     }
 }
 
@@ -171,7 +174,8 @@ diesel::table! {
         source_y -> Int4,
         dest_x -> Int4,
         dest_y -> Int4,
-        pathlist -> Varchar,
+        next_hop_x -> Int4,
+        next_hop_y -> Int4,
     }
 }
 
@@ -206,7 +210,7 @@ diesel::joinable!(block_type -> building_type (building_type));
 diesel::joinable!(block_type -> defender_type (defender_type));
 diesel::joinable!(block_type -> mine_type (mine_type));
 diesel::joinable!(game -> map_layout (map_layout_id));
-diesel::joinable!(level_constraints -> building_type (building_id));
+diesel::joinable!(level_constraints -> block_type (block_id));
 diesel::joinable!(level_constraints -> levels_fixture (level_id));
 diesel::joinable!(map_layout -> levels_fixture (level_id));
 diesel::joinable!(map_layout -> user (player));

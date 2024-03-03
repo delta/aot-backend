@@ -24,6 +24,19 @@ pub struct StatsResponse {
     pub no_of_defenses: i32,
 }
 
+#[derive(Serialize)]
+pub struct UserProfileResponse {
+    user_id: i32,
+    name: String,
+    username: String,
+    trophies: i32,
+    artifacts: i32,
+    attacks_won: i32,
+    defenses_won: i32,
+    avatar_id: i32,
+    leaderboard_position: i32,
+}
+
 pub fn fetch_user(conn: &mut PgConnection, player_id: i32) -> Result<Option<User>> {
     use crate::schema::user;
     Ok(user::table
@@ -144,6 +157,30 @@ pub fn fetch_defense_game(conn: &mut PgConnection, player_id: i32) -> Result<Vec
         })?)
 }
 
+pub fn make_profile_response(user: &User, users: &[User]) -> Result<UserProfileResponse> {
+    let mut profile = UserProfileResponse {
+        user_id: user.id,
+        name: user.name.clone(),
+        username: user.username.clone(),
+        trophies: user.trophies,
+        artifacts: user.artifacts,
+        attacks_won: user.attacks_won,
+        defenses_won: user.defenses_won,
+        avatar_id: user.avatar_id,
+        leaderboard_position: 0,
+    };
+    if !users.is_empty() {
+        for (i, u) in users.iter().enumerate() {
+            if user.id == u.id {
+                profile.leaderboard_position = i as i32;
+                break;
+            }
+        }
+        profile.leaderboard_position += 1;
+    }
+    Ok(profile)
+}
+
 pub fn make_response(
     user: &User,
     attack_game: &[Game],
@@ -168,9 +205,9 @@ pub fn make_response(
         for attack in attack_game {
             stats.total_damage_attack += attack.damage_done;
             stats.no_of_emps_used += attack.emps_used;
-            if !attack.is_attacker_alive {
-                stats.no_of_attackers_suicided += 1;
-            }
+            // if !attack.is_attacker_alive {
+            //     stats.no_of_attackers_suicided += 1;
+            // }
         }
     }
     if !defense_game.is_empty() {

@@ -1,193 +1,115 @@
 use crate::constants::*;
 use crate::error::DieselError;
-use crate::models::*;
-use crate::schema::{block_type, building_type, map_spaces, shortest_path};
+use crate::schema::{block_type, map_spaces};
 use crate::util::function;
+use crate::validator::util::{Coords, SourceDestXY};
 use anyhow::Result;
 use array2d::Array2D;
 use diesel::prelude::*;
 use diesel::RunQueryDsl;
 use diesel::{PgConnection, QueryDsl};
-use petgraph::algo::astar;
-use petgraph::Graph;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet, VecDeque};
 
 const NO_BLOCK: i32 = -1;
-
-fn get_blocks(conn: &mut PgConnection) -> Result<HashMap<i32, BuildingType>> {
-    Ok(block_type::table
-        .inner_join(building_type::table)
-        .select((block_type::id, building_type::all_columns))
-        .load::<(i32, BuildingType)>(conn)
-        .map_err(|err| DieselError {
-            table: "block_type",
-            function: function!(),
-            error: err,
-        })?
-        .into_iter()
-        .collect())
-}
-
-fn get_block_id(building_id: &i32, building_map: &HashMap<i32, BuildingType>) -> i32 {
-    building_map[building_id].id
-}
 
 //running shortest path simulation
 pub fn run_shortest_paths(
     conn: &mut PgConnection,
     input_map_layout_id: i32,
-    buildings_list: &Vec<BuildingType>,
-) -> Result<()> {
-    // reading map_spaces
-    let mapspaces_list = map_spaces::table
+) -> Result<HashMap<SourceDestXY, Coords>> {
+    let roads_list: Vec<(i32, i32)> = map_spaces::table
+        .inner_join(block_type::table)
         .filter(map_spaces::map_id.eq(input_map_layout_id))
-        .load::<MapSpaces>(conn)
+        .filter(block_type::building_type.eq(ROAD_ID))
+        .select((map_spaces::x_coordinate, map_spaces::y_coordinate))
+        .load::<(i32, i32)>(conn)
         .map_err(|err| DieselError {
             table: "map_spaces",
             function: function!(),
             error: err,
-        })?;
+        })?
+        .to_vec();
 
-    let buildings_block_map = get_blocks(conn)?;
-
-    // initialising map for types of blocks
-    let mut map = HashMap::new();
-
-    // initialising maps for index to nodes and nodes to index
-    let mut node_to_index = HashMap::new();
-    let mut index_to_node = HashMap::new();
-
-    // filling block types in map
-    for p in buildings_list {
-        map.insert(p.id, (p.width, p.height));
-    }
-
-    // initialising 2d array and petgraph Graph
     let mut graph_2d = Array2D::filled_with(NO_BLOCK, MAP_SIZE, MAP_SIZE);
-    let mut graph = Graph::<usize, usize>::new();
 
-    // Initialising nodes, filling 2d array and the node_to_index and index_to_node maps
-    for i in &mapspaces_list {
-        let single_node = graph.add_node(0);
-        let (absolute_entrance_x, absolute_entrance_y) = (i.x_coordinate, i.y_coordinate);
+    for road in &roads_list {
+        let (road_x, road_y) = (road.0, road.1);
         graph_2d
-            .set(
-                absolute_entrance_y as usize,
-                absolute_entrance_x as usize,
-                get_block_id(&i.block_type_id, &buildings_block_map),
-            )
+            .set(road_x as usize, road_y as usize, ROAD_ID)
             .unwrap();
-        node_to_index.insert(
-            single_node,
-            (absolute_entrance_y as usize) * MAP_SIZE + (absolute_entrance_x as usize),
-        );
-        index_to_node.insert(
-            (absolute_entrance_y as usize) * MAP_SIZE + (absolute_entrance_x as usize),
-            single_node,
-        );
     }
 
-    // adding edges to graph from 2d array (2 nearby nodes)
-    for i in 0..MAP_SIZE {
-        for j in 0..MAP_SIZE {
-            if graph_2d[(i, j)] != NO_BLOCK {
-                // i,j->i+1,j
-                if i + 1 < MAP_SIZE && graph_2d[(i + 1, j)] != NO_BLOCK {
-                    graph.extend_with_edges([(
-                        index_to_node[&(i * MAP_SIZE + j)],
-                        index_to_node[&((i + 1) * MAP_SIZE + j)],
-                        1,
-                    )]);
-                    graph.extend_with_edges([(
-                        index_to_node[&((i + 1) * MAP_SIZE + j)],
-                        index_to_node[&(i * MAP_SIZE + j)],
-                        1,
-                    )]);
-                }
-                //i,j->i,j+1
-                if j + 1 < MAP_SIZE && graph_2d[(i, j + 1)] != NO_BLOCK {
-                    graph.extend_with_edges([(
-                        index_to_node[&(i * MAP_SIZE + j)],
-                        index_to_node[&(i * MAP_SIZE + (j + 1))],
-                        1,
-                    )]);
-                    graph.extend_with_edges([(
-                        index_to_node[&(i * MAP_SIZE + (j + 1))],
-                        index_to_node[&(i * MAP_SIZE + j)],
-                        1,
-                    )]);
+    let mut adjacency_list: HashMap<(i32, i32), Vec<(i32, i32)>> = HashMap::new();
+
+    for road in &roads_list {
+        let (road_x, road_y) = (road.0, road.1);
+        let mut neighbors = Vec::new();
+
+        for &(dx, dy) in &[(1, 0), (0, 1), (-1, 0), (0, -1)] {
+            let (nx, ny) = (road_x + dx, road_y + dy);
+            if nx >= 0
+                && ny >= 0
+                && (nx as usize) < MAP_SIZE
+                && (ny as usize) < MAP_SIZE
+                && graph_2d[(nx as usize, ny as usize)] == ROAD_ID
+            {
+                neighbors.push((nx, ny));
+            }
+        }
+
+        adjacency_list.insert((road_x, road_y), neighbors);
+    }
+
+    let mut shortest_paths: HashMap<SourceDestXY, Coords> = HashMap::new();
+
+    for (start_x, start_y) in &roads_list {
+        let start_node = (*start_x, *start_y);
+        let mut visited: HashSet<(i32, i32)> = HashSet::new();
+        let mut queue: VecDeque<((i32, i32), (i32, i32))> = VecDeque::new();
+
+        visited.insert(start_node);
+        queue.push_back((start_node, start_node));
+
+        while let Some((current_node, parent_node)) = queue.pop_front() {
+            for neighbor in &adjacency_list[&current_node] {
+                if visited.insert(*neighbor) {
+                    let next_hop = if start_node == parent_node {
+                        *neighbor
+                    } else {
+                        parent_node
+                    };
+
+                    queue.push_back((*neighbor, next_hop));
+
+                    shortest_paths.insert(
+                        SourceDestXY {
+                            source_x: *start_x,
+                            source_y: *start_y,
+                            dest_x: neighbor.0,
+                            dest_y: neighbor.1,
+                        },
+                        Coords {
+                            x: next_hop.0,
+                            y: next_hop.1,
+                        },
+                    );
                 }
             }
         }
     }
 
-    // Astar algorithm between EVERY PAIR of nodes
-    let mut shortest_paths = vec![];
-    for i in &mapspaces_list {
-        for j in &mapspaces_list {
-            if j.block_type_id != ROAD_ID {
-                let (start_absolute_entrance_x, start_absolute_entrance_y) =
-                    (i.x_coordinate, i.y_coordinate);
-                let (dest_absolute_entrance_x, dest_absolute_entrance_y) =
-                    (j.x_coordinate, j.y_coordinate);
-                let start_node = index_to_node[&((start_absolute_entrance_y as usize) * MAP_SIZE
-                    + (start_absolute_entrance_x as usize))];
-                let dest_node = index_to_node[&((dest_absolute_entrance_y as usize) * MAP_SIZE
-                    + (dest_absolute_entrance_x as usize))];
-                let path = astar(
-                    &graph,
-                    start_node,
-                    |finish| finish == dest_node,
-                    |e| *e.weight(),
-                    |_| 0,
-                );
+    // // Writing entries to shortest_path table
+    // let chunks: Vec<&[NewShortestPath]> = shortest_paths.chunks(1000).collect();
+    // for chunk in chunks {
+    //     diesel::insert_into(shortest_path::table)
+    //         .values(chunk)
+    //         .execute(conn)
+    //         .map_err(|err| DieselError {
+    //             table: "shortest_path",
+    //             function: function!(),
+    //             error: err,
+    //         })?;
+    // }
 
-                match path {
-                    Some(p) => {
-                        let mut path_string = String::new();
-
-                        // Building the path string
-                        for i in p.1 {
-                            path_string.push('(');
-                            path_string.push_str(&(node_to_index[&i] % MAP_SIZE).to_string());
-                            path_string.push(',');
-                            path_string.push_str(
-                                &(node_to_index[&i] as i32 / MAP_SIZE as i32).to_string(),
-                            );
-                            path_string.push(')');
-                        }
-
-                        let new_shortest_path_entry = NewShortestPath {
-                            base_id: input_map_layout_id,
-                            source_x: node_to_index[&start_node] as i32 % MAP_SIZE as i32,
-                            source_y: node_to_index[&start_node] as i32 / MAP_SIZE as i32,
-                            dest_x: node_to_index[&dest_node] as i32 % MAP_SIZE as i32,
-                            dest_y: node_to_index[&dest_node] as i32 / MAP_SIZE as i32,
-                            pathlist: path_string,
-                        };
-
-                        shortest_paths.push(new_shortest_path_entry);
-                    }
-                    None => println!(
-                        "No path found between {} and {}",
-                        node_to_index[&start_node], node_to_index[&dest_node]
-                    ),
-                };
-            }
-        }
-    }
-
-    // Writing entries to shortest_path table
-    let chunks: Vec<&[NewShortestPath]> = shortest_paths.chunks(1000).collect();
-    for chunk in chunks {
-        diesel::insert_into(shortest_path::table)
-            .values(chunk)
-            .execute(conn)
-            .map_err(|err| DieselError {
-                table: "shortest_path",
-                function: function!(),
-                error: err,
-            })?;
-    }
-    Ok(())
+    Ok(shortest_paths)
 }

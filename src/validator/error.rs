@@ -1,11 +1,10 @@
-use crate::simulation::blocks::SourceDest;
 use derive_more::Display;
 use thiserror::Error;
 
 #[derive(Debug, Display, Error)]
 #[display(fmt = "{self:?}")]
-pub struct EmpDetailsError {
-    pub path_id: usize,
+pub struct FrameError {
+    pub frame_no: usize,
 }
 
 #[derive(Debug, Display, Error)]
@@ -26,7 +25,3 @@ pub struct KeyError {
 pub struct MapSpaceRotationError {
     pub map_space_id: i32,
 }
-
-#[derive(Debug, Display, Error)]
-#[display(fmt = "{self:?}")]
-pub struct ShortestPathNotFoundError(pub SourceDest);
